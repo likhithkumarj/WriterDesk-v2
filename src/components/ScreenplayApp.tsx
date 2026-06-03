@@ -76,6 +76,11 @@ const GLOBAL_STYLE = `
   line-height: 1.5;
   color: #000000;
 }
+.sp-page-wrapper {
+  width: calc(794px * var(--page-scale, 1));
+  height: calc(1123px * var(--page-scale, 1));
+  flex: 0 0 auto;
+}
 .sp-page {
   position: relative;
   width: 794px;
@@ -84,6 +89,8 @@ const GLOBAL_STYLE = `
   border: 1px solid #e0e0e0;
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
   flex: 0 0 auto;
+  transform: scale(var(--page-scale, 1));
+  transform-origin: top left;
 }
 .sp-page-inner {
   position: absolute;
@@ -156,7 +163,26 @@ const GLOBAL_STYLE = `
 
 .sp-app { background: var(--sp-bg); color: var(--sp-text); min-height: 100vh; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .sp-toolbar { background: var(--sp-toolbar); border-color: var(--sp-border); backdrop-filter: blur(8px); }
-.sp-sidebar { background: var(--sp-sidebar); border-color: var(--sp-border); }
+.sp-sidebar {
+  background: var(--sp-sidebar);
+  border-color: var(--sp-border);
+  width: 260px;
+  border-right: 1px solid var(--sp-border);
+  padding: 14px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+@media (max-width: 794px) {
+  .sp-sidebar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    height: 100%;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+  }
+}
 .sp-btn {
   background: transparent; border: 1px solid var(--sp-border); color: var(--sp-text);
   padding: 6px 10px; border-radius: 8px; font-size: 13px; cursor: pointer;
@@ -207,6 +233,15 @@ const GLOBAL_STYLE = `
   display: flex; flex-direction: column; align-items: center; gap: 32px;
   background: var(--sp-bg);
   height: 100%;
+}
+@media (max-width: 794px) {
+  .sp-canvas {
+    padding: 16px;
+    gap: 16px;
+  }
+  .sp-kbd {
+    display: none !important;
+  }
 }
 .sp-scene-item {
   display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left;
@@ -278,9 +313,14 @@ const GLOBAL_STYLE = `
   body { background: #fff !important; }
   .sp-no-print { display: none !important; }
   .sp-canvas { padding: 0; gap: 0; background: #fff; }
+  .sp-page-wrapper {
+    width: 794px !important;
+    height: 1123px !important;
+  }
   .sp-page {
     box-shadow: none !important; border: none !important;
     page-break-after: always; margin: 0 !important;
+    transform: none !important;
   }
   @page { size: A4; margin: 0; }
 }
@@ -698,7 +738,7 @@ function ProjectsScreen({
 
   return (
     <div style={{ padding: "32px 24px", maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 32 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", marginBottom: 32, gap: 16 }}>
         <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em" }}>Screenplay</h1>
         <button className="sp-btn sp-btn-primary" onClick={() => setShowNew(true)}>+ New Project</button>
       </div>
@@ -828,9 +868,9 @@ function FilesScreen({
 
   return (
     <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <button className="sp-btn" onClick={back}>← Back</button>
-        <h1 style={{ fontSize: 24, fontWeight: 700, flex: 1 }}>{project.title}</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, flex: 1, minWidth: "150px" }}>{project.title}</h1>
         <button className="sp-btn" onClick={() => setShowExport(true)}>Export Project</button>
         <label className="sp-btn" style={{ cursor: "pointer" }}>
           ↑ Import
@@ -902,11 +942,35 @@ function EditorScreen({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.innerWidth < 794 && !localStorage.getItem("sp_zoom_hint_seen")) {
-      setZoomHint(true);
-      localStorage.setItem("sp_zoom_hint_seen", "1");
-      setTimeout(() => setZoomHint(false), 4000);
+    if (window.innerWidth < 794) {
+      setShowScenes(false);
+      if (!localStorage.getItem("sp_zoom_hint_seen")) {
+        setZoomHint(true);
+        localStorage.setItem("sp_zoom_hint_seen", "1");
+        setTimeout(() => setZoomHint(false), 4000);
+      }
     }
+  }, []);
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [pageScale, setPageScale] = useState(1);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width } = entry.contentRect;
+        const padding = window.innerWidth < 794 ? 32 : 80;
+        const targetWidth = 794;
+        const newScale = Math.min(1, (width - padding) / targetWidth);
+        setPageScale(newScale > 0 ? newScale : 1);
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   // sync blocks -> file save (debounced via parent persist)
@@ -1020,6 +1084,9 @@ function EditorScreen({
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       setFocusedId(id);
+      if (window.innerWidth < 794) {
+        setShowScenes(false);
+      }
     }
   };
 
@@ -1111,7 +1178,7 @@ function EditorScreen({
         <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={() => setShowHelp(true)} title="Shortcuts (Ctrl+/)"><HelpCircle size={16} /></button>
       </div>
 
-      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+      <div style={{ display: "flex", flex: 1, minHeight: 0, position: "relative" }}>
         {/* sidebar — sticks in place; canvas scrolls independently */}
         {showScenes && (
           <aside className="sp-sidebar sp-no-print" style={{ width: 260, borderRight: "1px solid var(--sp-border)", padding: 14, overflowY: "auto", flexShrink: 0 }}>
@@ -1146,31 +1213,35 @@ function EditorScreen({
         )}
 
         {/* canvas */}
-        <div className="sp-canvas" style={{ flex: 1 }}>
+        <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
           {hasTitlePage && file.titlePage && (
-            <div className="sp-page" aria-label="Title page">
-              <TitlePageView tp={file.titlePage} />
+            <div className="sp-page-wrapper">
+              <div className="sp-page" aria-label="Title page">
+                <TitlePageView tp={file.titlePage} />
+              </div>
             </div>
           )}
           {pages.map((pageBlocks, pi) => (
-            <div key={pi} className="sp-page">
-              {pi > 0 && <div className="sp-page-number">{pi + 1}.</div>}
-              <div className="sp-page-inner">
-                {pageBlocks.map((b) => (
-                  <BlockView
-                    key={b.id}
-                    block={b}
-                    focused={focusedId === b.id}
-                    sceneNumber={b.type === "scene" && sceneNumbersOn ? sceneNumberFor(b.id) : undefined}
-                    suggestions={suggestionsFor(b)}
-                    onFocus={() => setFocusedId(b.id)}
-                    onChange={(text) => updateBlock(b.id, { text: normalizeText(b.type, text) })}
-                    onAcceptSuggestion={(text) => updateBlock(b.id, { text: normalizeText(b.type, text) })}
-                    onEnter={() => insertAfter(b.id, nextTypeOnEnter(b.type, b.text))}
-                    onBackspaceEmpty={() => deleteBlock(b.id)}
-                    onTab={() => cycleType(b.id)}
-                  />
-                ))}
+            <div key={pi} className="sp-page-wrapper">
+              <div className="sp-page">
+                {pi > 0 && <div className="sp-page-number">{pi + 1}.</div>}
+                <div className="sp-page-inner">
+                  {pageBlocks.map((b) => (
+                    <BlockView
+                      key={b.id}
+                      block={b}
+                      focused={focusedId === b.id}
+                      sceneNumber={b.type === "scene" && sceneNumbersOn ? sceneNumberFor(b.id) : undefined}
+                      suggestions={suggestionsFor(b)}
+                      onFocus={() => setFocusedId(b.id)}
+                      onChange={(text) => updateBlock(b.id, { text: normalizeText(b.type, text) })}
+                      onAcceptSuggestion={(text) => updateBlock(b.id, { text: normalizeText(b.type, text) })}
+                      onEnter={() => insertAfter(b.id, nextTypeOnEnter(b.type, b.text))}
+                      onBackspaceEmpty={() => deleteBlock(b.id)}
+                      onTab={() => cycleType(b.id)}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           ))}
