@@ -953,7 +953,17 @@ function EditorScreen({
   }, []);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [pageScale, setPageScale] = useState(1);
+  const [baseScale, setBaseScale] = useState(1);
+  const [userZoom, setUserZoom] = useState(1);
+  const pageScale = baseScale * userZoom;
+
+  const ZOOM_STEP = 0.1;
+  const ZOOM_MIN = 0.3;
+  const ZOOM_MAX = 2.0;
+
+  const zoomIn  = () => setUserZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10));
+  const zoomOut = () => setUserZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 10) / 10));
+  const zoomReset = () => setUserZoom(1);
 
   useEffect(() => {
     const el = canvasRef.current;
@@ -965,7 +975,7 @@ function EditorScreen({
         const padding = window.innerWidth < 794 ? 32 : 80;
         const targetWidth = 794;
         const newScale = Math.min(1, (width - padding) / targetWidth);
-        setPageScale(newScale > 0 ? newScale : 1);
+        setBaseScale(newScale > 0 ? newScale : 1);
       }
     });
 
@@ -1248,9 +1258,92 @@ function EditorScreen({
         </div>
       </div>
 
+      {/* ── Zoom Controls ── */}
+      <div
+        className="sp-no-print"
+        style={{
+          position: "fixed",
+          bottom: 24,
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          background: "var(--sp-toolbar)",
+          border: "1px solid var(--sp-border)",
+          borderRadius: 999,
+          padding: "6px 10px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+          zIndex: 45,
+          backdropFilter: "blur(10px)",
+          userSelect: "none",
+        }}
+      >
+        <button
+          onClick={zoomOut}
+          disabled={userZoom <= ZOOM_MIN}
+          title="Zoom out"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: userZoom <= ZOOM_MIN ? "not-allowed" : "pointer",
+            color: userZoom <= ZOOM_MIN ? "var(--sp-muted)" : "var(--sp-text)",
+            fontSize: 18,
+            lineHeight: 1,
+            padding: "2px 8px",
+            borderRadius: 999,
+            transition: "background 0.12s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,184,75,0.15)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+        >
+          −
+        </button>
 
+        <button
+          onClick={zoomReset}
+          title="Reset zoom"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: userZoom === 1 ? "var(--sp-muted)" : "var(--sp-accent)",
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: "ui-monospace, monospace",
+            minWidth: 46,
+            textAlign: "center",
+            padding: "2px 4px",
+            borderRadius: 999,
+            transition: "background 0.12s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,184,75,0.15)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+        >
+          {Math.round(pageScale * 100)}%
+        </button>
 
-
+        <button
+          onClick={zoomIn}
+          disabled={userZoom >= ZOOM_MAX}
+          title="Zoom in"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: userZoom >= ZOOM_MAX ? "not-allowed" : "pointer",
+            color: userZoom >= ZOOM_MAX ? "var(--sp-muted)" : "var(--sp-text)",
+            fontSize: 18,
+            lineHeight: 1,
+            padding: "2px 8px",
+            borderRadius: 999,
+            transition: "background 0.12s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,184,75,0.15)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+        >
+          +
+        </button>
+      </div>
 
       {zoomHint && (
         <div style={{ position: "fixed", bottom: 70, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.8)", color: "#fff", padding: "10px 16px", borderRadius: 8, fontSize: 13, zIndex: 50 }}>
