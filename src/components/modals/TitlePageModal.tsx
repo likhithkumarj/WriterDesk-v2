@@ -1,0 +1,50 @@
+import React, { useState } from "react";
+import { TitlePage } from "../../types/screenplay";
+
+export function TitlePageModal({
+  initial, onClose, onSave,
+}: { initial?: TitlePage; onClose: () => void; onSave: (tp: TitlePage) => void }) {
+  const [tp, setTp] = useState<TitlePage>({
+    title: initial?.title || "",
+    credit: initial?.credit || "Written by",
+    author: initial?.author || "",
+    source: initial?.source || "",
+    draftDate: initial?.draftDate || new Date().toLocaleDateString(),
+    contact: initial?.contact || "",
+  });
+  const f = (k: keyof TitlePage) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setTp({ ...tp, [k]: e.target.value });
+  return (
+    <div className="sp-modal-backdrop" onClick={onClose}>
+      <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Title Page</h2>
+        <p style={{ fontSize: 12, color: "var(--sp-muted)", marginBottom: 14 }}>Industry-standard cover page shown before the screenplay.</p>
+        <label style={{ fontSize: 12, fontWeight: 600 }}>Title</label>
+        <input className="sp-input" value={tp.title} onChange={f("title")} placeholder="THE RAIN HOURS" style={{ marginBottom: 10 }} autoFocus />
+        <label style={{ fontSize: 12, fontWeight: 600 }}>Credit</label>
+        <input className="sp-input" value={tp.credit} onChange={f("credit")} placeholder="Written by" style={{ marginBottom: 10 }} />
+        <label style={{ fontSize: 12, fontWeight: 600 }}>Author</label>
+        <input className="sp-input" value={tp.author} onChange={f("author")} placeholder="Jane Doe" style={{ marginBottom: 10 }} />
+        <label style={{ fontSize: 12, fontWeight: 600 }}>Based on (optional)</label>
+        <input className="sp-input" value={tp.source} onChange={f("source")} placeholder="Based on the novel by…" style={{ marginBottom: 10 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600 }}>Contact</label>
+            <textarea className="sp-input" value={tp.contact} onChange={f("contact")} rows={3} placeholder={"Name\nEmail\nPhone"} style={{ resize: "vertical" }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 600 }}>Draft date</label>
+            <input className="sp-input" value={tp.draftDate} onChange={f("draftDate")} placeholder="First Draft — Jan 2026" />
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 16 }}>
+          <button className="sp-btn" onClick={() => onSave({ title: "", credit: "", author: "", source: "", draftDate: "", contact: "" })}>Remove title page</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="sp-btn" onClick={onClose}>Cancel</button>
+            <button className="sp-btn sp-btn-primary" disabled={!tp.title.trim()} onClick={() => onSave(tp)}>Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
