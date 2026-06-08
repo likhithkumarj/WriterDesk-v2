@@ -9,6 +9,7 @@ import { LandingScreen } from "./components/screenplay/LandingScreen";
 import { LoginScreen } from "./components/screenplay/LoginScreen";
 import { GlobalStyles } from "./components/screenplay/GlobalStyles";
 import { supabase } from "./utils/supabaseClient";
+import { Analytics } from "@vercel/analytics/react";
 
 interface UserProfile {
   name: string;
@@ -332,6 +333,7 @@ export function App() {
       <BrowserRouter>
         <AppContent />
       </BrowserRouter>
+      <Analytics />
     </div>
   );
 }
