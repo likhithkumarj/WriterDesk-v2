@@ -27,6 +27,7 @@ function AppContent() {
     const saved = localStorage.getItem("writerdesk_user");
     return saved ? JSON.parse(saved) : null;
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const isConfigured = isSupabaseConfigured();
@@ -70,10 +71,13 @@ function AppContent() {
           avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
         };
         setUser(profile);
-        loadData(session.user.id);
+        localStorage.setItem("writerdesk_user", JSON.stringify(profile));
+        loadData(session.user.id).finally(() => setIsLoading(false));
       } else {
-        loadData();
+        loadData().finally(() => setIsLoading(false));
       }
+    }).catch(() => {
+      setIsLoading(false);
     });
 
     // Listen for auth changes
@@ -203,6 +207,23 @@ function AppContent() {
       localStorage.removeItem("writerdesk_user");
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center font-sans">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 32, height: 32, border: "3px solid rgba(245, 158, 11, 0.2)", borderTop: "3px solid #f59e0b", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+          <span style={{ fontSize: 14, color: "#94a3b8", fontWeight: 500 }}>Restoring session...</span>
+        </div>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}} />
+      </div>
+    );
+  }
 
   return (
     <Routes>
