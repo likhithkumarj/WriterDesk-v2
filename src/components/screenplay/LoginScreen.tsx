@@ -1,36 +1,92 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PenTool, Mail, Lock, Loader2 } from "lucide-react";
+import { supabase } from "../../utils/supabaseClient";
 
 export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email: string; avatar: string }) => void }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isRegister, setIsRegister] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleStep, setGoogleStep] = useState<"idle" | "selecting" | "authenticating">("idle");
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const isSupabaseConfigured = () => {
+    const url = import.meta.env.VITE_SUPABASE_URL || "";
+    return url && !url.includes("placeholder-project");
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    if (!isSupabaseConfigured()) {
+      // Fallback Mock authentication if Supabase is not configured
+      setTimeout(() => {
+        setIsSubmitting(false);
+        const username = email.split("@")[0];
+        const displayName = username.charAt(0).toUpperCase() + username.slice(1);
+        onLogin({
+          name: displayName,
+          email: email,
+          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
+        });
+        navigate("/projects");
+      }, 1200);
+      return;
+    }
+
+    try {
+      if (isRegister) {
+        // Sign Up Mode
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        alert("Registration successful! You can now sign in.");
+        setIsRegister(false);
+      } else {
+        // Sign In Mode
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (data.user) {
+          onLogin({
+            name: data.user.email?.split("@")[0] || "User",
+            email: data.user.email || "",
+            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${data.user.email?.split("@")[0] || "User"}`,
+          });
+          navigate("/projects");
+        }
+      }
+    } catch (err: any) {
+      alert("Auth Error: " + err.message);
+    } finally {
       setIsSubmitting(false);
-      const username = email.split("@")[0];
-      const displayName = username.charAt(0).toUpperCase() + username.slice(1);
-      onLogin({
-        name: displayName,
-        email: email,
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
-      });
-      navigate("/projects");
-    }, 1200);
+    }
   };
 
-  const handleGoogleClick = () => {
+  const handleGoogleClick = async () => {
     setIsGoogleLoading(true);
-    setGoogleStep("selecting");
+
+    if (!isSupabaseConfigured()) {
+      // Fallback mock flow
+      setGoogleStep("selecting");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin + "/projects",
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      alert("Google Auth Error: " + err.message);
+      setIsGoogleLoading(false);
+    }
   };
 
   const selectGoogleAccount = (profile: { name: string; email: string; avatar: string }) => {
@@ -51,12 +107,22 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
 
       {/* Main Container */}
       <div className="relative w-full max-w-md bg-slate-900/40 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl shadow-2xl">
+        {!isSupabaseConfigured() && (
+          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center">
+            ⚠️ Supabase is not fully configured yet in `.env.local`. Running in offline mock/demo mode.
+          </div>
+        )}
+
         <div className="flex flex-col items-center mb-8">
           <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20 mb-4 cursor-pointer" onClick={() => navigate("/")}>
             <PenTool className="w-6 h-6 text-slate-950" />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Welcome to WriterDesk</h2>
-          <p className="text-slate-400 text-sm mt-1">Begin writing your next masterpiece</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            {isRegister ? "Create Account" : "Welcome to WriterDesk"}
+          </h2>
+          <p className="text-slate-400 text-sm mt-1">
+            {isRegister ? "Join WriterDesk today" : "Begin writing your next masterpiece"}
+          </p>
         </div>
 
         <form onSubmit={handleManualSubmit} className="space-y-5">
@@ -101,13 +167,25 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Signing In...
+                <Loader2 className="w-4 h-4 animate-spin" /> {isRegister ? "Creating Account..." : "Signing In..."}
               </>
             ) : (
-              "Sign In"
+              isRegister ? "Sign Up" : "Sign In"
             )}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-sm">
+          <span className="text-slate-400">
+            {isRegister ? "Already have an account?" : "Don't have an account?"}
+          </span>{" "}
+          <button
+            onClick={() => setIsRegister(!isRegister)}
+            className="text-amber-500 hover:text-amber-400 font-semibold transition-all focus:outline-none"
+          >
+            {isRegister ? "Sign In" : "Sign Up"}
+          </button>
+        </div>
 
         <div className="relative my-8 text-center">
           <div className="absolute inset-0 flex items-center">
@@ -142,12 +220,12 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
               d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.68-2.85c-1.11.74-2.53 1.18-4.28 1.18-3.39 0-5.89-1.79-6.79-4.49L1.44 16.85C3.37 20.32 7.35 23 12 23z"
             />
           </svg>
-          Sign in with Google
+          {isRegister ? "Sign up with Google" : "Sign in with Google"}
         </button>
       </div>
 
       {/* Simulated Google OAuth Dialog Popup */}
-      {isGoogleLoading && (
+      {isGoogleLoading && googleStep !== "idle" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden font-sans">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -173,7 +251,10 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
                 <span className="font-bold text-slate-700 text-sm">Sign in with Google</span>
               </div>
               <button
-                onClick={() => setIsGoogleLoading(false)}
+                onClick={() => {
+                  setIsGoogleLoading(false);
+                  setGoogleStep("idle");
+                }}
                 className="text-slate-400 hover:text-slate-600 text-sm font-semibold"
               >
                 Cancel

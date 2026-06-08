@@ -70,10 +70,28 @@ export function EditorScreen({
     return () => observer.disconnect();
   }, []);
 
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  const saveManually = useCallback(() => {
+    setSaveState("saving");
+    persistFile({ ...file, blocks, dateModified: Date.now() });
+    setSaveState("saved");
+    const t = setTimeout(() => setSaveState("idle"), 2000);
+    return () => clearTimeout(t);
+  }, [blocks, file, persistFile]);
+
   // sync blocks -> file save (debounced via parent persist)
   useEffect(() => {
     if (blocks === file.blocks) return;
-    persistFile({ ...file, blocks, dateModified: Date.now() });
+    setSaveState("saving");
+    const timer = setTimeout(() => {
+      persistFile({ ...file, blocks, dateModified: Date.now() });
+      setSaveState("saved");
+      const clearTimer = setTimeout(() => setSaveState("idle"), 2000);
+      return () => clearTimeout(clearTimer);
+    }, 2000);
+
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks]);
 
@@ -121,7 +139,7 @@ export function EditorScreen({
         e.preventDefault(); dispatch({ type: "redo" });
       } else if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        persistFile({ ...file, blocks, dateModified: Date.now() });
+        saveManually();
       } else if (mod && e.key === "/") {
         e.preventDefault(); setShowHelp((v) => !v);
       } else if (mod && /^[1-5]$/.test(e.key) && focusedId) {
@@ -135,7 +153,7 @@ export function EditorScreen({
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocks, file, persistFile, focusedId]);
+  }, [blocks, file, saveManually, focusedId]);
 
   const pages = useMemo(() => paginate(blocks), [blocks]);
   const stats = useMemo(() => computeStats(blocks), [blocks]);
@@ -205,6 +223,8 @@ export function EditorScreen({
         setShowTitlePage={setShowTitlePage}
         setShowExport={setShowExport}
         setShowHelp={setShowHelp}
+        saveState={saveState}
+        onSave={saveManually}
       />
 
       <div style={{ display: "flex", flex: 1, minHeight: 0, position: "relative" }}>

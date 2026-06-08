@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronLeft, Undo2, Redo2, Hash, PanelLeft, Film, FileText, FolderPlus, Upload, BookOpen, Download, HelpCircle } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, Hash, PanelLeft, Film, FileText, FolderPlus, Upload, BookOpen, Download, HelpCircle, Save, Check, Loader2 } from "lucide-react";
 import { Block, BlockType, FileDoc, Project } from "../../types/screenplay";
 import { TYPE_ORDER, TYPE_LABEL } from "../../utils/formatting";
 import { TYPE_ICONS } from "./constants";
@@ -24,6 +24,8 @@ export function Toolbar({
   setShowTitlePage,
   setShowExport,
   setShowHelp,
+  saveState,
+  onSave,
 }: {
   project: Project;
   file: FileDoc;
@@ -42,6 +44,8 @@ export function Toolbar({
   setShowTitlePage: (v: boolean) => void;
   setShowExport: (v: boolean) => void;
   setShowHelp: (v: boolean) => void;
+  saveState: "idle" | "saving" | "saved" | "error";
+  onSave: () => void;
 }) {
   const typeShortcut: Record<BlockType, string> = {
     scene: "1", action: "2", character: "3", parenthetical: "4", dialogue: "5",
@@ -55,7 +59,30 @@ export function Toolbar({
         </button>
         <div style={{ width: 1, height: 20, background: "var(--sp-border)" }} />
         <FileText size={14} style={{ color: "var(--sp-muted)" }} />
-        <h2 style={{ fontSize: 15, fontWeight: 600, flex: 1, margin: 0 }}>{file.title}</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{file.title}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 12 }}>
+          {saveState === "saving" && (
+            <span style={{ fontSize: 12, color: "var(--sp-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+              <Loader2 size={12} className="animate-spin" /> Saving...
+            </span>
+          )}
+          {saveState === "saved" && (
+            <span style={{ fontSize: 12, color: "var(--sp-accent)", display: "flex", alignItems: "center", gap: 4 }}>
+              <Check size={12} /> Saved
+            </span>
+          )}
+          {saveState === "idle" && (
+            <button 
+              className="sp-btn" 
+              style={{ padding: "2px 8px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}
+              onClick={onSave}
+              title="Save changes (Ctrl+S)"
+            >
+              <Save size={11} /> Save
+            </button>
+          )}
+        </div>
+        <div style={{ flex: 1 }} />
       </div>
 
       <div className="sp-toolbar sp-no-print" style={{ borderBottom: "1px solid var(--sp-border)", padding: "8px 16px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
