@@ -5,34 +5,85 @@ import { loadStore, STORAGE_KEY } from "./utils/storage";
 import { ProjectsScreen } from "./components/screenplay/ProjectsScreen";
 import { FilesScreen } from "./components/screenplay/FilesScreen";
 import { EditorScreen } from "./components/screenplay/EditorScreen";
+import { LandingScreen } from "./components/screenplay/LandingScreen";
+import { LoginScreen } from "./components/screenplay/LoginScreen";
 import { GlobalStyles } from "./components/screenplay/GlobalStyles";
+
+interface UserProfile {
+  name: string;
+  email: string;
+  avatar: string;
+}
 
 function AppContent() {
   const [store, setStore] = useState<Store>(() => loadStore());
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem("writerdesk_user");
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const persist = (s: Store) => {
     setStore(s);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
   };
 
+  const handleLogin = (profile: UserProfile) => {
+    setUser(profile);
+    localStorage.setItem("writerdesk_user", JSON.stringify(profile));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("writerdesk_user");
+  };
+
   return (
     <Routes>
-      <Route path="/" element={<ProjectsRoute store={store} persist={persist} />} />
-      <Route path="/project/:projectId" element={<ProjectFilesRoute store={store} persist={persist} />} />
-      <Route path="/project/:projectId/file/:fileId" element={<EditorRoute store={store} persist={persist} />} />
+      {/* Public Routes */}
+      <Route path="/" element={<LandingScreen />} />
+      <Route 
+        path="/login" 
+        element={user ? <Navigate to="/projects" replace /> : <LoginScreen onLogin={handleLogin} />} 
+      />
+
+      {/* Protected Routes */}
+      <Route 
+        path="/projects" 
+        element={user ? <ProjectsRoute store={store} persist={persist} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/project/:projectId" 
+        element={user ? <ProjectFilesRoute store={store} persist={persist} /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/project/:projectId/file/:fileId" 
+        element={user ? <EditorRoute store={store} persist={persist} /> : <Navigate to="/login" replace />} 
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
 // Route wrappers to keep the screen components completely decoupled from React Router
-function ProjectsRoute({ store, persist }: { store: Store; persist: (s: Store) => void }) {
+function ProjectsRoute({ 
+  store, 
+  persist, 
+  user, 
+  onLogout 
+}: { 
+  store: Store; 
+  persist: (s: Store) => void; 
+  user: UserProfile; 
+  onLogout: () => void;
+}) {
   const navigate = useNavigate();
   return (
     <ProjectsScreen 
       store={store} 
       persist={persist} 
       openProject={(id) => navigate(`/project/${id}`)} 
+      user={user}
+      onLogout={onLogout}
     />
   );
 }
@@ -42,12 +93,12 @@ function ProjectFilesRoute({ store, persist }: { store: Store; persist: (s: Stor
   const { projectId } = useParams();
   
   const project = store.projects.find((p) => p.id === projectId);
-  if (!project) return <Navigate to="/" replace />;
+  if (!project) return <Navigate to="/projects" replace />;
 
   return (
     <FilesScreen
       project={project}
-      back={() => navigate("/")}
+      back={() => navigate("/projects")}
       persist={(p) => persist({ ...store, projects: store.projects.map((x) => x.id === p.id ? p : x) })}
       openFile={(fileId) => navigate(`/project/${projectId}/file/${fileId}`)}
     />
@@ -61,7 +112,7 @@ function EditorRoute({ store, persist }: { store: Store; persist: (s: Store) => 
   const project = store.projects.find((p) => p.id === projectId);
   const file = project?.files.find((f) => f.id === fileId);
   
-  if (!project) return <Navigate to="/" replace />;
+  if (!project) return <Navigate to="/projects" replace />;
   if (!file) return <Navigate to={`/project/${projectId}`} replace />;
 
   return (

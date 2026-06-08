@@ -4,8 +4,14 @@ import { uid } from "../../utils/uid";
 import { NewProjectModal } from "../modals/NewProjectModal";
 
 export function ProjectsScreen({
-  store, persist, openProject,
-}: { store: Store; persist: (s: Store) => void; openProject: (id: string) => void }) {
+  store, persist, openProject, user, onLogout,
+}: { 
+  store: Store; 
+  persist: (s: Store) => void; 
+  openProject: (id: string) => void;
+  user?: { name: string; email: string; avatar: string };
+  onLogout?: () => void;
+}) {
   const [showNew, setShowNew] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -36,8 +42,37 @@ export function ProjectsScreen({
 
   return (
     <div style={{ padding: "32px 24px", maxWidth: 1200, margin: "0 auto" }}>
+      {/* Top Header with Profile */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--sp-border)", paddingBottom: 16, marginBottom: 32, gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em" }}>Screenplay</h1>
+        </div>
+        {user && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img 
+              src={user.avatar} 
+              alt={user.name} 
+              style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--sp-border)", border: "1px solid var(--sp-border)" }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{user.name}</span>
+              <span style={{ fontSize: 11, color: "var(--sp-muted)" }}>{user.email}</span>
+            </div>
+            {onLogout && (
+              <button 
+                onClick={onLogout} 
+                className="sp-btn" 
+                style={{ padding: "4px 10px", fontSize: 12 }}
+              >
+                Log Out
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", marginBottom: 32, gap: 16 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em" }}>Screenplay</h1>
+        <h2 style={{ fontSize: 20, fontWeight: 600 }}>My Projects</h2>
         <button className="sp-btn sp-btn-primary" onClick={() => setShowNew(true)}>+ New Project</button>
       </div>
 
