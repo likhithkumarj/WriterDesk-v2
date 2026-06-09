@@ -35,29 +35,45 @@ function AppContent() {
 
     const loadData = async (userId?: string) => {
       if (isConfigured && userId) {
-        const { data: projectsData, error } = await supabase
+        const { data: ownedData, error: ownedError } = await supabase
           .from("projects")
           .select("*, files(*)");
-        
-        if (!error && projectsData) {
-          const loadedStore: Store = {
-            projects: projectsData.map((p: any) => ({
-              id: p.id,
-              title: p.title,
-              description: p.description || "",
-              dateCreated: new Date(p.date_created).getTime(),
-              dateModified: new Date(p.date_modified).getTime(),
-              files: (p.files || []).map((f: any) => ({
-                id: f.id,
-                title: f.title,
-                dateModified: new Date(f.date_modified).getTime(),
-                blocks: f.blocks || [],
-                titlePage: f.title_page || undefined,
-              })),
-            })),
-          };
-          setStore(loadedStore);
+
+        const { data: collabData, error: collabError } = await supabase
+          .from("collaborators")
+          .select("project_id, projects(*, files(*))")
+          .eq("user_id", userId)
+          .eq("status", "accepted");
+
+        const projectsList: any[] = [];
+        if (!ownedError && ownedData) {
+          projectsList.push(...ownedData);
         }
+        if (!collabError && collabData) {
+          collabData.forEach((c: any) => {
+            if (c.projects && !projectsList.some(p => p.id === c.projects.id)) {
+              projectsList.push(c.projects);
+            }
+          });
+        }
+
+        const loadedStore: Store = {
+          projects: projectsList.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            description: p.description || "",
+            dateCreated: new Date(p.date_created).getTime(),
+            dateModified: new Date(p.date_modified).getTime(),
+            files: (p.files || []).map((f: any) => ({
+              id: f.id,
+              title: f.title,
+              dateModified: new Date(f.date_modified).getTime(),
+              blocks: f.blocks || [],
+              titlePage: f.title_page || undefined,
+            })),
+          })),
+        };
+        setStore(loadedStore);
       } else {
         setStore(loadStore());
       }
