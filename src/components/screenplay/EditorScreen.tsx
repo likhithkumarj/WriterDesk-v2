@@ -13,7 +13,7 @@ import { ZoomControls } from "./ZoomControls";
 import { HelpModal } from "../modals/HelpModal";
 import { ExportModal } from "../modals/ExportModal";
 import { TitlePageModal } from "../modals/TitlePageModal";
-import { supabase } from "../../utils/supabaseClient";
+import { supabaseService } from "../../utils/supabaseService";
 
 export function EditorScreen({
   project, file, back, persistFile, addFiles,
@@ -104,39 +104,21 @@ export function EditorScreen({
 
   // Real-time listener for file updates by other collaborators
   useEffect(() => {
-    const isConfigured = () => {
-      const url = import.meta.env.VITE_SUPABASE_URL || "";
-      return url && !url.includes("placeholder-project");
-    };
+    if (!supabaseService.isConfigured()) return;
 
-    if (!isConfigured()) return;
-
-    // Subscribe to Postgres changes on the specific file row
-    const channel = supabase
-      .channel(`realtime:files:${file.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "files",
-          filter: `id=eq.${file.id}`,
-        },
-        (payload) => {
-          if (payload.new && payload.new.blocks) {
-            // Check if the incoming blocks are different from current blocks in memory
-            if (JSON.stringify(payload.new.blocks) !== JSON.stringify(blocksRef.current)) {
-              dispatch({ type: "set", blocks: payload.new.blocks });
-              setSaveState("saved");
-              setTimeout(() => setSaveState("idle"), 2000);
-            }
-          }
-        }
-      )
-      .subscribe();
+    const channel = supabaseService.subscribeToFileChanges(file.id, (newBlocks) => {
+      // Check if the incoming blocks are different from current blocks in memory
+      if (JSON.stringify(newBlocks) !== JSON.stringify(blocksRef.current)) {
+        dispatch({ type: "set", blocks: newBlocks });
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2000);
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabaseService.unsubscribe(channel);
+      }
     };
   }, [file.id]);
 

@@ -3,7 +3,7 @@ import { Project, Store } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { NewProjectModal } from "../modals/NewProjectModal";
 import { ShareModal } from "../modals/ShareModal";
-import { supabase } from "../../utils/supabaseClient";
+import { supabaseService } from "../../utils/supabaseService";
 
 export function ProjectsScreen({
   store, persist, openProject, user, onLogout,
@@ -20,26 +20,10 @@ export function ProjectsScreen({
   const [shareProjectId, setShareProjectId] = useState<string | null>(null);
   const [shareProjectTitle, setShareProjectTitle] = useState("");
 
-  const isSupabaseConfigured = () => {
-    const url = import.meta.env.VITE_SUPABASE_URL || "";
-    return url && !url.includes("placeholder-project");
-  };
-
   const loadPendingInvites = async () => {
-    if (!isSupabaseConfigured() || !user?.email) return;
+    if (!supabaseService.isConfigured() || !user?.email) return;
     try {
-      const { data, error } = await supabase
-        .from("collaborators")
-        .select(`
-          id,
-          project_id,
-          projects (
-            title,
-            user_id
-          )
-        `)
-        .eq("invited_email", user.email.toLowerCase())
-        .eq("status", "pending");
+      const { data, error } = await supabaseService.fetchPendingInvites(user.email);
 
       if (!error && data) {
         setPendingInvites(data);
@@ -56,13 +40,11 @@ export function ProjectsScreen({
 
   const acceptInvite = async (inviteId: string) => {
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      const currentUserId = authData.user?.id;
+      const session = await supabaseService.getSession();
+      const currentUserId = session?.user?.id;
+      if (!currentUserId) throw new Error("No authenticated user found.");
 
-      const { error } = await supabase
-        .from("collaborators")
-        .update({ status: "accepted", user_id: currentUserId })
-        .eq("id", inviteId);
+      const { error } = await supabaseService.acceptInvite(inviteId, currentUserId);
 
       if (error) throw error;
 
@@ -75,10 +57,7 @@ export function ProjectsScreen({
 
   const declineInvite = async (inviteId: string) => {
     try {
-      const { error } = await supabase
-        .from("collaborators")
-        .delete()
-        .eq("id", inviteId);
+      const { error } = await supabaseService.declineInvite(inviteId);
 
       if (error) throw error;
 

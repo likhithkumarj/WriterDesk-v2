@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PenTool, Mail, Lock, Loader2 } from "lucide-react";
-import { supabase } from "../../utils/supabaseClient";
+import { supabaseService } from "../../utils/supabaseService";
+import { Analytics } from "@vercel/analytics/react";
 
 export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email: string; avatar: string }) => void }) {
   const navigate = useNavigate();
@@ -12,18 +13,13 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleStep, setGoogleStep] = useState<"idle" | "selecting" | "authenticating">("idle");
 
-  const isSupabaseConfigured = () => {
-    const url = import.meta.env.VITE_SUPABASE_URL || "";
-    return url && !url.includes("placeholder-project");
-  };
-
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
     setIsSubmitting(true);
 
-    if (!isSupabaseConfigured()) {
+    if (!supabaseService.isConfigured()) {
       // Fallback Mock authentication if Supabase is not configured
       setTimeout(() => {
         setIsSubmitting(false);
@@ -42,13 +38,13 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
     try {
       if (isRegister) {
         // Sign Up Mode
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabaseService.signUp(email, password);
         if (error) throw error;
         alert("Registration successful! You can now sign in.");
         setIsRegister(false);
       } else {
         // Sign In Mode
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabaseService.signInWithPassword(email, password);
         if (error) throw error;
         if (data.user) {
           onLogin({
@@ -69,19 +65,14 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
   const handleGoogleClick = async () => {
     setIsGoogleLoading(true);
 
-    if (!isSupabaseConfigured()) {
+    if (!supabaseService.isConfigured()) {
       // Fallback mock flow
       setGoogleStep("selecting");
       return;
     }
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin + "/projects",
-        },
-      });
+      const { error } = await supabaseService.signInWithOAuth("google");
       if (error) throw error;
     } catch (err: any) {
       alert("Google Auth Error: " + err.message);
@@ -107,7 +98,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
 
       {/* Main Container */}
       <div className="relative w-full max-w-md bg-slate-900/40 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl shadow-2xl">
-        {!isSupabaseConfigured() && (
+        {!supabaseService.isConfigured() && (
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center">
             ⚠️ Supabase is not fully configured yet in `.env.local`. Running in offline mock/demo mode.
           </div>

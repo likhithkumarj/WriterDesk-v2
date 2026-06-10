@@ -8,7 +8,7 @@ import { EditorScreen } from "./components/screenplay/EditorScreen";
 import { LandingScreen } from "./components/screenplay/LandingScreen";
 import { LoginScreen } from "./components/screenplay/LoginScreen";
 import { GlobalStyles } from "./components/screenplay/GlobalStyles";
-import { supabase } from "./utils/supabaseClient";
+import { supabaseService } from "./utils/supabaseService";
 import { Analytics } from "@vercel/analytics/react";
 
 interface UserProfile {
@@ -16,11 +16,6 @@ interface UserProfile {
   email: string;
   avatar: string;
 }
-
-const isSupabaseConfigured = () => {
-  const url = import.meta.env.VITE_SUPABASE_URL || "";
-  return url && !url.includes("placeholder-project");
-};
 
 function AppContent() {
   const [store, setStore] = useState<Store>(() => loadStore());
@@ -31,61 +26,41 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const isConfigured = isSupabaseConfigured();
-
     const loadData = async (userId?: string) => {
-      if (isConfigured && userId) {
-        const { data: ownedData, error: ownedError } = await supabase
-          .from("projects")
-          .select("*, files(*)");
+      if (supabaseService.isConfigured() && userId) {
+        try {
+          const projectsList = await supabaseService.fetchUserProjects(userId);
 
-        const { data: collabData, error: collabError } = await supabase
-          .from("collaborators")
-          .select("project_id, projects(*, files(*))")
-          .eq("user_id", userId)
-          .eq("status", "accepted");
+          if (projectsList === null) {
+            console.warn("Supabase fetch failed. Falling back to local storage projects.");
+            setStore(loadStore());
+            return;
+          }
 
-        const projectsList: any[] = [];
-        if (ownedError) {
-          console.error("Error fetching owned projects:", ownedError);
-        } else if (ownedData) {
-          projectsList.push(...ownedData);
-        }
-
-        if (collabError) {
-          console.error("Error fetching collaborated projects:", collabError);
-        } else if (collabData) {
-          collabData.forEach((c: any) => {
-            if (c.projects && !projectsList.some(p => p.id === c.projects.id)) {
-              projectsList.push(c.projects);
+          // Migrate local storage projects if database is empty
+          if (projectsList.length === 0) {
+            const localStore = loadStore();
+            if (localStore.projects && localStore.projects.length > 0) {
+              console.log("Migrating local projects to Supabase...");
+              const migrated = await supabaseService.migrateLocalProjects(userId, localStore.projects);
+              if (migrated.length > 0) {
+                projectsList.push(...migrated);
+              }
             }
-          });
-        }
+          }
 
-        const loadedStore: Store = {
-          projects: projectsList.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            description: p.description || "",
-            dateCreated: new Date(p.date_created).getTime(),
-            dateModified: new Date(p.date_modified).getTime(),
-            files: (p.files || []).map((f: any) => ({
-              id: f.id,
-              title: f.title,
-              dateModified: new Date(f.date_modified).getTime(),
-              blocks: f.blocks || [],
-              titlePage: f.title_page || undefined,
-            })),
-          })),
-        };
-        setStore(loadedStore);
+          setStore({ projects: projectsList });
+        } catch (err) {
+          console.error("Unexpected error loading Supabase data, falling back to local storage:", err);
+          setStore(loadStore());
+        }
       } else {
         setStore(loadStore());
       }
     };
 
     // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabaseService.getSession().then((session) => {
       if (session?.user) {
         const profile = {
           name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
@@ -103,7 +78,7 @@ function AppContent() {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabaseService.onAuthStateChange((event, session) => {
       if (session?.user) {
         const profile = {
           name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
@@ -127,92 +102,20 @@ function AppContent() {
     // Optimistic update
     setStore(newStore);
 
-    if (!isSupabaseConfigured()) {
+    if (!supabaseService.isConfigured()) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
       return;
     }
 
     try {
-      // Diff sync
-      for (const p of newStore.projects) {
-        const oldP = store.projects.find((x) => x.id === p.id);
-        if (!oldP) {
-          // New Project
-          const { data: { user: supabaseUser } } = await supabase.auth.getUser();
-          if (supabaseUser) {
-            await supabase.from("projects").insert({
-              id: p.id,
-              title: p.title,
-              description: p.description,
-              user_id: supabaseUser.id,
-              date_created: new Date(p.dateCreated).toISOString(),
-              date_modified: new Date(p.dateModified).toISOString(),
-            });
-            for (const f of p.files) {
-              await supabase.from("files").insert({
-                id: f.id,
-                project_id: p.id,
-                title: f.title,
-                date_modified: new Date(f.dateModified).toISOString(),
-                blocks: f.blocks,
-                title_page: f.titlePage || null,
-              });
-            }
-          }
-        } else {
-          // Update existing project
-          if (oldP.title !== p.title || oldP.description !== p.description || oldP.dateModified !== p.dateModified) {
-            await supabase.from("projects").update({
-              title: p.title,
-              description: p.description,
-              date_modified: new Date(p.dateModified).toISOString(),
-            }).eq("id", p.id);
-          }
-
-          // Check files inside project
-          for (const f of p.files) {
-            const oldF = oldP.files.find((x) => x.id === f.id);
-            if (!oldF) {
-              await supabase.from("files").insert({
-                id: f.id,
-                project_id: p.id,
-                title: f.title,
-                date_modified: new Date(f.dateModified).toISOString(),
-                blocks: f.blocks,
-                title_page: f.titlePage || null,
-              });
-            } else if (
-              oldF.title !== f.title ||
-              oldF.dateModified !== f.dateModified ||
-              JSON.stringify(oldF.blocks) !== JSON.stringify(f.blocks) ||
-              JSON.stringify(oldF.titlePage) !== JSON.stringify(f.titlePage)
-            ) {
-              await supabase.from("files").update({
-                title: f.title,
-                date_modified: new Date(f.dateModified).toISOString(),
-                blocks: f.blocks,
-                title_page: f.titlePage || null,
-              }).eq("id", f.id);
-            }
-          }
-
-          // Delete files not in new state
-          for (const oldF of oldP.files) {
-            if (!p.files.some((x) => x.id === oldF.id)) {
-              await supabase.from("files").delete().eq("id", oldF.id);
-            }
-          }
-        }
-      }
-
-      // Projects deleted
-      for (const oldP of store.projects) {
-        if (!newStore.projects.some((x) => x.id === oldP.id)) {
-          await supabase.from("projects").delete().eq("id", oldP.id);
-        }
+      const success = await supabaseService.syncStore(newStore, store);
+      if (!success) {
+        console.warn("Supabase sync failed. Falling back to local storage backup.");
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
       }
     } catch (err) {
-      console.error("Error syncing with Supabase:", err);
+      console.error("Error syncing with Supabase, saving to local storage fallback:", err);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
     }
   };
 
@@ -222,8 +125,8 @@ function AppContent() {
   };
 
   const handleLogout = async () => {
-    if (isSupabaseConfigured()) {
-      await supabase.auth.signOut();
+    if (supabaseService.isConfigured()) {
+      await supabaseService.signOut();
     } else {
       setUser(null);
       localStorage.removeItem("writerdesk_user");

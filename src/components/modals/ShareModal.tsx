@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../utils/supabaseClient";
+import { supabaseService } from "../../utils/supabaseService";
 import { Loader2, Trash2, Mail, CheckCircle, Clock } from "lucide-react";
 
 interface Collaborator {
@@ -22,22 +22,14 @@ export function ShareModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
-  const isSupabaseConfigured = () => {
-    const url = import.meta.env.VITE_SUPABASE_URL || "";
-    return url && !url.includes("placeholder-project");
-  };
-
   const loadCollaborators = async () => {
-    if (!isSupabaseConfigured()) {
+    if (!supabaseService.isConfigured()) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("collaborators")
-        .select("id, invited_email, status")
-        .eq("project_id", projectId);
+      const { data, error } = await supabaseService.fetchCollaborators(projectId);
       
       if (!error && data) {
         setCollaborators(data);
@@ -59,7 +51,7 @@ export function ShareModal({
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return;
 
-    if (!isSupabaseConfigured()) {
+    if (!supabaseService.isConfigured()) {
       alert("Invite sent! (Simulated - Supabase is not configured)");
       setEmail("");
       return;
@@ -73,20 +65,13 @@ export function ShareModal({
     setIsSending(true);
     try {
       // Find if user already has a profile to set user_id
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", cleanEmail)
-        .maybeSingle();
+      const { data: profileData } = await supabaseService.fetchProfileByEmail(cleanEmail);
 
-      const { error } = await supabase
-        .from("collaborators")
-        .insert({
-          project_id: projectId,
-          invited_email: cleanEmail,
-          user_id: profileData?.id || null,
-          status: "pending",
-        });
+      const { error } = await supabaseService.inviteCollaborator(
+        projectId,
+        cleanEmail,
+        profileData?.id || null
+      );
 
       if (error) throw error;
 
@@ -102,16 +87,13 @@ export function ShareModal({
   const handleRemove = async (collabId: string) => {
     if (!window.confirm("Remove this collaborator? They will lose access to the project.")) return;
 
-    if (!isSupabaseConfigured()) {
+    if (!supabaseService.isConfigured()) {
       setCollaborators(collaborators.filter((c) => c.id !== collabId));
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from("collaborators")
-        .delete()
-        .eq("id", collabId);
+      const { error } = await supabaseService.removeCollaborator(collabId);
 
       if (error) throw error;
       loadCollaborators();
@@ -128,7 +110,7 @@ export function ShareModal({
           Invite other writers to edit this screenplay in real time.
         </p>
 
-        {!isSupabaseConfigured() ? (
+        {!supabaseService.isConfigured() ? (
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center">
             ⚠️ Supabase is not configured. Real-time collaboration is disabled in mock/demo mode.
           </div>
