@@ -46,10 +46,15 @@ function AppContent() {
           .eq("status", "accepted");
 
         const projectsList: any[] = [];
-        if (!ownedError && ownedData) {
+        if (ownedError) {
+          console.error("Error fetching owned projects:", ownedError);
+        } else if (ownedData) {
           projectsList.push(...ownedData);
         }
-        if (!collabError && collabData) {
+
+        if (collabError) {
+          console.error("Error fetching collaborated projects:", collabError);
+        } else if (collabData) {
           collabData.forEach((c: any) => {
             if (c.projects && !projectsList.some(p => p.id === c.projects.id)) {
               projectsList.push(c.projects);
