@@ -3,13 +3,14 @@ import { Block, Suggestion } from "../../types/screenplay";
 import { TYPE_LABEL } from "../../utils/formatting";
 
 export function BlockView({
-  block, focused, sceneNumber, suggestions, onFocus, onChange, onEnter, onBackspaceEmpty, onTab, onAcceptSuggestion,
+  block, focused, sceneNumber, suggestions, onFocus, onChange, onBlur, onEnter, onBackspaceEmpty, onTab, onAcceptSuggestion, showBlockBars,
 }: {
   block: Block; focused: boolean; sceneNumber?: number;
   suggestions: Suggestion[];
-  onFocus: () => void; onChange: (t: string) => void;
+  onFocus: () => void; onChange: (t: string) => void; onBlur: (t: string) => void;
   onEnter: () => void; onBackspaceEmpty: () => void; onTab: () => void;
   onAcceptSuggestion: (insert: string) => void;
+  showBlockBars: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [sugIdx, setSugIdx] = useState(0);
@@ -20,8 +21,9 @@ export function BlockView({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (document.activeElement === el) return;
-    if (el.innerText !== block.text) el.innerText = block.text;
+    if (document.activeElement !== el && el.innerHTML !== block.text) {
+      el.innerHTML = block.text;
+    }
   }, [block.text]);
 
   useEffect(() => {
@@ -43,7 +45,16 @@ export function BlockView({
   const accept = (i: number) => {
     const s = suggestions[i];
     if (!s) return;
-    if (ref.current) ref.current.innerText = s.insert;
+    if (ref.current) {
+      ref.current.innerText = s.insert;
+      ref.current.focus();
+      const r = document.createRange();
+      r.selectNodeContents(ref.current);
+      r.collapse(false);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(r);
+    }
     onAcceptSuggestion(s.insert);
     setSugOpen(false);
   };
@@ -58,7 +69,14 @@ export function BlockView({
     }
     if (e.key === "Enter") { e.preventDefault(); onEnter(); }
     else if (e.key === "Tab") { e.preventDefault(); onTab(); }
-    else if (e.key === "Backspace" && !ref.current?.innerText) { e.preventDefault(); onBackspaceEmpty(); }
+    else if (e.key === "Backspace") {
+      const el = ref.current;
+      const isEmpty = !el || !el.textContent || el.textContent.trim() === "";
+      if (isEmpty) {
+        e.preventDefault();
+        onBackspaceEmpty();
+      }
+    }
   };
 
   return (
@@ -72,14 +90,19 @@ export function BlockView({
       )}
       <div
         ref={ref}
-        className="sp-block"
+        className={`sp-block${showBlockBars ? "" : " no-bars"}`}
         data-block-id={block.id}
         data-type={block.type}
         data-placeholder={block.type === "scene" ? "INT. LOCATION - DAY" : ""}
         contentEditable
         suppressContentEditableWarning
         onFocus={() => { onFocus(); setSugOpen(true); }}
-        onInput={(e) => { setSugOpen(true); onChange((e.target as HTMLDivElement).innerText); }}
+        onInput={(e) => { setSugOpen(true); onChange((e.target as HTMLDivElement).innerHTML); }}
+        onBlur={(e) => {
+          const val = (e.target as HTMLDivElement).innerHTML;
+          onChange(val);
+          onBlur(val);
+        }}
         onKeyDown={handleKey}
       />
       {showSug && (

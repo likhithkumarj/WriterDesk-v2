@@ -28,7 +28,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
         onLogin({
           name: displayName,
           email: email,
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`,
+          avatar: `https://api.dicebear.com/9.x/bottts/svg?seed=${username}`,
         });
         navigate("/projects");
       }, 1200);
@@ -50,7 +50,7 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
           onLogin({
             name: data.user.email?.split("@")[0] || "User",
             email: data.user.email || "",
-            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${data.user.email?.split("@")[0] || "User"}`,
+            avatar: `https://api.dicebear.com/9.x/bottts/svg?seed=${data.user.email?.split("@")[0] || "User"}`,
           });
           navigate("/projects");
         }
@@ -265,13 +265,13 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
                     selectGoogleAccount({
                       name: "Likhith Kumar",
                       email: "likhith.kumar@gmail.com",
-                      avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=likhith",
+                      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=likhith",
                     })
                   }
                   className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 border border-slate-100 text-left transition-all"
                 >
                   <img
-                    src="https://api.dicebear.com/7.x/adventurer/svg?seed=likhith"
+                    src="https://api.dicebear.com/9.x/adventurer/svg?seed=likhith"
                     alt="Likhith Kumar"
                     className="w-9 h-9 rounded-full bg-amber-100 border border-slate-200"
                   />
@@ -286,13 +286,13 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
                     selectGoogleAccount({
                       name: "Creative Writer",
                       email: "creative.writer@gmail.com",
-                      avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=creative",
+                      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=creative",
                     })
                   }
                   className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 border border-slate-100 text-left transition-all"
                 >
                   <img
-                    src="https://api.dicebear.com/7.x/adventurer/svg?seed=creative"
+                    src="https://api.dicebear.com/9.x/adventurer/svg?seed=creative"
                     alt="Creative Writer"
                     className="w-9 h-9 rounded-full bg-violet-100 border border-slate-200"
                   />

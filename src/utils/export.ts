@@ -8,26 +8,48 @@ export function blocksToTxt(blocks: Block[]): string {
   const pad = (n: number) => " ".repeat(n);
   return blocks
     .map((b) => {
+      const text = b.text.replace(/<[^>]*>/g, "");
       switch (b.type) {
-        case "scene": return "\n" + b.text.toUpperCase() + "\n";
-        case "action": return pad(0) + b.text + "\n";
-        case "character": return pad(20) + b.text.toUpperCase();
-        case "parenthetical": return pad(15) + normalizeText("parenthetical", b.text);
-        case "dialogue": return pad(10) + b.text + "\n";
+        case "scene": return "\n" + text.toUpperCase() + "\n";
+        case "action": return pad(0) + text + "\n";
+        case "character": return pad(20) + text.toUpperCase();
+        case "parenthetical": return pad(15) + normalizeText("parenthetical", text);
+        case "dialogue": return pad(10) + text + "\n";
       }
     })
     .join("\n");
 }
 
+function htmlToFountain(html: string): string {
+  let text = html;
+  
+  // Convert bold
+  text = text.replace(/<b[^>]*>(.*?)<\/b>/gi, "**$1**");
+  text = text.replace(/<strong[^>]*>(.*?)<\/strong>/gi, "**$1**");
+  
+  // Convert italic
+  text = text.replace(/<i[^>]*>(.*?)<\/i>/gi, "*$1*");
+  text = text.replace(/<em[^>]*>(.*?)<\/em>/gi, "*$1*");
+  
+  // Convert underline
+  text = text.replace(/<u[^>]*>(.*?)<\/u>/gi, "_$1_");
+  
+  // Strip any other HTML tags
+  text = text.replace(/<[^>]*>/g, "");
+  
+  return text;
+}
+
 export function blocksToFountain(blocks: Block[]): string {
   return blocks
     .map((b) => {
+      const text = htmlToFountain(b.text);
       switch (b.type) {
-        case "scene": return "\n" + b.text.toUpperCase();
-        case "action": return b.text;
-        case "character": return "\n" + b.text.toUpperCase();
-        case "parenthetical": return normalizeText("parenthetical", b.text);
-        case "dialogue": return b.text;
+        case "scene": return "\n" + text.toUpperCase();
+        case "action": return text;
+        case "character": return "\n" + text.toUpperCase();
+        case "parenthetical": return normalizeText("parenthetical", text);
+        case "dialogue": return text;
       }
     })
     .join("\n");
@@ -48,12 +70,12 @@ export function escapeHtml(s: string) {
 export function renderTitlePageHtml(tp: TitlePage) {
   const e = escapeHtml;
   return `<div class="sp-page"><div class="sp-title-page-inner">
-    <div class="sp-tp-spacer"></div>
+    <div class="sp-tp-spacer-top"></div>
     <div class="sp-tp-title">${e(tp.title)}</div>
     ${tp.credit ? `<div class="sp-tp-credit">${e(tp.credit)}</div>` : ""}
     ${tp.author ? `<div class="sp-tp-author">${e(tp.author)}</div>` : ""}
     ${tp.source ? `<div class="sp-tp-source">${e(tp.source)}</div>` : ""}
-    <div class="sp-tp-spacer"></div>
+    <div class="sp-tp-spacer-bottom"></div>
     <div class="sp-tp-footer">
       <div>${e(tp.contact || "")}</div>
       <div>${e(tp.draftDate || "")}</div>
@@ -68,7 +90,7 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
     <div class="sp-page">
       ${pi > 0 ? `<div class="sp-page-number">${pi + 1}.</div>` : ""}
       <div class="sp-page-inner">
-        ${pageBlocks.map((b) => `<div class="sp-block" data-type="${b.type}">${escapeHtml(b.text)}</div>`).join("")}
+        ${pageBlocks.map((b) => `<div class="sp-block" data-type="${b.type}">${b.text}</div>`).join("")}
       </div>
     </div>
   `).join("");

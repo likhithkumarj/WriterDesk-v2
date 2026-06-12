@@ -17,6 +17,7 @@ export function PageCanvas({
   nextTypeOnEnter,
   deleteBlock,
   cycleType,
+  showBlockBars,
 }: {
   pages: Block[][];
   file: FileDoc;
@@ -30,6 +31,7 @@ export function PageCanvas({
   nextTypeOnEnter: (t: BlockType, text: string) => BlockType;
   deleteBlock: (id: string) => void;
   cycleType: (id: string) => void;
+  showBlockBars: boolean;
 }) {
   const hasTitlePage = !!(file.titlePage && file.titlePage.title.trim());
 
@@ -55,11 +57,13 @@ export function PageCanvas({
                   sceneNumber={b.type === "scene" && sceneNumbersOn ? sceneNumberFor(b.id) : undefined}
                   suggestions={suggestionsFor(b)}
                   onFocus={() => setFocusedId(b.id)}
-                  onChange={(text) => updateBlock(b.id, { text: normalizeText(b.type, text) })}
+                  onChange={(text) => updateBlock(b.id, { text })}
+                  onBlur={(text) => updateBlock(b.id, { text: normalizeText(b.type, text) })}
                   onAcceptSuggestion={(text) => updateBlock(b.id, { text: normalizeText(b.type, text) })}
                   onEnter={() => insertAfter(b.id, nextTypeOnEnter(b.type, b.text))}
                   onBackspaceEmpty={() => deleteBlock(b.id)}
                   onTab={() => cycleType(b.id)}
+                  showBlockBars={showBlockBars}
                 />
               ))}
             </div>

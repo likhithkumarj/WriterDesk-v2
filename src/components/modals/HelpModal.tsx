@@ -20,12 +20,12 @@ export function HelpModal({ onClose }: { onClose: () => void }) {
     <div className="sp-modal-backdrop" onClick={onClose}>
       <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
         <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>Keyboard Shortcuts</h2>
-        <table style={{ width: "100%", fontSize: 14 }}>
+        <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
           <tbody>
             {rows.map(([k, v]) => (
-              <tr key={k}>
-                <td style={{ padding: "6px 0", fontFamily: "monospace", color: "#666" }}>{k}</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>{v}</td>
+              <tr key={k} style={{ borderBottom: "1px solid var(--sp-border)" }}>
+                <td style={{ padding: "8px 0", fontFamily: "var(--sp-font-ui)", fontWeight: 600, color: "var(--sp-accent)" }}>{k}</td>
+                <td style={{ padding: "8px 0", textAlign: "right", color: "var(--sp-text)" }}>{v}</td>
               </tr>
             ))}
           </tbody>

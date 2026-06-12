@@ -65,7 +65,7 @@ function AppContent() {
         const profile = {
           name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
           email: session.user.email || "",
-          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
+          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
         };
         setUser(profile);
         localStorage.setItem("writerdesk_user", JSON.stringify(profile));
@@ -83,7 +83,7 @@ function AppContent() {
         const profile = {
           name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
           email: session.user.email || "",
-          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
+          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
         };
         setUser(profile);
         localStorage.setItem("writerdesk_user", JSON.stringify(profile));
@@ -170,7 +170,7 @@ function AppContent() {
       />
       <Route 
         path="/project/:projectId/file/:fileId" 
-        element={user ? <EditorRoute store={store} persist={persist} /> : <Navigate to="/login" replace />} 
+        element={user ? <EditorRoute store={store} persist={persist} user={user} /> : <Navigate to="/login" replace />} 
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -218,20 +218,28 @@ function ProjectFilesRoute({ store, persist }: { store: Store; persist: (s: Stor
   );
 }
 
-function EditorRoute({ store, persist }: { store: Store; persist: (s: Store) => void }) {
+function EditorRoute({ store, persist, user }: { store: Store; persist: (s: Store) => void; user: UserProfile }) {
   const navigate = useNavigate();
   const { projectId, fileId } = useParams();
 
   const project = store.projects.find((p) => p.id === projectId);
-  const file = project?.files.find((f) => f.id === fileId);
-  
   if (!project) return <Navigate to="/projects" replace />;
-  if (!file) return <Navigate to={`/project/${projectId}`} replace />;
+  
+  // Validate the fileId exists; if not, redirect to first file
+  const fileExists = project.files.some((f) => f.id === fileId);
+  if (!fileExists) {
+    const firstFile = project.files[0];
+    if (!firstFile) return <Navigate to={`/project/${projectId}`} replace />;
+    return <Navigate to={`/project/${projectId}/file/${firstFile.id}`} replace />;
+  }
 
   return (
+    // key=projectId means EditorScreen stays mounted when switching files within the same project
     <EditorScreen
+      key={projectId}
       project={project}
-      file={file}
+      initialFileId={fileId!}
+      user={user}
       back={() => navigate(`/project/${projectId}`)}
       persistFile={(f) => persist({
         ...store, projects: store.projects.map((p) =>

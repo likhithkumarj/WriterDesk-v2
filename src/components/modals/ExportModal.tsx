@@ -80,9 +80,9 @@ export function ExportModal({ project, defaultFileId, onClose }: { project: Proj
               onDragStart={() => setDragId(f.id)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(f.id)}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, marginBottom: 4, background: "#fafafa" }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", border: "1px solid var(--sp-border)", borderRadius: 10, marginBottom: 6, background: "rgba(255, 255, 255, 0.02)" }}
             >
-              <span style={{ cursor: "grab" }}>⋮⋮</span>
+              <span style={{ cursor: "grab", color: "var(--sp-muted)" }}>⋮⋮</span>
               <input type="checkbox" checked={selected.has(f.id)} onChange={(e) => {
                 const s = new Set(selected);
                 if (e.target.checked) s.add(f.id); else s.delete(f.id);

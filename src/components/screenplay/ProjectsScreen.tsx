@@ -4,6 +4,7 @@ import { uid } from "../../utils/uid";
 import { NewProjectModal } from "../modals/NewProjectModal";
 import { ShareModal } from "../modals/ShareModal";
 import { supabaseService } from "../../utils/supabaseService";
+import { Avatar } from "./Avatar";
 
 export function ProjectsScreen({
   store, persist, openProject, user, onLogout,
@@ -105,10 +106,11 @@ export function ProjectsScreen({
         </div>
         {user && (
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <img 
+            <Avatar 
               src={user.avatar} 
-              alt={user.name} 
-              style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--sp-border)", border: "1px solid var(--sp-border)" }}
+              name={user.name} 
+              size={36}
+              style={{ background: "var(--sp-border)", border: "1px solid var(--sp-border)" }}
             />
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
               <span style={{ fontSize: 13, fontWeight: 600 }}>{user.name}</span>
