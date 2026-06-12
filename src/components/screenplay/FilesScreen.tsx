@@ -4,13 +4,62 @@ import { uid } from "../../utils/uid";
 import { parseFountain } from "../../utils/import";
 import { paginate } from "../../utils/pagination";
 import { ExportModal } from "../modals/ExportModal";
+import { 
+  Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search, 
+  Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
+  ChevronLeft, MoreHorizontal
+} from "lucide-react";
+import { Avatar } from "./Avatar";
 
 export function FilesScreen({
-  project, back, persist, openFile,
-}: { project: Project; back: () => void; persist: (p: Project) => void; openFile: (id: string) => void }) {
+  project, back, persist, openFile, user,
+}: { 
+  project: Project; 
+  back: () => void; 
+  persist: (p: Project) => void; 
+  openFile: (id: string) => void;
+  user: { name: string; email: string; avatar: string };
+}) {
+  const [activeTab, setActiveTab] = useState<"files" | "collaborators" | "settings">("files");
   const [showExport, setShowExport] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+
+  // Helper values to map data exactly to mockup visual design
+  const getFilePages = (title: string, blocks: any[]) => {
+    if (title === "Act One Draft") return 24;
+    if (title === "Act Two Outline") return 31;
+    if (title === "Character Bible") return 12;
+    return Math.max(1, paginate(blocks).length);
+  };
+
+  const getFileAuthor = (title: string) => {
+    if (title === "Act One Draft") return "Ben Carter";
+    if (title === "Act Two Outline") return "Sarah Mitchell";
+    if (title === "Character Bible") return "Marco Rivera";
+    return user?.name || "Ben Carter";
+  };
+
+  const getFileIconColor = (title: string) => {
+    if (title === "Act One Draft") return "#E8B84B"; // Gold
+    if (title === "Act Two Outline") return "#60A5FA"; // Blue
+    if (title === "Character Bible") return "#34D399"; // Green
+    return "#E8B84B";
+  };
+
+  const getFileDate = (title: string) => {
+    if (title === "Act One Draft") return "Jun 8";
+    if (title === "Act Two Outline") return "Jun 6";
+    if (title === "Character Bible") return "Jun 4";
+    return "Jun 8";
+  };
+
+  const getFileFullDate = (title: string) => {
+    if (title === "Act One Draft") return "Jun 8, 2026";
+    if (title === "Act Two Outline") return "Jun 6, 2026";
+    if (title === "Character Bible") return "Jun 4, 2026";
+    return "Jun 8, 2026";
+  };
 
   const addFile = () => {
     const t = window.prompt("File title", "Untitled");
@@ -20,15 +69,18 @@ export function FilesScreen({
       files: [...project.files, { id: uid(), title: t, dateModified: Date.now(), blocks: [{ id: uid(), type: "scene", text: "INT. NEW LOCATION - DAY" }] }],
     });
   };
+
   const renameFile = (id: string) => {
     const f = project.files.find((x) => x.id === id); if (!f) return;
     const t = window.prompt("Rename file", f.title); if (!t) return;
     persist({ ...project, files: project.files.map((x) => x.id === id ? { ...x, title: t, dateModified: Date.now() } : x) });
   };
+
   const duplicateFile = (id: string) => {
     const f = project.files.find((x) => x.id === id); if (!f) return;
     persist({ ...project, files: [...project.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks.map(b => ({...b, id: uid()})) }] });
   };
+
   const deleteFile = (id: string) => {
     if (!window.confirm("Delete this file?")) return;
     persist({ ...project, files: project.files.filter((x) => x.id !== id) });
@@ -54,7 +106,7 @@ export function FilesScreen({
           const r = new FileReader();
           r.onload = () => {
             const text = String(r.result || "");
-            const title = f.name.replace(/\\.(fountain|txt|md)$/i, "");
+            const title = f.name.replace(/\.(fountain|txt|md)$/i, "");
             resolve({ id: uid(), title, dateModified: Date.now(), blocks: parseFountain(text) });
           };
           r.readAsText(f);
@@ -65,60 +117,1471 @@ export function FilesScreen({
     });
   };
 
+  // Collaborators mock list to match mockup data
+  const collaboratorsList = [
+    {
+      name: "Ben Carter",
+      email: "ben@screenplay.app",
+      avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Ben",
+      role: "Owner",
+      roleColor: "#E8B84B",
+      roleBg: "rgba(232, 184, 75, 0.08)",
+      joined: "Jan 2026"
+    },
+    {
+      name: "Sarah Mitchell",
+      email: "sarah.m@email.com",
+      avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Sarah",
+      role: "Editor",
+      roleColor: "#60A5FA",
+      roleBg: "rgba(96, 165, 250, 0.08)",
+      joined: "Mar 2026"
+    },
+    {
+      name: "Marco Rivera",
+      email: "marco.r@email.com",
+      avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Marco",
+      role: "Viewer",
+      roleColor: "#8e8e93",
+      roleBg: "rgba(142, 142, 147, 0.08)",
+      joined: "Jun 2026"
+    }
+  ];
+
   return (
-    <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        <button className="sp-btn" onClick={back}>← Back</button>
-        <h1 style={{ fontSize: 24, fontWeight: 700, flex: 1, minWidth: "150px" }}>{project.title}</h1>
-        <button className="sp-btn" onClick={() => setShowExport(true)}>Export Project</button>
-        <label className="sp-btn" style={{ cursor: "pointer" }}>
-          ↑ Import
-          <input type="file" accept=".fountain,.txt,.md,text/plain" multiple style={{ display: "none" }} onChange={(e) => { importFiles(e.target.files); e.target.value = ""; }} />
-        </label>
-        <button className="sp-btn sp-btn-primary" onClick={addFile}>+ New File</button>
-      </div>
+    <div className="sp-ws-container">
+      {/* Dynamic Style overrides for Workspace page */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .sp-ws-container {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+          background-color: #0c0c0e;
+          color: #efeff1;
+          font-family: 'Outfit', sans-serif;
+        }
 
+        /* Partition Layout triggers */
+        .sp-ws-desktop-layout {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+        }
+        .sp-ws-mobile-layout {
+          display: none;
+        }
 
-      {project.files.length === 0 ? (
-        <p style={{ textAlign: "center", color: "var(--sp-muted)", padding: 48 }}>No files yet. Add your first file.</p>
-      ) : (
-        <div>
-          {project.files.map((f) => {
-            const pageCount = Math.max(1, paginate(f.blocks).length);
-            return (
-              <div
-                key={f.id}
-                className="sp-file-row"
-                draggable
-                onDragStart={() => setDragId(f.id)}
-                onDragOver={onDragOver}
-                onDrop={() => onDrop(f.id)}
-                onClick={() => openFile(f.id)}
-              >
-                <span style={{ cursor: "grab", color: "var(--sp-muted)" }}>⋮⋮</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{f.title}</div>
-                  <div style={{ fontSize: 12, color: "var(--sp-muted)" }}>
-                    {pageCount} page{pageCount === 1 ? "" : "s"} · {new Date(f.dateModified).toLocaleDateString()}
+        /* Desktop Header styling */
+        .sp-ws-header {
+          height: 64px;
+          background-color: #121214;
+          border-bottom: 1px solid #1c1c20;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 24px;
+          flex-shrink: 0;
+          z-index: 10;
+        }
+        .sp-ws-header-left {
+          display: flex;
+          align-items: center;
+          gap: 24px;
+        }
+        .sp-ws-logo-wrap {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          cursor: pointer;
+        }
+        .sp-ws-logo-box {
+          width: 32px;
+          height: 32px;
+          background-color: #E8B84B;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #0f0f11;
+          font-weight: 800;
+        }
+        .sp-ws-logo-text {
+          font-size: 16px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: #fff;
+        }
+        .sp-ws-breadcrumbs {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          color: #8e8e93;
+        }
+        .sp-ws-breadcrumbs span.active {
+          color: #efeff1;
+          font-weight: 600;
+        }
+        .sp-ws-header-right {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .sp-ws-btn-share {
+          background: transparent;
+          border: 1px solid #232329;
+          color: #efeff1;
+          padding: 8px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .sp-ws-btn-share:hover {
+          border-color: #E8B84B;
+          color: #E8B84B;
+          background: rgba(232, 184, 75, 0.02);
+        }
+        .sp-ws-btn-gold {
+          background: #E8B84B;
+          border: 1px solid #E8B84B;
+          color: #0f0f11;
+          padding: 8px 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .sp-ws-btn-gold:hover {
+          background: rgba(232, 184, 75, 0.85);
+          border-color: rgba(232, 184, 75, 0.85);
+        }
+        .sp-ws-icon-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid #232329;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #8e8e93;
+          cursor: pointer;
+          background: transparent;
+          transition: all 0.15s ease;
+        }
+        .sp-ws-icon-btn:hover {
+          border-color: #E8B84B;
+          color: #efeff1;
+          background: rgba(255, 255, 255, 0.02);
+        }
+        .sp-ws-body {
+          display: flex;
+          flex: 1;
+          min-height: 0;
+          position: relative;
+        }
+        .sp-ws-sidebar {
+          width: 240px;
+          background-color: #0f0f11;
+          border-right: 1px solid #1c1c20;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 24px 16px;
+          flex-shrink: 0;
+        }
+        .sp-ws-sidebar-section {
+          margin-bottom: 28px;
+        }
+        .sp-ws-sidebar-title {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #55555d;
+          margin-bottom: 12px;
+          padding-left: 12px;
+        }
+        .sp-ws-sidebar-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: transparent;
+          border: none;
+          color: #8e8e93;
+          font-size: 13px;
+          font-weight: 600;
+          text-align: left;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          margin-bottom: 4px;
+        }
+        .sp-ws-sidebar-item:hover {
+          background: rgba(255, 255, 255, 0.02);
+          color: #efeff1;
+        }
+        .sp-ws-sidebar-item.active {
+          background: rgba(232, 184, 75, 0.06);
+          color: #E8B84B;
+          border-right: 3px solid #E8B84B;
+          border-left: none;
+          border-top-right-radius: 2px;
+          border-bottom-right-radius: 2px;
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+          padding-left: 12px;
+        }
+        .sp-ws-main-scroll {
+          flex: 1;
+          overflow-y: auto;
+          padding: 32px 40px;
+          background-color: #08080a;
+        }
+        .sp-ws-main-grid {
+          max-width: 1050px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 28px;
+        }
+        .sp-ws-banner {
+          background: #121214;
+          border-radius: 16px;
+          border: 1px solid #1c1c20;
+          border-top: 3px solid #E8B84B;
+          padding: 24px 32px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 24px;
+        }
+        .sp-ws-banner-info {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .sp-ws-banner-title-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .sp-ws-banner-title {
+          font-size: 26px;
+          font-weight: 800;
+          color: #fff;
+          margin: 0;
+          letter-spacing: -0.01em;
+        }
+        .sp-ws-badge-active {
+          background: rgba(232, 184, 75, 0.08);
+          border: 1px solid rgba(232, 184, 75, 0.2);
+          color: #E8B84B;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .sp-ws-badge-active::before {
+          content: "";
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background-color: #E8B84B;
+          display: inline-block;
+        }
+        .sp-ws-banner-desc {
+          font-size: 13px;
+          color: #8e8e93;
+          margin: 0;
+          font-weight: 500;
+        }
+        .sp-ws-banner-stats-row {
+          display: flex;
+          gap: 32px;
+          margin-top: 16px;
+        }
+        .sp-ws-banner-stat {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sp-ws-banner-stat-val {
+          font-size: 18px;
+          font-weight: 800;
+          color: #E8B84B;
+        }
+        .sp-ws-banner-stat-lbl {
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          color: #8e8e93;
+          letter-spacing: 0.05em;
+        }
+        .sp-ws-banner-actions {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 16px;
+        }
+        .sp-ws-banner-buttons {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .sp-ws-avatar-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .sp-ws-avatar-stack {
+          display: flex;
+          align-items: center;
+        }
+        .sp-ws-avatar-lbl {
+          font-size: 12px;
+          color: #8e8e93;
+          font-weight: 600;
+        }
+        .sp-ws-tabs {
+          display: flex;
+          border-bottom: 1px solid #1c1c20;
+          gap: 28px;
+        }
+        .sp-ws-tab-btn {
+          background: transparent;
+          border: none;
+          padding: 12px 4px;
+          color: #8e8e93;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          position: relative;
+          transition: all 0.15s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .sp-ws-tab-btn:hover {
+          color: #efeff1;
+        }
+        .sp-ws-tab-btn.active {
+          color: #E8B84B;
+        }
+        .sp-ws-tab-btn.active::after {
+          content: "";
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background-color: #E8B84B;
+        }
+        .sp-ws-tab-badge {
+          background: #1c1c20;
+          color: #8e8e93;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 6px;
+        }
+        .sp-ws-tab-btn.active .sp-ws-tab-badge {
+          background: rgba(232, 184, 75, 0.08);
+          color: #E8B84B;
+        }
+        .sp-ws-columns {
+          display: flex;
+          gap: 32px;
+          align-items: flex-start;
+        }
+        .sp-ws-col-left {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          min-width: 0;
+        }
+        .sp-ws-col-right {
+          width: 280px;
+          flex-shrink: 0;
+        }
+        .sp-ws-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+        .sp-ws-section-title {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #8e8e93;
+          letter-spacing: 0.08em;
+          margin: 0;
+        }
+        .sp-ws-table-header {
+          display: flex;
+          padding: 8px 16px;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #55555d;
+          letter-spacing: 0.08em;
+        }
+        .sp-ws-table-col-name { flex: 2.5; min-width: 0; }
+        .sp-ws-table-col-edited { flex: 1.5; }
+        .sp-ws-table-col-pages { flex: 1; text-align: center; }
+        .sp-ws-table-col-date { flex: 1; text-align: center; }
+        .sp-ws-table-col-action { width: 40px; text-align: right; }
+
+        .sp-ws-row-card {
+          display: flex;
+          align-items: center;
+          padding: 16px;
+          background-color: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 12px;
+          margin-bottom: 8px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .sp-ws-row-card:hover {
+          border-color: rgba(232, 184, 75, 0.25);
+          background-color: #16161a;
+        }
+        .sp-ws-row-name-wrap {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex: 2.5;
+          min-width: 0;
+        }
+        .sp-ws-row-icon-box {
+          width: 38px;
+          height: 38px;
+          border-radius: 8px;
+          background-color: rgba(255, 255, 255, 0.02);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .sp-ws-row-details {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+        }
+        .sp-ws-row-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .sp-ws-row-subtitle {
+          font-size: 12px;
+          color: #8e8e93;
+          margin: 0;
+        }
+        .sp-ws-row-edited {
+          font-size: 13px;
+          color: #efeff1;
+          font-weight: 500;
+          flex: 1.5;
+        }
+        .sp-ws-row-badge-wrap {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+        }
+        .sp-ws-row-badge {
+          background: #1c1c20;
+          color: #8e8e93;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 4px 8px;
+          border-radius: 6px;
+        }
+        .sp-ws-row-date {
+          font-size: 13px;
+          color: #8e8e93;
+          font-weight: 500;
+          flex: 1;
+          text-align: center;
+        }
+        .sp-ws-row-action {
+          width: 40px;
+          display: flex;
+          justify-content: flex-end;
+          position: relative;
+        }
+        .sp-ws-row-action-btn {
+          background: transparent;
+          border: none;
+          color: #8e8e93;
+          cursor: pointer;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+        }
+        .sp-ws-row-action-btn:hover {
+          background: rgba(255, 255, 255, 0.05);
+          color: #efeff1;
+        }
+        .sp-ws-row-avatar-wrap {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex: 2.5;
+          min-width: 0;
+        }
+        .sp-ws-row-col-email {
+          font-size: 13px;
+          color: #8e8e93;
+          font-weight: 500;
+          flex: 1.5;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .sp-ws-row-col-role {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+        }
+        .sp-ws-role-badge {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 20px;
+        }
+        .sp-ws-row-col-joined {
+          font-size: 13px;
+          color: #8e8e93;
+          font-weight: 500;
+          flex: 1;
+          text-align: center;
+        }
+        .sp-ws-details-card {
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 16px;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .sp-ws-details-title-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .sp-ws-details-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+        }
+        .sp-ws-details-edit-btn {
+          background: transparent;
+          border: none;
+          color: #8e8e93;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .sp-ws-details-edit-btn:hover {
+          color: #E8B84B;
+        }
+        .sp-ws-details-divider {
+          height: 1px;
+          background: #1c1c20;
+        }
+        .sp-ws-details-item {
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+          font-weight: 500;
+        }
+        .sp-ws-details-item-lbl {
+          color: #8e8e93;
+        }
+        .sp-ws-details-item-val {
+          color: #efeff1;
+          font-weight: 600;
+        }
+        .sp-ws-details-item-val.gold {
+          color: #E8B84B;
+        }
+        .sp-ws-progress-wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .sp-ws-progress-bar {
+          height: 6px;
+          background: #1c1c20;
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .sp-ws-progress-fill {
+          height: 100%;
+          background-color: #E8B84B;
+          border-radius: 4px;
+        }
+
+        /* Mobile specific styling inside media query */
+        @media (max-width: 768px) {
+          .sp-ws-container {
+            height: auto;
+            overflow-y: auto;
+            background-color: #0c0c0e;
+          }
+          .sp-ws-desktop-layout {
+            display: none !important;
+          }
+          .sp-ws-mobile-layout {
+            display: flex;
+            flex-direction: column;
+            padding: 16px 16px 88px 16px;
+            box-sizing: border-box;
+            min-height: 100vh;
+          }
+          .sp-ws-mobile-back-btn {
+            background: transparent;
+            border: none;
+            color: #E8B84B;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 0;
+            margin-bottom: 16px;
+          }
+          .sp-ws-mobile-card {
+            background: #121214;
+            border-radius: 16px;
+            border: 1px solid #1c1c20;
+            border-top: 3px solid #E8B84B;
+            padding: 20px;
+            margin-bottom: 24px;
+          }
+          .sp-ws-mobile-card-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            margin: 0;
+            letter-spacing: -0.01em;
+          }
+          .sp-ws-mobile-card-options-btn {
+            background: #1c1c20;
+            border: none;
+            color: #8e8e93;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+          }
+          .sp-ws-mobile-card-desc {
+            font-size: 13px;
+            color: #8e8e93;
+            margin: 4px 0 8px 0;
+          }
+          .sp-ws-mobile-card-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #1c1c20;
+          }
+          .sp-ws-mobile-card-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .sp-ws-mobile-card-stat-val {
+            font-size: 16px;
+            font-weight: 800;
+            color: #E8B84B;
+          }
+          .sp-ws-mobile-card-stat-lbl {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #8e8e93;
+            margin-top: 2px;
+          }
+          
+          /* Tabs mobile */
+          .sp-ws-mobile-tabs {
+            display: flex;
+            border-bottom: 1px solid #1c1c20;
+            margin-bottom: 20px;
+            gap: 16px;
+          }
+          .sp-ws-mobile-tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 0;
+            color: #8e8e93;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+          }
+          .sp-ws-mobile-tab-btn.active {
+            color: #E8B84B;
+          }
+          .sp-ws-mobile-tab-btn.active::after {
+            content: "";
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #E8B84B;
+          }
+          
+          /* File card mobile */
+          .sp-ws-mobile-file-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background-color: #121214;
+            border: 1px solid #1c1c20;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+          }
+          .sp-ws-mobile-file-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+          }
+          .sp-ws-mobile-file-subtitle {
+            font-size: 11px;
+            color: #8e8e93;
+            margin: 0;
+          }
+          .sp-ws-mobile-file-badge {
+            background: #1c1c20;
+            color: #8e8e93;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 6px;
+            border-radius: 5px;
+            border: 1px solid #232329;
+          }
+          .sp-ws-mobile-file-date {
+            font-size: 11px;
+            color: #8e8e93;
+          }
+          .sp-ws-mobile-file-more-btn {
+            background: transparent;
+            border: none;
+            color: #8e8e93;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          /* Collaborator mobile */
+          .sp-ws-mobile-collab-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background-color: #121214;
+            border: 1px solid #1c1c20;
+            border-radius: 12px;
+            margin-bottom: 10px;
+          }
+
+          /* Mobile bottom bar */
+          .sp-ws-mobile-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background-color: #121214;
+            border-top: 1px solid #1c1c20;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 12px;
+            z-index: 100;
+          }
+          .sp-ws-mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            background: transparent;
+            border: none;
+            color: #8e8e93;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 60px;
+          }
+          .sp-ws-mobile-nav-item.active {
+            color: #E8B84B;
+          }
+          .sp-ws-mobile-nav-fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background-color: #E8B84B;
+            border: none;
+            color: #0f0f11;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(232, 184, 75, 0.3);
+            margin-top: -20px;
+            transition: all 0.15s ease;
+          }
+        }
+      ` }} />
+
+      {/* ======================================================== */}
+      {/* DESKTOP VIEWPORT LAYOUT                                  */}
+      {/* ======================================================== */}
+      <div className="sp-ws-desktop-layout">
+        {/* Top Navigation Header */}
+        <header className="sp-ws-header">
+          <div className="sp-ws-header-left">
+            <div className="sp-ws-logo-wrap" onClick={back}>
+              <div className="sp-ws-logo-box">
+                {/* Custom inline clapperboard/binder SVG */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f0f11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                  <path d="M6 6h10" />
+                  <path d="M6 10h10" />
+                </svg>
+              </div>
+              <span className="sp-ws-logo-text">WriterDesk</span>
+            </div>
+            <div style={{ width: 1, height: 16, background: "#1c1c20" }} />
+            <div className="sp-ws-breadcrumbs">
+              <span>Projects</span>
+              <span>/</span>
+              <span className="active">{project.title}</span>
+            </div>
+          </div>
+
+          <div className="sp-ws-header-right">
+            <button className="sp-ws-btn-share" onClick={() => alert("Share dialog placeholder")}>
+              <Share2 size={14} /> Share
+            </button>
+            <button className="sp-ws-btn-gold" onClick={addFile}>
+              <Plus size={14} /> New Script
+            </button>
+            <button className="sp-ws-icon-btn" title="Theme selector">
+              <Sun size={16} />
+            </button>
+            <Avatar src={user?.avatar} name={user?.name || "User"} size={32} />
+          </div>
+        </header>
+
+        {/* Sidebar + Main content body container */}
+        <div className="sp-ws-body">
+          {/* Workspace navigation sidebar (Left) */}
+          <aside className="sp-ws-sidebar">
+            <div>
+              <div className="sp-ws-sidebar-section">
+                <div className="sp-ws-sidebar-title">WORKSPACE</div>
+                <button className="sp-ws-sidebar-item" onClick={back}>
+                  <LayoutGrid size={16} /> All Projects
+                </button>
+                <button className="sp-ws-sidebar-item active">
+                  <Folder size={16} /> {project.title}
+                </button>
+                <button className="sp-ws-sidebar-item">
+                  <FileText size={16} /> My Scripts
+                </button>
+                <button className="sp-ws-sidebar-item">
+                  <Users size={16} /> Shared With Me
+                </button>
+              </div>
+
+              <div className="sp-ws-sidebar-section">
+                <div className="sp-ws-sidebar-title">RECENT SCRIPTS</div>
+                {project.files.slice(0, 3).map((f) => (
+                  <button key={f.id} className="sp-ws-sidebar-item" onClick={() => openFile(f.id)}>
+                    <FileText size={16} /> {f.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <button className="sp-ws-sidebar-item" style={{ marginBottom: 4 }}>
+                <Search size={16} /> Search
+              </button>
+              <button className="sp-ws-sidebar-item">
+                <SettingsIcon size={16} /> Settings
+              </button>
+            </div>
+          </aside>
+
+          {/* Scrollable Main Workspace Details Area */}
+          <main className="sp-ws-main-scroll">
+            <div className="sp-ws-main-grid">
+              {/* Main project header stats card */}
+              <div className="sp-ws-banner">
+                <div className="sp-ws-banner-info">
+                  <div className="sp-ws-banner-title-row">
+                    <h1 className="sp-ws-banner-title">{project.title}</h1>
+                    <span className="sp-ws-badge-active">Active</span>
+                  </div>
+                  <p className="sp-ws-banner-desc">{project.description || "Feature Film"}</p>
+                  
+                  {/* Statistics Row */}
+                  <div className="sp-ws-banner-stats-row">
+                    <div className="sp-ws-banner-stat">
+                      <span className="sp-ws-banner-stat-val">{project.files.length}</span>
+                      <span className="sp-ws-banner-stat-lbl">Scripts</span>
+                    </div>
+                    <div className="sp-ws-banner-stat">
+                      <span className="sp-ws-banner-stat-val">67</span>
+                      <span className="sp-ws-banner-stat-lbl">Total Pages</span>
+                    </div>
+                    <div className="sp-ws-banner-stat">
+                      <span className="sp-ws-banner-stat-val">3</span>
+                      <span className="sp-ws-banner-stat-lbl">Collaborators</span>
+                    </div>
+                    <div className="sp-ws-banner-stat">
+                      <span className="sp-ws-banner-stat-val">~67</span>
+                      <span className="sp-ws-banner-stat-lbl">Est. Minutes</span>
+                    </div>
+                    <div className="sp-ws-banner-stat">
+                      <span className="sp-ws-banner-stat-val">Jun 8</span>
+                      <span className="sp-ws-banner-stat-lbl">Last Edited</span>
+                    </div>
                   </div>
                 </div>
-                <div style={{ position: "relative" }} onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
-                  <button className="sp-btn" style={{ padding: "2px 8px" }}>⋯</button>
-                  {openMenu === f.id && (
-                    <div className="sp-menu" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
-                      <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
-                      <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }}>Delete</button>
+
+                {/* Banner Right Actions */}
+                <div className="sp-ws-banner-actions">
+                  <div className="sp-ws-banner-buttons">
+                    <button className="sp-ws-btn-share" onClick={() => setShowExport(true)}>
+                      <Download size={14} /> Export
+                    </button>
+                    <button className="sp-ws-btn-gold" onClick={() => {
+                      const newTitle = window.prompt("Edit Project Title", project.title);
+                      if (newTitle) persist({ ...project, title: newTitle });
+                    }}>
+                      <Edit2 size={14} /> Edit Project
+                    </button>
+                    <button className="sp-ws-icon-btn" onClick={() => alert("More options clicked")}>
+                      <MoreHorizontal size={14} />
+                    </button>
+                  </div>
+
+                  <div className="sp-ws-avatar-row">
+                    <div className="sp-ws-avatar-stack">
+                      {collaboratorsList.map((c, idx) => (
+                        <Avatar 
+                          key={c.email} 
+                          src={c.avatar} 
+                          name={c.name} 
+                          size={24} 
+                          style={{ 
+                            border: "2px solid #121214", 
+                            marginRight: idx < collaboratorsList.length - 1 ? -6 : 0, 
+                            zIndex: collaboratorsList.length - idx 
+                          }} 
+                        />
+                      ))}
+                    </div>
+                    <span className="sp-ws-avatar-lbl">{collaboratorsList.length} collaborators</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tab switch row */}
+              <div className="sp-ws-tabs">
+                <button 
+                  className={`sp-ws-tab-btn ${activeTab === "files" ? "active" : ""}`}
+                  onClick={() => setActiveTab("files")}
+                >
+                  Files <span className="sp-ws-tab-badge">{project.files.length}</span>
+                </button>
+                <button 
+                  className={`sp-ws-tab-btn ${activeTab === "collaborators" ? "active" : ""}`}
+                  onClick={() => setActiveTab("collaborators")}
+                >
+                  Collaborators <span className="sp-ws-tab-badge">{collaboratorsList.length}</span>
+                </button>
+                <button 
+                  className={`sp-ws-tab-btn ${activeTab === "settings" ? "active" : ""}`}
+                  onClick={() => setActiveTab("settings")}
+                >
+                  Settings
+                </button>
+              </div>
+
+              {/* Main Content Layout with Details Sidebar */}
+              <div className="sp-ws-columns">
+                <div className="sp-ws-col-left">
+                  {/* Files block: displayed when Files tab is active */}
+                  {activeTab === "files" && (
+                    <>
+                      <div className="sp-ws-section-header">
+                        <h2 className="sp-ws-section-title">ALL FILES</h2>
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <label className="sp-ws-btn-share" style={{ cursor: "pointer", padding: "6px 12px", borderRadius: 8 }}>
+                            Import
+                            <input type="file" accept=".fountain,.txt,.md,text/plain" multiple style={{ display: "none" }} onChange={(e) => { importFiles(e.target.files); e.target.value = ""; }} />
+                          </label>
+                          <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8 }} onClick={addFile}>
+                            <Plus size={14} /> Add File
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="sp-ws-table-header">
+                        <span className="sp-ws-table-col-name">Name</span>
+                        <span className="sp-ws-table-col-edited">Last Edited</span>
+                        <span className="sp-ws-table-col-pages">Pages</span>
+                        <span className="sp-ws-table-col-date">Date</span>
+                        <span className="sp-ws-table-col-action" />
+                      </div>
+
+                      {project.files.length === 0 ? (
+                        <p style={{ textAlign: "center", color: "#8e8e93", padding: 48, background: "#121214", borderRadius: 12 }}>No files yet. Click Add File to create one.</p>
+                      ) : (
+                        project.files.map((f) => (
+                          <div
+                            key={f.id}
+                            className="sp-ws-row-card"
+                            draggable
+                            onDragStart={() => setDragId(f.id)}
+                            onDragOver={onDragOver}
+                            onDrop={() => onDrop(f.id)}
+                            onClick={() => openFile(f.id)}
+                          >
+                            <div className="sp-ws-row-name-wrap">
+                              <div className="sp-ws-row-icon-box">
+                                <FileText size={18} color={getFileIconColor(f.title)} />
+                              </div>
+                              <div className="sp-ws-row-details">
+                                <h3 className="sp-ws-row-title">{f.title}</h3>
+                                <p className="sp-ws-row-subtitle">{getFileAuthor(f.title)}</p>
+                              </div>
+                            </div>
+                            
+                            <span className="sp-ws-row-edited">{getFileFullDate(f.title)}</span>
+                            
+                            <div className="sp-ws-row-badge-wrap">
+                              <span className="sp-ws-row-badge">{getFilePages(f.title, f.blocks)} pp</span>
+                            </div>
+                            
+                            <span className="sp-ws-row-date">{getFileDate(f.title)}</span>
+                            
+                            <div className="sp-ws-row-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
+                              <button className="sp-ws-row-action-btn">⋮</button>
+                              {openMenu === f.id && (
+                                <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                                  <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
+                                  <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
+                                  <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </>
+                  )}
+
+                  {/* Collaborators Block: displayed in BOTH Files and Collaborators tab */}
+                  {(activeTab === "files" || activeTab === "collaborators") && (
+                    <div style={{ marginTop: activeTab === "files" ? 24 : 0 }}>
+                      <div className="sp-ws-section-header">
+                        <h2 className="sp-ws-section-title">COLLABORATORS</h2>
+                        <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8 }} onClick={() => alert("Invite link copied to clipboard!")}>
+                          <UserPlus size={14} /> Invite
+                        </button>
+                      </div>
+
+                      <div className="sp-ws-table-header">
+                        <span className="sp-ws-table-col-name">Member</span>
+                        <span className="sp-ws-table-col-edited">Email</span>
+                        <span className="sp-ws-table-col-pages">Role</span>
+                        <span className="sp-ws-table-col-date">Joined</span>
+                        <span className="sp-ws-table-col-action" />
+                      </div>
+
+                      {collaboratorsList.map((c) => (
+                        <div key={c.email} className="sp-ws-row-card" style={{ cursor: "default" }}>
+                          <div className="sp-ws-row-avatar-wrap">
+                            <Avatar src={c.avatar} name={c.name} size={36} />
+                            <div className="sp-ws-row-details">
+                              <h3 className="sp-ws-row-title">{c.name}</h3>
+                            </div>
+                          </div>
+                          
+                          <span className="sp-ws-row-col-email">{c.email}</span>
+                          
+                          <div className="sp-ws-row-col-role">
+                            <span 
+                              className="sp-ws-role-badge" 
+                              style={{ color: c.roleColor, backgroundColor: c.roleBg }}
+                            >
+                              {c.role}
+                            </span>
+                          </div>
+                          
+                          <span className="sp-ws-row-col-joined">{c.joined}</span>
+                          
+                          <div className="sp-ws-row-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
+                            <button className="sp-ws-row-action-btn">⋮</button>
+                            {openMenu === c.email && (
+                              <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => { alert("Changing roles placeholder"); setOpenMenu(null); }}>Change Role</button>
+                                <button onClick={() => { alert("Removing collaborator placeholder"); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {activeTab === "settings" && (
+                    <div style={{ background: "#121214", borderRadius: 16, border: "1px solid #1c1c20", padding: 28 }}>
+                      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Project Settings</h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>PROJECT TITLE</label>
+                          <input 
+                            type="text" 
+                            defaultValue={project.title} 
+                            className="sp-input" 
+                            style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", maxWidth: 400 }}
+                            onBlur={(e) => {
+                              if (e.target.value.trim()) persist({ ...project, title: e.target.value.trim() });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>DESCRIPTION</label>
+                          <textarea 
+                            defaultValue={project.description || "Feature Film"} 
+                            className="sp-input" 
+                            rows={3}
+                            style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", maxWidth: 400, resize: "none" }}
+                            onBlur={(e) => {
+                              persist({ ...project, description: e.target.value.trim() });
+                            }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
+
+                {/* Right Column details card widget */}
+                <div className="sp-ws-col-right">
+                  <div className="sp-ws-details-card">
+                    <div className="sp-ws-details-title-row">
+                      <h3 className="sp-ws-details-title">Project Details</h3>
+                      <button className="sp-ws-details-edit-btn" onClick={() => alert("Edit project properties details placeholder")}>
+                        <Edit2 size={13} />
+                      </button>
+                    </div>
+                    
+                    <div className="sp-ws-details-divider" />
+                    
+                    <div className="sp-ws-details-item">
+                      <span className="sp-ws-details-item-lbl">Type</span>
+                      <span className="sp-ws-details-item-val">Feature Film</span>
+                    </div>
+                    <div className="sp-ws-details-item">
+                      <span className="sp-ws-details-item-lbl">Genre</span>
+                      <span className="sp-ws-details-item-val">Neo-Noir/Thriller</span>
+                    </div>
+                    <div className="sp-ws-details-item">
+                      <span className="sp-ws-details-item-lbl">Created</span>
+                      <span className="sp-ws-details-item-val">Jan 12, 2026</span>
+                    </div>
+                    <div className="sp-ws-details-item">
+                      <span className="sp-ws-details-item-lbl">Target Pages</span>
+                      <span className="sp-ws-details-item-val">110 pp</span>
+                    </div>
+                    <div className="sp-ws-details-item">
+                      <span className="sp-ws-details-item-lbl">Status</span>
+                      <span className="sp-ws-details-item-val gold">Active</span>
+                    </div>
+                    
+                    <div className="sp-ws-details-divider" />
+                    
+                    <div className="sp-ws-progress-wrap">
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                        <span className="sp-ws-details-item-lbl">Completion</span>
+                        <span className="sp-ws-details-item-val gold">61%</span>
+                      </div>
+                      <div className="sp-ws-progress-bar">
+                        <div className="sp-ws-progress-fill" style={{ width: "61%" }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            );
-          })}
+            </div>
+          </main>
         </div>
-      )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* MOBILE VIEWPORT LAYOUT                                   */}
+      {/* ======================================================== */}
+      <div className="sp-ws-mobile-layout">
+        {/* Mobile header (Projects back link) */}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+          <button className="sp-ws-mobile-back-btn" onClick={back}>
+            <ChevronLeft size={16} /> Projects
+          </button>
+        </div>
+
+        {/* Mobile Project stats card */}
+        <div className="sp-ws-mobile-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <h1 className="sp-ws-mobile-card-title">{project.title}</h1>
+              <p className="sp-ws-mobile-card-desc">{project.description || "Feature Film"}</p>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+                <span className="sp-ws-badge-active">Active</span>
+              </div>
+            </div>
+            <button className="sp-ws-mobile-card-options-btn" onClick={() => alert("Options menu")}>
+              <MoreHorizontal size={18} />
+            </button>
+          </div>
+
+          <div className="sp-ws-mobile-card-stats">
+            <div className="sp-ws-mobile-card-stat">
+              <span className="sp-ws-mobile-card-stat-val">{project.files.length}</span>
+              <span className="sp-ws-mobile-card-stat-lbl">Scripts</span>
+            </div>
+            <div className="sp-ws-mobile-card-stat">
+              <span className="sp-ws-mobile-card-stat-val">67</span>
+              <span className="sp-ws-mobile-card-stat-lbl">Pages</span>
+            </div>
+            <div className="sp-ws-mobile-card-stat">
+              <span className="sp-ws-mobile-card-stat-val">3</span>
+              <span className="sp-ws-mobile-card-stat-lbl">Collabs</span>
+            </div>
+            <div className="sp-ws-mobile-card-stat">
+              <span className="sp-ws-mobile-card-stat-val">Jun 8</span>
+              <span className="sp-ws-mobile-card-stat-lbl">Last edited</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Tabs Switch */}
+        <div className="sp-ws-mobile-tabs">
+          <button 
+            className={`sp-ws-mobile-tab-btn ${activeTab === "files" ? "active" : ""}`}
+            onClick={() => setActiveTab("files")}
+          >
+            Files
+          </button>
+          <button 
+            className={`sp-ws-mobile-tab-btn ${activeTab === "collaborators" ? "active" : ""}`}
+            onClick={() => setActiveTab("collaborators")}
+          >
+            Collaborators
+          </button>
+          <button 
+            className={`sp-ws-mobile-tab-btn ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+          >
+            Settings
+          </button>
+        </div>
+
+        {/* Mobile Scroll Content List */}
+        <div style={{ flex: 1 }}>
+          {/* Files List block */}
+          {activeTab === "files" && (
+            <>
+              <div className="sp-ws-section-header" style={{ marginBottom: 12 }}>
+                <h2 className="sp-ws-section-title">ALL FILES</h2>
+                <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={addFile}>
+                  <Plus size={12} /> Add File
+                </button>
+              </div>
+
+              {project.files.length === 0 ? (
+                <p style={{ textAlign: "center", color: "#8e8e93", padding: 24, background: "#121214", borderRadius: 12 }}>No files yet.</p>
+              ) : (
+                project.files.map((f) => (
+                  <div
+                    key={f.id}
+                    className="sp-ws-mobile-file-card"
+                    onClick={() => openFile(f.id)}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                      <div className="sp-ws-row-icon-box">
+                        <FileText size={18} color={getFileIconColor(f.title)} />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                        <h3 className="sp-ws-mobile-file-title">{f.title}</h3>
+                        <p className="sp-ws-mobile-file-subtitle">Edited {getFileDate(f.title)} · {getFileAuthor(f.title)}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                        <span className="sp-ws-mobile-file-badge">{getFilePages(f.title, f.blocks)} pp</span>
+                        <span className="sp-ws-mobile-file-date">{getFileDate(f.title)}</span>
+                      </div>
+                      <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
+                        <MoreVertical size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          )}
+
+          {/* Collaborators List block */}
+          {activeTab === "collaborators" && (
+            <>
+              <div className="sp-ws-section-header" style={{ marginBottom: 12 }}>
+                <h2 className="sp-ws-section-title">COLLABORATORS</h2>
+                <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => alert("Invite link copied to clipboard!")}>
+                  <UserPlus size={12} /> Invite
+                </button>
+              </div>
+
+              {collaboratorsList.map((c) => (
+                <div key={c.email} className="sp-ws-mobile-collab-card">
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <Avatar src={c.avatar} name={c.name} size={36} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <h3 className="sp-ws-mobile-file-title">{c.name}</h3>
+                      <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 10 }}>{c.email}</p>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <span className="sp-ws-role-badge" style={{ color: c.roleColor, backgroundColor: c.roleBg, fontSize: 10, padding: "2px 8px" }}>
+                        {c.role}
+                      </span>
+                      <span className="sp-ws-mobile-file-date">Joined {c.joined}</span>
+                    </div>
+                    <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
+                      <MoreVertical size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Settings Tab block */}
+          {activeTab === "settings" && (
+            <div style={{ background: "#121214", borderRadius: 16, border: "1px solid #1c1c20", padding: 20 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Project Settings</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>PROJECT TITLE</label>
+                  <input 
+                    type="text" 
+                    defaultValue={project.title} 
+                    className="sp-input" 
+                    style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box" }}
+                    onBlur={(e) => {
+                      if (e.target.value.trim()) persist({ ...project, title: e.target.value.trim() });
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>DESCRIPTION</label>
+                  <textarea 
+                    defaultValue={project.description || "Feature Film"} 
+                    className="sp-input" 
+                    rows={3}
+                    style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box", resize: "none" }}
+                    onBlur={(e) => {
+                      persist({ ...project, description: e.target.value.trim() });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <nav className="sp-ws-mobile-nav">
+          <button className="sp-ws-mobile-nav-item" onClick={back}>
+            <LayoutGrid size={20} />
+            <span>Projects</span>
+          </button>
+          <button className="sp-ws-mobile-nav-item active">
+            <FileText size={20} />
+            <span>Scripts</span>
+          </button>
+          <button className="sp-ws-mobile-nav-fab" onClick={addFile}>
+            <Plus size={24} />
+          </button>
+          <button className="sp-ws-mobile-nav-item" onClick={() => alert("Search clicked")}>
+            <Search size={20} />
+            <span>Search</span>
+          </button>
+          <button className="sp-ws-mobile-nav-item" onClick={() => alert("Profile clicked")}>
+            <Avatar src={user?.avatar} name={user?.name || "User"} size={20} />
+            <span>Profile</span>
+          </button>
+        </nav>
+      </div>
 
       {showExport && <ExportModal project={project} defaultFileId={null} onClose={() => setShowExport(false)} />}
     </div>
   );
 }
+

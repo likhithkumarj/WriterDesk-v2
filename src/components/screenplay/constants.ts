@@ -11,40 +11,52 @@ export const TYPE_ICONS = {
 } as const;
 
 export function makeSample(): Project {
-  const blocks: Block[] = [
-    { id: uid(), type: "scene", text: "INT. COFFEE SHOP - DAY" },
+  const sampleBlocks = [
+    { id: uid(), type: "scene", text: "INT. JAZZ CLUB - NIGHT" },
     {
       id: uid(),
       type: "action",
-      text: "Rain streaks the front window. MAYA (28), a tired barista with ink-stained fingers, wipes the counter for the third time this hour. The shop is empty.",
+      text: "Rain drums against the neon-lit window pane. COLE (40s), in a wet trench coat, sits at the bar staring into his bourbon.",
     },
-    { id: uid(), type: "character", text: "MAYA" },
-    { id: uid(), type: "parenthetical", text: "(to herself)" },
-    { id: uid(), type: "dialogue", text: "Just one customer. That's all I ask." },
-    { id: uid(), type: "action", text: "The bell above the door CHIMES. SONG - a soft jazz number begins to play from the overhead speakers." },
-    { id: uid(), type: "character", text: "DANIEL (V.O.)" },
-    { id: uid(), type: "dialogue", text: "I had been walking for hours when I found her shop." },
-    { id: uid(), type: "scene", text: "EXT. CITY STREET - NIGHT" },
-    { id: uid(), type: "action", text: "DANIEL (35), collar up against the rain, hurries past glowing storefronts." },
-    { id: uid(), type: "character", text: "WOMAN (O.S.)" },
-    { id: uid(), type: "dialogue", text: "¡Cuidado! Watch where you're going!" },
-    { id: uid(), type: "scene", text: "I/E. TAXI/CITY STREET - NIGHT" },
-    { id: uid(), type: "action", text: "Daniel ducks into a yellow cab. Through the window, neon signs blur into watercolor." },
-    { id: uid(), type: "character", text: "DANIEL" },
-    { id: uid(), type: "dialogue", text: "Take me anywhere that's still open." },
+    { id: uid(), type: "character", text: "COLE" },
+    { id: uid(), type: "dialogue", text: "Some nights, the city closes its eyes and pretends it has a heart." }
   ];
-  const file: FileDoc = {
-    id: uid(),
-    title: "Pilot — Episode 1",
-    dateModified: Date.now(),
-    blocks,
-  };
+
   return {
-    id: uid(),
-    title: "The Rain Hours",
-    description: "A pilot episode about strangers in a city of weather.",
-    dateCreated: Date.now(),
-    dateModified: Date.now(),
-    files: [file],
+    id: "default-project",
+    title: "Noir City",
+    description: "Feature Film",
+    dateCreated: 1768000000000, // Jan 12, 2026
+    dateModified: 1780936800000, // Jun 8, 2026
+    files: [
+      {
+        id: "act-one-draft",
+        title: "Act One Draft",
+        dateModified: 1780936800000, // Jun 8, 2026
+        blocks: [
+          { id: uid(), type: "scene", text: "INT. JAZZ CLUB - NIGHT" },
+          { id: uid(), type: "action", text: "COLE stares at his glass. VERA enters." },
+          { id: uid(), type: "character", text: "COLE" },
+          { id: uid(), type: "dialogue", text: "You're late." }
+        ]
+      },
+      {
+        id: "act-two-outline",
+        title: "Act Two Outline",
+        dateModified: 1780764000000, // Jun 6, 2026
+        blocks: [
+          { id: uid(), type: "scene", text: "EXT. MERIDIAN HOTEL - NIGHT" },
+          { id: uid(), type: "action", text: "Outline notes for the hotel confrontation scene." }
+        ]
+      },
+      {
+        id: "character-bible",
+        title: "Character Bible",
+        dateModified: 1780591200000, // Jun 4, 2026
+        blocks: [
+          { id: uid(), type: "action", text: "Profile notes for Cole, Vera, and the Detective." }
+        ]
+      }
+    ]
   };
 }

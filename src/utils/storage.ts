@@ -1,7 +1,7 @@
 import { Store } from "../types/screenplay";
 import { makeSample } from "../components/screenplay/constants";
 
-export const STORAGE_KEY = "screenplay_store_v1";
+export const STORAGE_KEY = "screenplay_store_v2";
 
 export function loadStore(): Store {
   if (typeof window === "undefined") return { projects: [] };

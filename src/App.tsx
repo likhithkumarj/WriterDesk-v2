@@ -166,7 +166,7 @@ function AppContent() {
       />
       <Route 
         path="/project/:projectId" 
-        element={user ? <ProjectFilesRoute store={store} persist={persist} /> : <Navigate to="/login" replace />} 
+        element={user ? <ProjectFilesRoute store={store} persist={persist} user={user} /> : <Navigate to="/login" replace />} 
       />
       <Route 
         path="/project/:projectId/file/:fileId" 
@@ -201,7 +201,7 @@ function ProjectsRoute({
   );
 }
 
-function ProjectFilesRoute({ store, persist }: { store: Store; persist: (s: Store) => void }) {
+function ProjectFilesRoute({ store, persist, user }: { store: Store; persist: (s: Store) => void; user: UserProfile }) {
   const navigate = useNavigate();
   const { projectId } = useParams();
   
@@ -211,6 +211,7 @@ function ProjectFilesRoute({ store, persist }: { store: Store; persist: (s: Stor
   return (
     <FilesScreen
       project={project}
+      user={user}
       back={() => navigate("/projects")}
       persist={(p) => persist({ ...store, projects: store.projects.map((x) => x.id === p.id ? p : x) })}
       openFile={(fileId) => navigate(`/project/${projectId}/file/${fileId}`)}
