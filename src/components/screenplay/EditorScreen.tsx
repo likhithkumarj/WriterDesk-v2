@@ -643,7 +643,7 @@ export function EditorScreen({
         </div>
 
         {/* Right Area: Save indicators, users list, and controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {/* Save Status indicator */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
             {saveState === "saving" ? (
@@ -668,9 +668,9 @@ export function EditorScreen({
                 name={u.name || u.email || "User"} 
                 size={28}
                 style={{ 
-                  border: "2px solid var(--sp-toolbar)", 
+                  border: "1px solid #ffffff5b", 
                   marginRight: idx < onlineUsers.length - 1 ? -8 : 0,
-                  zIndex: onlineUsers.length - idx
+                  zIndex: onlineUsers.length - idx,
                 }} 
               />
             ))}
@@ -703,23 +703,23 @@ export function EditorScreen({
             <Share2 size={16} />
           </button>
 
-          {/* Download button */}
-          <button 
-            className="sp-btn sp-btn-ghost sp-btn-icon" 
-            onClick={() => setShowExport(true)} 
-            title="Download screenplay"
-            style={{ padding: 8, color: "var(--sp-muted)" }}
-          >
-            <Download size={16} />
-          </button>
-
           {/* Save Draft primary button */}
           <button 
-            className="sp-btn sp-btn-primary" 
+            className="sp-btn sp-btn-ghost sp-btn-icon" 
             onClick={saveManually}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px" }}
+            style={{ padding: 8, color: "var(--sp-muted)" }}
           >
-            <Save size={14} /> Save Draft
+            <Save size={14} />
+          </button>
+
+          {/* Download button */}
+          <button 
+            className="sp-btn sp-btn-primary " 
+            onClick={() => setShowExport(true)} 
+            title="Download screenplay"
+            style={{display: "flex", alignItems: "center", gap: 6, padding: "8px 16px"  }}
+          >
+            <Download size={16} /> Export
           </button>
 
           {/* More options menu */}
