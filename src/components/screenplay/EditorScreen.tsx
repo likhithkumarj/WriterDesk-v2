@@ -190,6 +190,8 @@ export function EditorScreen({
   }, [user, projectCollaborators, onlineUsers]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
   const [baseScale, setBaseScale] = useState(1);
   const pageScale = baseScale * userZoom;
 
@@ -528,40 +530,102 @@ export function EditorScreen({
     return currentSceneNum;
   }, [blocks, focusedId]);
 
-  // Interactive Comments System Mock State
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: "c1",
-      author: "Sarah K.",
-      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=sarah",
-      text: "Love the opening line-'closes its eyes and pretends' is poetry",
-      timestamp: "2h ago",
-      sceneLabel: "Scene 1 • Cole V.O."
-    },
-    {
-      id: "c2",
-      author: "James R.",
-      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=james",
-      text: "Should we clarify Vera's motivation earlier? Her entrance feels slightly abrupt.",
-      timestamp: "45m ago",
-      sceneLabel: "Scene 1 • Vera entrance"
-    },
-    {
-      id: "c3",
-      author: "Ben (you)",
-      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=ben",
-      text: "The Meridian reveal works well as a button for Act 2. Keeping it.",
-      timestamp: "10m ago",
-      sceneLabel: "Scene 2 • Smash cut"
-    }
-  ]);
+  // Comments state loading and syncing (Supabase with localStorage fallback)
+  const [comments, setComments] = useState<Comment[]>([]);
   const [newCommentText, setNewCommentText] = useState("");
 
-  const handlePostComment = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (activeRightTab === "comments") {
+      commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [comments.length, activeRightTab]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadComments = async () => {
+      if (!supabaseService.isConfigured()) {
+        const saved = localStorage.getItem(`comments:${activeFileId}`);
+        if (saved && active) {
+          setComments(JSON.parse(saved));
+        } else if (active) {
+          // Default mock fallback comments
+          setComments([
+            {
+              id: "c1",
+              author: "Sarah K.",
+              avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=sarah",
+              text: "Love the opening line - 'closes its eyes and pretends' is poetry",
+              timestamp: "2h ago",
+              sceneLabel: "Scene 1 • Cole V.O."
+            },
+            {
+              id: "c2",
+              author: "James R.",
+              avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=james",
+              text: "Should we clarify Vera's motivation earlier? Her entrance feels slightly abrupt.",
+              timestamp: "45m ago",
+              sceneLabel: "Scene 1 • Vera entrance"
+            }
+          ]);
+        }
+        return;
+      }
+
+      const { data, error } = await supabaseService.fetchComments(activeFileId);
+      if (error) {
+        console.error("Error fetching comments:", error);
+      } else if (data && active) {
+        const mapped: Comment[] = data.map((c: any) => ({
+          id: c.id,
+          author: c.author,
+          avatar: c.avatar,
+          text: c.text,
+          timestamp: c.timestamp,
+          sceneLabel: c.scene_label || undefined
+        }));
+        setComments(mapped);
+      }
+    };
+
+    loadComments();
+
+    const channel = supabaseService.subscribeToComments(
+      activeFileId,
+      (newComment) => {
+        if (!active) return;
+        setComments((prev) => {
+          if (prev.some((c) => c.id === newComment.id)) return prev;
+          return [
+            ...prev,
+            {
+              id: newComment.id,
+              author: newComment.author,
+              avatar: newComment.avatar,
+              text: newComment.text,
+              timestamp: newComment.timestamp,
+              sceneLabel: newComment.scene_label || undefined
+            }
+          ];
+        });
+      },
+      (deletedId) => {
+        if (!active) return;
+        setComments((prev) => prev.filter((c) => c.id !== deletedId));
+      }
+    );
+
+    return () => {
+      active = false;
+      if (channel) supabaseService.unsubscribe(channel);
+    };
+  }, [activeFileId]);
+
+  const handlePostComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentText.trim()) return;
 
-    let sceneLabel = "General";
+    let sceneLabel = "";
     if (focusedId) {
       let activeSceneNum = 1;
       let activeSceneText = "";
@@ -576,17 +640,54 @@ export function EditorScreen({
       sceneLabel = `Scene ${activeSceneNum} • ${activeSceneText || "Untitled Scene"}`;
     }
 
-    const nc: Comment = {
-      id: uid(),
-      author: "Ben (you)",
-      avatar: "https://api.dicebear.com/9.x/adventurer/svg?seed=ben",
+    const ncId = uid();
+    const cleanAuthor = user?.name || "Anonymous";
+    const cleanAvatar = user?.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${cleanAuthor}`;
+    const cleanTimestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " today";
+
+    const localComment: Comment = {
+      id: ncId,
+      author: cleanAuthor,
+      avatar: cleanAvatar,
       text: newCommentText.trim(),
-      timestamp: "Just now",
-      sceneLabel
+      timestamp: cleanTimestamp,
+      sceneLabel: sceneLabel || undefined
     };
 
-    setComments([...comments, nc]);
+    setComments((prev) => [...prev, localComment]);
     setNewCommentText("");
+
+    if (supabaseService.isConfigured()) {
+      const { error } = await supabaseService.insertComment({
+        id: ncId,
+        file_id: activeFileId,
+        author: cleanAuthor,
+        avatar: cleanAvatar,
+        text: newCommentText.trim(),
+        timestamp: cleanTimestamp,
+        scene_label: sceneLabel || undefined
+      });
+      if (error) {
+        console.error("Failed to save comment:", error);
+      }
+    } else {
+      const updated = [...comments, localComment];
+      localStorage.setItem(`comments:${activeFileId}`, JSON.stringify(updated));
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+
+    if (supabaseService.isConfigured()) {
+      const { error } = await supabaseService.deleteComment(commentId);
+      if (error) {
+        console.error("Failed to delete comment:", error);
+      }
+    } else {
+      const updated = comments.filter((c) => c.id !== commentId);
+      localStorage.setItem(`comments:${activeFileId}`, JSON.stringify(updated));
+    }
   };
 
   // Add scene helper
@@ -1115,6 +1216,25 @@ export function EditorScreen({
                             <Avatar src={c.avatar} name={c.author} size={22} style={{ background: "#2e2e34" }} />
                             <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{c.author}</span>
                             <span style={{ fontSize: 10, color: "var(--sp-muted)", marginLeft: "auto" }}>{c.timestamp}</span>
+                            <button
+                              onClick={() => handleDeleteComment(c.id)}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "var(--sp-muted)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: "2px 4px",
+                                borderRadius: 4,
+                                transition: "all 0.15s ease"
+                              }}
+                              className="sp-comment-delete-btn"
+                              title="Delete comment"
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                           <p style={{ fontSize: 12, color: "var(--sp-text)", lineHeight: 1.4, margin: 0 }}>
                             {c.text}
@@ -1124,6 +1244,7 @@ export function EditorScreen({
                           )}
                         </div>
                       ))}
+                      <div ref={commentsEndRef} />
                     </div>
                   </div>
 

@@ -344,6 +344,71 @@ export const supabaseService = {
     return channel;
   },
 
+  // --- COMMENTS ---
+  async fetchComments(fileId: string) {
+    if (!this.isConfigured()) return { data: null, error: new Error("Supabase is not configured") };
+    return supabase
+      .from("comments")
+      .select("*")
+      .eq("file_id", fileId)
+      .order("created_at", { ascending: true });
+  },
+
+  async insertComment(comment: {
+    id: string;
+    file_id: string;
+    author: string;
+    avatar: string;
+    text: string;
+    timestamp: string;
+    scene_label?: string;
+  }) {
+    if (!this.isConfigured()) return { data: null, error: new Error("Supabase is not configured") };
+    return supabase.from("comments").insert({
+      id: comment.id,
+      file_id: comment.file_id,
+      author: comment.author,
+      avatar: comment.avatar,
+      text: comment.text,
+      timestamp: comment.timestamp,
+      scene_label: comment.scene_label || null,
+    });
+  },
+
+  async deleteComment(commentId: string) {
+    if (!this.isConfigured()) return { data: null, error: new Error("Supabase is not configured") };
+    return supabase.from("comments").delete().eq("id", commentId);
+  },
+
+  subscribeToComments(
+    fileId: string,
+    onInsert: (payload: any) => void,
+    onDelete: (commentId: string) => void
+  ) {
+    if (!this.isConfigured()) return null;
+    return supabase
+      .channel(`realtime:comments:${fileId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments" },
+        (payload) => {
+          if (payload.new && payload.new.file_id === fileId) {
+            onInsert(payload.new);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments" },
+        (payload) => {
+          if (payload.old && payload.old.id) {
+            onDelete(payload.old.id);
+          }
+        }
+      )
+      .subscribe();
+  },
+
   unsubscribe(channel: any) {
     if (channel) {
       supabase.removeChannel(channel);

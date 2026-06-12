@@ -320,9 +320,21 @@ body {
   padding: 12px 14px;
   margin-bottom: 10px;
   transition: border-color 0.15s ease;
+  position: relative;
 }
 .sp-comment-card:hover {
   border-color: var(--sp-hover-accent);
+}
+.sp-comment-delete-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+.sp-comment-card:hover .sp-comment-delete-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+.sp-comment-delete-btn:hover {
+  color: #f87171 !important;
 }
 .sp-comment-linked-scene {
   display: inline-block;
