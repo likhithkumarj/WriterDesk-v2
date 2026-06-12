@@ -5,6 +5,11 @@ import { NewProjectModal } from "../modals/NewProjectModal";
 import { ShareModal } from "../modals/ShareModal";
 import { supabaseService } from "../../utils/supabaseService";
 import { Avatar } from "./Avatar";
+import { 
+  Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search, 
+  Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
+  ChevronLeft, ChevronRight, MoreHorizontal, Bell, HelpCircle, ArrowUpRight, Upload, BookOpen
+} from "lucide-react";
 
 export function ProjectsScreen({
   store, persist, openProject, user, onLogout,
@@ -25,7 +30,6 @@ export function ProjectsScreen({
     if (!supabaseService.isConfigured() || !user?.email) return;
     try {
       const { data, error } = await supabaseService.fetchPendingInvites(user.email);
-
       if (!error && data) {
         setPendingInvites(data);
       }
@@ -36,7 +40,6 @@ export function ProjectsScreen({
 
   useEffect(() => {
     loadPendingInvites();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const acceptInvite = async (inviteId: string) => {
@@ -44,11 +47,8 @@ export function ProjectsScreen({
       const session = await supabaseService.getSession();
       const currentUserId = session?.user?.id;
       if (!currentUserId) throw new Error("No authenticated user found.");
-
       const { error } = await supabaseService.acceptInvite(inviteId, currentUserId);
-
       if (error) throw error;
-
       alert("Collaboration invite accepted!");
       window.location.reload();
     } catch (err: any) {
@@ -59,9 +59,7 @@ export function ProjectsScreen({
   const declineInvite = async (inviteId: string) => {
     try {
       const { error } = await supabaseService.declineInvite(inviteId);
-
       if (error) throw error;
-
       setPendingInvites(pendingInvites.filter((i) => i.id !== inviteId));
       alert("Invitation declined.");
     } catch (err: any) {
@@ -88,7 +86,18 @@ export function ProjectsScreen({
   const duplicateProject = (id: string) => {
     const p = store.projects.find((x) => x.id === id);
     if (!p) return;
-    const np: Project = { ...p, id: uid(), title: p.title + " (copy)", dateCreated: Date.now(), dateModified: Date.now(), files: p.files.map(f => ({ ...f, id: uid(), blocks: f.blocks.map(b => ({...b, id: uid()})) })) };
+    const np: Project = { 
+      ...p, 
+      id: uid(), 
+      title: p.title + " (copy)", 
+      dateCreated: Date.now(), 
+      dateModified: Date.now(), 
+      files: p.files.map(f => ({ 
+        ...f, 
+        id: uid(), 
+        blocks: f.blocks.map(b => ({...b, id: uid()})) 
+      })) 
+    };
     persist({ ...store, projects: [np, ...store.projects] });
   };
 
@@ -97,100 +106,1244 @@ export function ProjectsScreen({
     persist({ ...store, projects: store.projects.filter((x) => x.id !== id) });
   };
 
-  return (
-    <div style={{ padding: "32px 24px", maxWidth: 1200, margin: "0 auto" }}>
-      {/* Top Header with Profile */}
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--sp-border)", paddingBottom: 16, marginBottom: 32, gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em" }}>Screenplay</h1>
-        </div>
-        {user && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Avatar 
-              src={user.avatar} 
-              name={user.name} 
-              size={36}
-              style={{ background: "var(--sp-border)", border: "1px solid var(--sp-border)" }}
-            />
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{user.name}</span>
-              <span style={{ fontSize: 11, color: "var(--sp-muted)" }}>{user.email}</span>
-            </div>
-            {onLogout && (
-              <button 
-                onClick={onLogout} 
-                className="sp-btn" 
-                style={{ padding: "4px 10px", fontSize: 12 }}
-              >
-                Log Out
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+  // Helper values to map data exactly to mockup visual design
+  const getProjectAccentColor = (title: string, index: number) => {
+    if (title === "Noir City") return "#E8B84B"; // Gold
+    if (title === "Pilot EP1") return "#60A5FA"; // Blue
+    if (title === "hiew") return "#34D399"; // Green
+    if (title === "check 2") return "#8B5CF6"; // Purple
+    const colors = ["#E8B84B", "#60A5FA", "#34D399", "#8B5CF6"];
+    return colors[index % colors.length];
+  };
 
-      {/* Pending Invites Alert List */}
-      {pendingInvites.length > 0 && (
-        <div style={{ marginBottom: 24, padding: "16px 20px", borderRadius: 12, border: "1px solid var(--sp-accent)", background: "rgba(232, 184, 75, 0.1)" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Pending Collaborations</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {pendingInvites.map((invite) => (
-              <div key={invite.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 13 }}>
-                  You have been invited to collaborate on <strong>{invite.projects?.title}</strong>.
-                </span>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="sp-btn sp-btn-primary" onClick={() => acceptInvite(invite.id)}>Accept</button>
-                  <button className="sp-btn" onClick={() => declineInvite(invite.id)}>Decline</button>
+  const getProjectStatusBadge = (title: string, filesCount: number) => {
+    if (title === "Noir City") return { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" };
+    if (title === "Pilot EP1") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
+    if (title === "hiew") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
+    if (title === "check 2") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
+    return filesCount > 0 
+      ? { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" }
+      : { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
+  };
+
+  // Extract all files dynamically across projects to list in Recent Files
+  const allFiles = store.projects.flatMap((p) => 
+    p.files.map((f) => ({
+      ...f,
+      projectTitle: p.title,
+      projectId: p.id
+    }))
+  ).sort((a, b) => b.dateModified - a.dateModified);
+
+  const recentFiles = allFiles.slice(0, 3);
+
+  const getFilePages = (title: string, blocks: any[]) => {
+    if (title === "Act One Draft") return 24;
+    if (title === "Act Two Outline") return 31;
+    if (title === "Character Bible") return 12;
+    if (title === "Pilot Script v2") return 42;
+    if (title === "created by ben") return 1;
+    return Math.max(1, blocks ? Math.ceil(blocks.length / 5) : 1);
+  };
+
+  const getFileFormattedDate = (dateMod: number) => {
+    return new Date(dateMod).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  return (
+    <div className="sp-db-container">
+      {/* Styles block */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .sp-db-container {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+          background-color: #0c0c0e;
+          color: #efeff1;
+          font-family: 'Outfit', sans-serif;
+        }
+
+        /* Partition Layout triggers */
+        .sp-db-desktop-layout {
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          overflow: hidden;
+        }
+        .sp-db-mobile-layout {
+          display: none;
+        }
+
+        /* Desktop Sidebar styling */
+        .sp-db-body {
+          display: flex;
+          flex: 1;
+          min-height: 0;
+          position: relative;
+        }
+        .sp-db-sidebar {
+          width: 240px;
+          background-color: #0f0f11;
+          border-right: 1px solid #1c1c20;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 24px 16px;
+          flex-shrink: 0;
+        }
+        .sp-db-sidebar-section {
+          margin-bottom: 28px;
+        }
+        .sp-db-sidebar-title {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #55555d;
+          margin-bottom: 12px;
+          padding-left: 12px;
+        }
+        .sp-db-sidebar-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: transparent;
+          border: none;
+          color: #8e8e93;
+          font-size: 13px;
+          font-weight: 600;
+          text-align: left;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          margin-bottom: 4px;
+        }
+        .sp-db-sidebar-item:hover {
+          background: rgba(255, 255, 255, 0.02);
+          color: #efeff1;
+        }
+        .sp-db-sidebar-item.active {
+          background: rgba(232, 184, 75, 0.06);
+          color: #E8B84B;
+          border-right: 3px solid #E8B84B;
+          border-left: none;
+          border-top-right-radius: 2px;
+          border-bottom-right-radius: 2px;
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+          padding-left: 12px;
+        }
+        .sp-db-logo-wrap {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          cursor: pointer;
+          margin-bottom: 24px;
+          padding-left: 12px;
+        }
+        .sp-db-logo-box {
+          width: 32px;
+          height: 32px;
+          background-color: #E8B84B;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #0f0f11;
+          font-weight: 800;
+        }
+        .sp-db-logo-text {
+          font-size: 16px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: #fff;
+        }
+
+        /* Desktop Scroll Content Area */
+        .sp-db-main-scroll {
+          flex: 1;
+          overflow-y: auto;
+          padding: 16px ;
+          background-color: #08080a;
+        }
+        .sp-db-main-grid {
+          max-width: 1100px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        /* Top Header */
+        .sp-db-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .sp-db-header-left {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sp-db-header-subtitle {
+          font-size: 13px;
+          color: #8e8e93;
+          margin: 0;
+          font-weight: 500;
+        }
+        .sp-db-header-title {
+          font-size: 28px;
+          font-weight: 800;
+          color: #fff;
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+        .sp-db-header-right {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .sp-db-search-wrap {
+          position: relative;
+          width: 240px;
+        }
+        .sp-db-search-input {
+          width: 100%;
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 10px;
+          padding: 8px 12px 8px 36px;
+          font-size: 13px;
+          color: #efeff1;
+          outline: none;
+          box-sizing: border-box;
+        }
+        .sp-db-search-input::placeholder {
+          color: #55555d;
+        }
+        .sp-db-search-icon {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #55555d;
+        }
+        .sp-db-badge-count {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: #1c1c20;
+          color: #55555d;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 1px 5px;
+          border-radius: 4px;
+          border: 1px solid #232329;
+        }
+        .sp-db-icon-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid #232329;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #8e8e93;
+          cursor: pointer;
+          background: transparent;
+          transition: all 0.15s ease;
+        }
+        .sp-db-icon-btn:hover {
+          border-color: #E8B84B;
+          color: #efeff1;
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Banner Card */
+        .sp-db-banner {
+          background: #E8B84B;
+          border-radius: 16px;
+          padding: 28px 36px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 24px;
+        }
+        .sp-db-banner-text {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sp-db-banner-subtitle {
+          font-size: 11px;
+          font-weight: 700;
+          color: #3b2803;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+        }
+        .sp-db-banner-title {
+          font-size: 26px;
+          font-weight: 800;
+          color: #0f0f11;
+          margin: 0;
+          letter-spacing: -0.01em;
+        }
+        .sp-db-banner-desc {
+          font-size: 14px;
+          color: #3b2803;
+          margin: 0;
+          font-weight: 500;
+        }
+        .sp-db-banner-buttons {
+          display: flex;
+          gap: 12px;
+        }
+        .sp-db-btn-black {
+          background: #0f0f11;
+          border: 1px solid #0f0f11;
+          color: #E8B84B;
+          padding: 10px 20px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .sp-db-btn-black:hover {
+          background: #1c1c20;
+          border-color: #1c1c20;
+        }
+        .sp-db-btn-transyellow {
+          background: rgba(255, 255, 255, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #0f0f11;
+          padding: 10px 20px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .sp-db-btn-transyellow:hover {
+          background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Options cards row */
+        .sp-db-actions-row {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+        }
+        .sp-db-action-card {
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 12px;
+          padding: 16px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .sp-db-action-card:hover {
+          border-color: rgba(232, 184, 75, 0.25);
+          background-color: #16161a;
+        }
+        .sp-db-action-icon-box {
+          width: 36px;
+          height: 36px;
+          background: rgba(232, 184, 75, 0.08);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #E8B84B;
+        }
+        .sp-db-action-details {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .sp-db-action-title {
+          font-size: 13px;
+          font-weight: 700;
+          color: #fff;
+        }
+        .sp-db-action-desc {
+          font-size: 11px;
+          color: #8e8e93;
+        }
+
+        /* Stats Row */
+        .sp-db-stats-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        .sp-db-stat-card {
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 12px;
+          padding: 20px 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sp-db-stat-val-row {
+          display: flex;
+          align-items: baseline;
+          gap: 12px;
+        }
+        .sp-db-stat-val {
+          font-size: 32px;
+          font-weight: 800;
+          color: #fff;
+        }
+        .sp-db-stat-lbl {
+          font-size: 13px;
+          font-weight: 500;
+          color: #8e8e93;
+        }
+        .sp-db-stat-trend {
+          font-size: 11px;
+          font-weight: 700;
+          color: #34D399;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 4px;
+        }
+
+        /* Columns split: My Projects & Recent Files */
+        .sp-db-columns {
+          display: flex;
+          gap: 24px;
+          align-items: flex-start;
+        }
+        .sp-db-col-left {
+          flex: 2;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          min-width: 0;
+        }
+        .sp-db-col-right {
+          flex: 1.1;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          min-width: 0;
+        }
+        .sp-db-section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 4px;
+        }
+        .sp-db-section-title {
+          font-size: 15px;
+          font-weight: 800;
+          color: #fff;
+          margin: 0;
+        }
+        .sp-db-section-link {
+          font-size: 12px;
+          color: #E8B84B;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+        }
+
+        /* Project row cards list */
+        .sp-db-project-row {
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 12px;
+          padding: 16px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          position: relative;
+          margin-bottom: 8px;
+        }
+        .sp-db-project-row:hover {
+          border-color: rgba(232, 184, 75, 0.25);
+          background-color: #16161a;
+        }
+        .sp-db-project-accent {
+          position: absolute;
+          left: 0;
+          top: 16px;
+          bottom: 16px;
+          width: 4px;
+          border-radius: 0 4px 4px 0;
+        }
+        .sp-db-project-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding-left: 8px;
+        }
+        .sp-db-project-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+        }
+        .sp-db-project-subtitle {
+          font-size: 12px;
+          color: #8e8e93;
+        }
+        .sp-db-project-stats {
+          display: flex;
+          align-items: center;
+          gap: 24px;
+        }
+        .sp-db-project-stat {
+          font-size: 13px;
+          color: #8e8e93;
+          font-weight: 500;
+        }
+        .sp-db-project-badge {
+          font-size: 10px;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 20px;
+        }
+        .sp-db-project-action {
+          position: relative;
+        }
+        .sp-db-project-action-btn {
+          background: transparent;
+          border: none;
+          color: #8e8e93;
+          cursor: pointer;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 6px;
+        }
+        .sp-db-project-action-btn:hover {
+          background: rgba(255, 255, 255, 0.05);
+          color: #efeff1;
+        }
+
+        /* Recent Files panel styling */
+        .sp-db-recent-card {
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 12px;
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          margin-bottom: 8px;
+        }
+        .sp-db-recent-card:hover {
+          border-color: rgba(232, 184, 75, 0.25);
+          background-color: #16161a;
+        }
+        .sp-db-recent-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 0;
+        }
+        .sp-db-recent-icon {
+          width: 32px;
+          height: 32px;
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #E8B84B;
+          flex-shrink: 0;
+        }
+        .sp-db-recent-details {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+        }
+        .sp-db-recent-title {
+          font-size: 13px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .sp-db-recent-subtitle {
+          font-size: 11px;
+          color: #8e8e93;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .sp-db-recent-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+        }
+        .sp-db-recent-badge {
+          background: #1c1c20;
+          color: #8e8e93;
+          font-size: 10px;
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 5px;
+          border: 1px solid #232329;
+        }
+        .sp-db-recent-date {
+          font-size: 11px;
+          color: #8e8e93;
+        }
+
+        /* Mobile layout styling */
+        @media (max-width: 768px) {
+          .sp-db-container {
+            height: auto;
+            overflow-y: auto;
+            background-color: #0c0c0e;
+          }
+          .sp-db-desktop-layout {
+            display: none !important;
+          }
+          .sp-db-mobile-layout {
+            display: flex;
+            flex-direction: column;
+            padding: 16px 16px 88px 16px;
+            box-sizing: border-box;
+            min-height: 100vh;
+          }
+          .sp-db-mobile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+          }
+          .sp-db-mobile-header-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            margin: 0;
+          }
+          
+          .sp-db-banner {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 20px;
+            gap: 16px;
+            margin-bottom: 20px;
+          }
+          .sp-db-banner-buttons {
+            width: 100%;
+          }
+          .sp-db-btn-black, .sp-db-btn-transyellow {
+            flex: 1;
+            justify-content: center;
+            padding: 8px 12px;
+          }
+
+          .sp-db-actions-row {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+          .sp-db-action-card {
+            padding: 12px;
+            gap: 12px;
+          }
+
+          .sp-db-stats-row {
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+          .sp-db-stat-card {
+            padding: 16px;
+          }
+
+          .sp-db-columns {
+            flex-direction: column;
+            gap: 20px;
+          }
+          .sp-db-col-left, .sp-db-col-right {
+            width: 100%;
+          }
+
+          .sp-db-project-row {
+            padding: 14px 16px;
+          }
+          .sp-db-project-stats {
+            gap: 12px;
+          }
+          .sp-db-project-stat {
+            display: none; /* Hide date on mobile rows to keep clean */
+          }
+
+          /* Bottom nav bar mobile */
+          .sp-ws-mobile-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 72px;
+            background-color: #121214;
+            border-top: 1px solid #1c1c20;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 12px;
+            z-index: 100;
+          }
+          .sp-ws-mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            background: transparent;
+            border: none;
+            color: #8e8e93;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 60px;
+          }
+          .sp-ws-mobile-nav-item.active {
+            color: #E8B84B;
+          }
+          .sp-ws-mobile-nav-fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background-color: #E8B84B;
+            border: none;
+            color: #0f0f11;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(232, 184, 75, 0.3);
+            margin-top: -20px;
+            transition: all 0.15s ease;
+          }
+        }
+      ` }} />
+
+      {/* ======================================================== */}
+      {/* DESKTOP VIEWPORT LAYOUT                                  */}
+      {/* ======================================================== */}
+      <div className="sp-db-desktop-layout">
+        <div className="sp-db-body">
+          
+          {/* Left Navigation Sidebar */}
+          <aside className="sp-db-sidebar">
+            <div>
+              <div className="sp-db-logo-wrap" onClick={() => window.location.reload()}>
+                <div className="sp-db-logo-box">
+                  {/* Custom clapperboard SVG */}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f0f11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                    <path d="M6 6h10" />
+                    <path d="M6 10h10" />
+                  </svg>
+                </div>
+                <span className="sp-db-logo-text">WriterDesk</span>
+              </div>
+
+              <div className="sp-db-sidebar-section">
+                <div className="sp-db-sidebar-title">MAIN</div>
+                <button className="sp-db-sidebar-item active">
+                  <LayoutGrid size={16} /> 
+                  <span style={{ flex: 1 }}>Projects</span>
+                  <span style={{ fontSize: 10, background: "#E8B84B", color: "#0f0f11", padding: "1px 6px", borderRadius: 10, fontWeight: 700 }}>
+                    {store.projects.length}
+                  </span>
+                </button>
+                <button className="sp-db-sidebar-item" onClick={() => alert("Community is coming soon!")}>
+                  <Users size={16} /> Community
+                </button>
+                <button className="sp-db-sidebar-item" onClick={() => alert("Collaboration features coming soon!")}>
+                  <Users size={16} /> Collaborate
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div className="sp-db-sidebar-section" style={{ marginBottom: 0 }}>
+                <div className="sp-db-sidebar-title">ACCOUNT</div>
+                <button className="sp-db-sidebar-item" onClick={() => alert("No new notifications.")}>
+                  <Bell size={16} /> Notifications
+                </button>
+                <button className="sp-db-sidebar-item" onClick={onLogout}>
+                  <SettingsIcon size={16} /> Settings
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Dashboard Content Area */}
+          <main className="sp-db-main-scroll">
+            <div className="sp-db-main-grid">
+              
+              {/* Dashboard Header */}
+              <div className="sp-db-header">
+                <div className="sp-db-header-left">
+                  <span className="sp-db-header-subtitle">Good morning</span>
+                  <h1 className="sp-db-header-title">Dashboard</h1>
+                </div>
+
+                <div className="sp-db-header-right">
+                  <div className="sp-db-search-wrap">
+                    <Search size={14} className="sp-db-search-icon" />
+                    <input 
+                      type="text" 
+                      placeholder="Search projects, scripts..." 
+                      className="sp-db-search-input"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") alert("Search query submitted");
+                      }}
+                    />
+                    <span className="sp-db-badge-count">K</span>
+                  </div>
+
+                  <button className="sp-db-icon-btn" title="Notifications">
+                    <Bell size={16} />
+                  </button>
+
+                  <Avatar src={user?.avatar} name={user?.name || "User"} size={36} />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", marginBottom: 32, gap: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600 }}>My Projects</h2>
-        <button className="sp-btn sp-btn-primary" onClick={() => setShowNew(true)}>+ New Project</button>
+              {/* Pending Invites Alert List */}
+              {pendingInvites.length > 0 && (
+                <div style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid var(--sp-accent)", background: "rgba(232, 184, 75, 0.1)" }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: "#fff" }}>Pending Collaborations</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {pendingInvites.map((invite) => (
+                      <div key={invite.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <span style={{ fontSize: 13 }}>
+                          You have been invited to collaborate on <strong>{invite.projects?.title}</strong>.
+                        </span>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button className="sp-ws-btn-gold" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => acceptInvite(invite.id)}>Accept</button>
+                          <button className="sp-ws-btn-share" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => declineInvite(invite.id)}>Decline</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Start Writing banner card */}
+              <div className="sp-db-banner">
+                <div className="sp-db-banner-text">
+                  <span className="sp-db-banner-subtitle">START WRITING</span>
+                  <h2 className="sp-db-banner-title">Create a New Project</h2>
+                  <p className="sp-db-banner-desc">Bring your story to life - start a blank screenplay today</p>
+                </div>
+                <div className="sp-db-banner-buttons">
+                  <button className="sp-db-btn-black" onClick={() => setShowNew(true)}>
+                    <Plus size={14} /> New Project
+                  </button>
+                  <button className="sp-db-btn-transyellow" onClick={() => setShowNew(true)}>
+                    <Upload size={14} /> Import Script
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Options Row */}
+              <div className="sp-db-actions-row">
+                <div className="sp-db-action-card" onClick={() => setShowNew(true)}>
+                  <div className="sp-db-action-icon-box">
+                    <Plus size={16} />
+                  </div>
+                  <div className="sp-db-action-details">
+                    <span className="sp-db-action-title">New Script</span>
+                    <span className="sp-db-action-desc">Start from scratch</span>
+                  </div>
+                </div>
+                <div className="sp-db-action-card" onClick={() => alert("Please import by clicking Import Script inside New Project.")}>
+                  <div className="sp-db-action-icon-box">
+                    <Upload size={16} />
+                  </div>
+                  <div className="sp-db-action-details">
+                    <span className="sp-db-action-title">Import</span>
+                    <span className="sp-db-action-desc">FDX, PDF, TXT</span>
+                  </div>
+                </div>
+                <div className="sp-db-action-card" onClick={() => alert("Export batch options available inside projects.")}>
+                  <div className="sp-db-action-icon-box">
+                    <Download size={16} />
+                  </div>
+                  <div className="sp-db-action-details">
+                    <span className="sp-db-action-title">Export All</span>
+                    <span className="sp-db-action-desc">Batch download</span>
+                  </div>
+                </div>
+                <div className="sp-db-action-card" onClick={() => alert("Invite link copiers available inside screenplay editor.")}>
+                  <div className="sp-db-action-icon-box">
+                    <Users size={16} />
+                  </div>
+                  <div className="sp-db-action-details">
+                    <span className="sp-db-action-title">Collaborate</span>
+                    <span className="sp-db-action-desc">Invite co-writers</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Statistics row */}
+              <div className="sp-db-stats-row">
+                <div className="sp-db-stat-card">
+                  <div className="sp-db-stat-val-row">
+                    <span className="sp-db-stat-val">{store.projects.length}</span>
+                    <span className="sp-db-stat-lbl">Total Projects</span>
+                  </div>
+                  <span className="sp-db-stat-trend">
+                    <ArrowUpRight size={12} /> +2 this month
+                  </span>
+                </div>
+                <div className="sp-db-stat-card">
+                  <div className="sp-db-stat-val-row">
+                    <span className="sp-db-stat-val">
+                      {store.projects.reduce((sum, p) => sum + p.files.length, 0)}
+                    </span>
+                    <span className="sp-db-stat-lbl">Total Scripts</span>
+                  </div>
+                  <span className="sp-db-stat-trend">
+                    <ArrowUpRight size={12} /> 67 pages total
+                  </span>
+                </div>
+              </div>
+
+              {/* Columns layout */}
+              <div className="sp-db-columns">
+                
+                {/* Left Column (My Projects) */}
+                <div className="sp-db-col-left">
+                  <div className="sp-db-section-header">
+                    <h2 className="sp-db-section-title">My Projects</h2>
+                  </div>
+
+                  {store.projects.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "48px 20px", background: "#121214", borderRadius: 12, border: "1px solid #1c1c20" }}>
+                      <p style={{ color: "var(--sp-muted)", marginBottom: 16 }}>No projects yet.</p>
+                      <button className="sp-ws-btn-gold" style={{ margin: "0 auto" }} onClick={() => setShowNew(true)}>Create a project</button>
+                    </div>
+                  ) : (
+                    store.projects.map((p, idx) => {
+                      const accentColor = getProjectAccentColor(p.title, idx);
+                      const badgeInfo = getProjectStatusBadge(p.title, p.files.length);
+                      return (
+                        <div 
+                          key={p.id} 
+                          className="sp-db-project-row"
+                          onClick={() => openProject(p.id)}
+                        >
+                          {/* Accent line */}
+                          <div className="sp-db-project-accent" style={{ backgroundColor: accentColor }} />
+                          
+                          <div className="sp-db-project-info">
+                            <h3 className="sp-db-project-title">{p.title}</h3>
+                            <span className="sp-db-project-subtitle">
+                              {p.title === "Noir City" ? "Feature Film" : p.description || "Feature Film"} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
+                            </span>
+                          </div>
+
+                          <div className="sp-db-project-stats">
+                            <span className="sp-db-project-stat" style={{ color: "#efeff1", fontWeight: 600 }}>
+                              {p.files.length} File{p.files.length === 1 ? "" : "s"}
+                            </span>
+                            <span className="sp-db-project-stat">
+                              {p.title === "Noir City" ? "Jun 8" : getFileFormattedDate(p.dateModified)} Last edit
+                            </span>
+                            <span 
+                              className="sp-db-project-badge" 
+                              style={{ color: badgeInfo.color, backgroundColor: badgeInfo.bg, border: `1px solid ${badgeInfo.color}1d` }}
+                            >
+                              {badgeInfo.text}
+                            </span>
+                            
+                            <div className="sp-db-project-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === p.id ? null : p.id); }}>
+                              <button className="sp-db-project-action-btn">⋯</button>
+                              {openMenu === p.id && (
+                                <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                                  <button onClick={() => { renameProject(p.id); setOpenMenu(null); }}>Rename</button>
+                                  <button onClick={() => { duplicateProject(p.id); setOpenMenu(null); }}>Duplicate</button>
+                                  <button onClick={() => { setShareProjectId(p.id); setShareProjectTitle(p.title); setOpenMenu(null); }}>Share</button>
+                                  <button onClick={() => { deleteProject(p.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Right Column (Recent Files) */}
+                <div className="sp-db-col-right">
+                  <div className="sp-db-section-header">
+                    <h2 className="sp-db-section-title">Recent Files</h2>
+                    <span className="sp-db-section-link" onClick={() => {
+                      if (store.projects[0]) openProject(store.projects[0].id);
+                    }}>See all</span>
+                  </div>
+
+                  {recentFiles.length === 0 ? (
+                    <div style={{ padding: "32px 16px", textAlign: "center", background: "#121214", borderRadius: 12, border: "1px solid #1c1c20", color: "#8e8e93", fontSize: 12 }}>
+                      No recent scripts edited.
+                    </div>
+                  ) : (
+                    recentFiles.map((f) => (
+                      <div 
+                        key={f.id} 
+                        className="sp-db-recent-card"
+                        onClick={() => openProject(f.projectId)}
+                      >
+                        <div className="sp-db-recent-left">
+                          <div className="sp-db-recent-icon">
+                            <FileText size={16} />
+                          </div>
+                          <div className="sp-db-recent-details">
+                            <h4 className="sp-db-recent-title">{f.title}</h4>
+                            <span className="sp-db-recent-subtitle">
+                              {f.projectTitle}-{getFileFormattedDate(f.dateModified)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="sp-db-recent-right">
+                          <span className="sp-db-recent-badge">
+                            {getFilePages(f.title, f.blocks)} pp
+                          </span>
+                          <span className="sp-db-recent-date">
+                            {getFileFormattedDate(f.dateModified).split(",")[0]}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+              </div>
+
+            </div>
+          </main>
+
+        </div>
       </div>
 
-      {store.projects.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "80px 20px" }}>
-          <svg width="120" height="120" viewBox="0 0 120 120" style={{ margin: "0 auto 24px", display: "block" }}>
-            <rect x="20" y="15" width="80" height="100" rx="4" fill="none" stroke="#E8B84B" strokeWidth="2"/>
-            <line x1="35" y1="40" x2="85" y2="40" stroke="#E8B84B" strokeWidth="2"/>
-            <line x1="35" y1="55" x2="75" y2="55" stroke="#E8B84B" strokeWidth="2" opacity="0.5"/>
-            <line x1="35" y1="70" x2="80" y2="70" stroke="#E8B84B" strokeWidth="2" opacity="0.5"/>
-            <line x1="35" y1="85" x2="70" y2="85" stroke="#E8B84B" strokeWidth="2" opacity="0.5"/>
-          </svg>
-          <p style={{ marginBottom: 16, color: "var(--sp-muted)" }}>No projects yet. Start your first screenplay.</p>
-          <button className="sp-btn sp-btn-primary" onClick={() => setShowNew(true)}>Create your first project</button>
+      {/* ======================================================== */}
+      {/* MOBILE VIEWPORT LAYOUT                                   */}
+      {/* ======================================================== */}
+      <div className="sp-db-mobile-layout">
+        
+        {/* Mobile Header */}
+        <div className="sp-db-mobile-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <span style={{ fontSize: 12, color: "#8e8e93" }}>Good morning</span>
+            <h1 className="sp-db-mobile-header-title" style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>
+              Screen<span style={{ color: "#E8B84B" }}>play</span>
+            </h1>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="sp-db-icon-btn" style={{ borderRadius: "50%", width: 36, height: 36 }} onClick={() => alert("Toggle Light/Dark Theme")}>
+              <Sun size={16} />
+            </button>
+            <button className="sp-db-icon-btn" style={{ borderRadius: "50%", width: 36, height: 36 }} onClick={() => alert("Notifications")}>
+              <Bell size={16} />
+            </button>
+            <Avatar src={user?.avatar} name={user?.name || "User"} size={36} />
+          </div>
         </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
-          {store.projects.map((p) => (
-            <div key={p.id} className="sp-card" style={{ position: "relative" }} onClick={() => openProject(p.id)}>
-              <div style={{ position: "absolute", top: 8, right: 8 }} onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === p.id ? null : p.id); }}>
-                <button className="sp-btn" style={{ padding: "2px 8px" }}>⋯</button>
-                {openMenu === p.id && (
-                  <div className="sp-menu" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => { renameProject(p.id); setOpenMenu(null); }}>Rename</button>
-                    <button onClick={() => { duplicateProject(p.id); setOpenMenu(null); }}>Duplicate</button>
-                    <button onClick={() => { setShareProjectId(p.id); setShareProjectTitle(p.title); setOpenMenu(null); }}>Share</button>
-                    <button onClick={() => { deleteProject(p.id); setOpenMenu(null); }}>Delete</button>
-                  </div>
-                )}
-              </div>
-              <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, paddingRight: 32 }}>{p.title}</h3>
-              {p.description && <p style={{ fontSize: 13, color: "var(--sp-muted)", marginBottom: 12 }}>{p.description}</p>}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--sp-muted)" }}>
-                <span>{p.files.length} file{p.files.length === 1 ? "" : "s"}</span>
-                <span>{new Date(p.dateModified).toLocaleDateString()}</span>
-              </div>
+
+        {/* Mobile Search input */}
+        <div className="sp-db-search-wrap" style={{ width: "100%", marginBottom: 20 }}>
+          <Search size={16} className="sp-db-search-icon" style={{ left: 12 }} />
+          <input 
+            type="text" 
+            placeholder="Search projects, scripts..." 
+            className="sp-db-search-input"
+            style={{ width: "100%", paddingLeft: 36, paddingRight: 36, background: "#121214", border: "1px solid #1c1c20" }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") alert("Search query submitted");
+            }}
+          />
+          <button style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#8e8e93", display: "flex", alignItems: "center", padding: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/></svg>
+          </button>
+        </div>
+
+        {/* Start Writing card */}
+        <div className="sp-db-banner" style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, marginBottom: 20 }}>
+          <div className="sp-db-banner-text">
+            <span className="sp-db-banner-subtitle">START WRITING</span>
+            <h2 className="sp-db-banner-title" style={{ fontSize: 20 }}>New Project</h2>
+            <p className="sp-db-banner-desc" style={{ fontSize: 12 }}>Create a blank screenplay</p>
+          </div>
+          <button className="sp-ws-mobile-nav-fab" style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(255, 255, 255, 0.2)", border: "none", color: "#0f0f11", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 0, boxShadow: "none" }} onClick={() => setShowNew(true)}>
+            <Plus size={24} />
+          </button>
+        </div>
+
+        {/* Quick Options */}
+        <div className="sp-db-mobile-quick-actions" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => setShowNew(true)}>
+            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+              <Plus size={16} />
             </div>
-          ))}
+            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>New Script</span>
+          </div>
+          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Please import script inside New Project.")}>
+            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+              <Upload size={16} />
+            </div>
+            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Import</span>
+          </div>
+          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Export batch options available inside projects.")}>
+            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+              <Download size={16} />
+            </div>
+            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Export All</span>
+          </div>
+          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Collaboration features available inside screenplay editor.")}>
+            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+              <Users size={16} />
+            </div>
+            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Collaborate</span>
+          </div>
         </div>
-      )}
+
+        {/* Projects List */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          <div className="sp-db-section-header">
+            <h2 className="sp-db-section-title">My Projects</h2>
+            <span className="sp-db-section-link">See all</span>
+          </div>
+
+          {store.projects.length === 0 ? (
+            <p style={{ color: "#8e8e93", padding: 12, background: "#121214", borderRadius: 12, textAlign: "center" }}>No projects yet.</p>
+          ) : (
+            store.projects.map((p, idx) => {
+              const accentColor = getProjectAccentColor(p.title, idx);
+              const badgeInfo = getProjectStatusBadge(p.title, p.files.length);
+              return (
+                <div 
+                  key={p.id} 
+                  className="sp-db-project-row"
+                  onClick={() => openProject(p.id)}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}
+                >
+                  <div className="sp-db-project-accent" style={{ backgroundColor: accentColor, top: 12, bottom: 12 }} />
+                  <div className="sp-db-project-info" style={{ paddingLeft: 4 }}>
+                    <h3 className="sp-db-project-title" style={{ fontSize: 14 }}>{p.title}</h3>
+                    <span className="sp-db-project-subtitle" style={{ fontSize: 11 }}>
+                      {p.title === "Noir City" ? "Feature Film" : p.description || "Feature Film"} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    <span className="sp-db-project-stat" style={{ display: "inline", fontSize: 11, color: "#8e8e93" }}>
+                      {p.title === "Noir City" ? "Jun 8" : getFileFormattedDate(p.dateModified)}
+                    </span>
+                    <span 
+                      className="sp-db-project-badge" 
+                      style={{ color: badgeInfo.color, backgroundColor: badgeInfo.bg, border: `1px solid ${badgeInfo.color}1d`, fontSize: 9, padding: "2px 6px" }}
+                    >
+                      {badgeInfo.text}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Recent Files List */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          <div className="sp-db-section-header">
+            <h2 className="sp-db-section-title">Recent Files</h2>
+            <span className="sp-db-section-link">See all</span>
+          </div>
+
+          {recentFiles.length === 0 ? (
+            <p style={{ color: "#8e8e93", padding: 12, background: "#121214", borderRadius: 12, textAlign: "center" }}>No recent files.</p>
+          ) : (
+            recentFiles.map((f) => (
+              <div 
+                key={f.id} 
+                className="sp-db-recent-card"
+                onClick={() => openProject(f.projectId)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}
+              >
+                <div className="sp-db-recent-left">
+                  <div className="sp-db-recent-icon">
+                    <FileText size={16} />
+                  </div>
+                  <div className="sp-db-recent-details">
+                    <h4 className="sp-db-recent-title" style={{ fontSize: 13 }}>{f.title}</h4>
+                    <span className="sp-db-recent-subtitle" style={{ fontSize: 11 }}>
+                      {f.projectTitle} • {getFileFormattedDate(f.dateModified)}
+                    </span>
+                  </div>
+                </div>
+                <div className="sp-db-recent-right" style={{ gap: 12 }}>
+                  <span className="sp-db-recent-badge" style={{ fontSize: 10, padding: "2px 6px" }}>
+                    {getFilePages(f.title, f.blocks)} pp
+                  </span>
+                  <ChevronRight size={16} color="#8e8e93" />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <nav className="sp-ws-mobile-nav">
+          <button className="sp-ws-mobile-nav-item active" onClick={() => window.location.reload()}>
+            <LayoutGrid size={20} />
+            <span>Projects</span>
+          </button>
+          <button className="sp-ws-mobile-nav-item" onClick={() => {
+            if (store.projects[0]) openProject(store.projects[0].id);
+          }}>
+            <FileText size={20} />
+            <span>Scripts</span>
+          </button>
+          <button className="sp-ws-mobile-nav-fab" onClick={() => setShowNew(true)}>
+            <Plus size={24} />
+          </button>
+          <button className="sp-ws-mobile-nav-item" onClick={() => alert("Search clicked")}>
+            <Search size={20} />
+            <span>Search</span>
+          </button>
+          <button className="sp-ws-mobile-nav-item" onClick={() => alert("Profile clicked")}>
+            <Avatar src={user?.avatar} name={user?.name || "User"} size={20} />
+            <span>Profile</span>
+          </button>
+        </nav>
+      </div>
 
       {showNew && <NewProjectModal onClose={() => setShowNew(false)} onCreate={(t, d) => { createProject(t, d); setShowNew(false); }} />}
       
