@@ -109,7 +109,56 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
   }
 
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(project.title)}</title>
-    <style>${GLOBAL_STYLE} body{margin:0;background:#fff;} .sp-canvas{padding:0;gap:0;background:#fff;}</style>
+    <style>
+      ${GLOBAL_STYLE}
+      /* Override any viewport media queries to force standard A4 layout */
+      body, .sp-canvas {
+        background: #ffffff !important;
+        padding: 0 !important;
+        gap: 0 !important;
+      }
+      .sp-page-wrapper {
+        width: 794px !important;
+        height: 1123px !important;
+        display: block !important;
+        page-break-after: always !important;
+        transform: none !important;
+      }
+      .sp-page {
+        width: 794px !important;
+        height: 1123px !important;
+        transform: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        display: block !important;
+        position: relative !important;
+      }
+      .sp-page-inner {
+        position: absolute !important;
+        top: 72px !important;
+        left: 108px !important;
+        right: 72px !important;
+        bottom: 54px !important;
+        padding: 0 !important;
+        background: transparent !important;
+      }
+      .sp-block {
+        font-size: 16px !important;
+        padding: 2px 4px !important;
+        border-left: 3px solid transparent !important;
+        margin-left: -7px !important;
+      }
+      .sp-block.no-bars {
+        border-left-color: transparent !important;
+      }
+      .sp-block[data-type="scene"]        { border-left-color: #E8B84B !important; font-weight: 700 !important; text-transform: uppercase !important; margin-top: 1.5em !important; margin-left: -7px !important; }
+      .sp-block[data-type="action"]       { border-left-color: #9CA3AF !important; margin-left: calc(4ch - 7px) !important; margin-top: 0.75em !important; }
+      .sp-block[data-type="character"]    { border-left-color: #60A5FA !important; margin-left: calc(24ch - 7px) !important; text-transform: uppercase !important; margin-top: 1em !important; }
+      .sp-block[data-type="parenthetical"]{ border-left-color: #34D399 !important; margin-left: calc(18ch - 7px) !important; }
+      .sp-block[data-type="dialogue"]     { border-left-color: #E5E7EB !important; margin-left: calc(10ch - 7px) !important; max-width: 35ch !important; }
+    </style>
   </head><body><div class="sp-canvas">${body}</div>
   <script>setTimeout(()=>{window.print();},300);</script>
   </body></html>`);

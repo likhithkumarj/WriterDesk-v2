@@ -17,7 +17,7 @@ import { supabaseService } from "../../utils/supabaseService";
 import { 
   ChevronLeft, Undo2, Redo2, Search, Maximize2, Minimize2, Eye, EyeOff, 
   Film, FileText, User, MessageSquare, AlertCircle, Trash2, Mail, CheckCircle, Clock, 
-  Share2, Download, MoreHorizontal, Save, Check, Loader2, Bold, Italic, Underline, MessageCircle, Users
+  Share2, Download, MoreHorizontal, Save, Check, Loader2, Bold, Italic, Underline, MessageCircle, Users, Menu, Settings, List, X, Send
 } from "lucide-react";
 import { Avatar } from "./Avatar";
 
@@ -61,7 +61,9 @@ export function EditorScreen({
   const [state, dispatch] = useReducer(editorReducer, { past: [], present: activeFile.blocks, future: [] });
   const blocks = state.present;
   const [focusedId, setFocusedId] = useState<string | null>(activeFile.blocks[0]?.id ?? null);
-  const [showScenes, setShowScenes] = useState(true);
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
+  const [showScenes, setShowScenes] = useState(typeof window !== "undefined" ? window.innerWidth >= 768 : true);
+  const [activeMobileTab, setActiveMobileTab] = useState<"comments" | "characters" | null>(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -71,6 +73,21 @@ export function EditorScreen({
   const [showBlockBars, setShowBlockBars] = useState(true);
   const [activeRightTab, setActiveRightTab] = useState<"comments" | "characters">("comments");
   const [userZoom, setUserZoom] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setShowScenes(false);
+      } else {
+        setShowScenes(true);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [projectCollaborators, setProjectCollaborators] = useState<any[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
 
@@ -703,16 +720,17 @@ export function EditorScreen({
     <div className="sp-app" style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--sp-bg)" }}>
       
       {/* 1. Redesigned Premium Main Header */}
-      <header className="sp-no-print" style={{ 
-        height: 64, 
-        background: "var(--sp-toolbar)", 
-        borderBottom: "1px solid var(--sp-border)", 
-        display: "flex", 
-        alignItems: "center", 
-        padding: "0 20px", 
-        justifyContent: "space-between",
-        zIndex: 30
-      }}>
+      {!isMobile && (
+        <header className="sp-desktop-only sp-no-print" style={{ 
+          height: 64, 
+          background: "var(--sp-toolbar)", 
+          borderBottom: "1px solid var(--sp-border)", 
+          display: "flex", 
+          alignItems: "center", 
+          padding: "0 20px", 
+          justifyContent: "space-between",
+          zIndex: 30
+        }}>
         
         {/* Left Area: Brand & Document Meta */}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -883,13 +901,98 @@ export function EditorScreen({
           </div>
         </div>
       </header>
+      )}
+
+      {/* Mobile-only Header */}
+      {isMobile && (
+        <header className="sp-mobile-only sp-header sp-no-print">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button 
+              onClick={() => setShowScenes(v => !v)} 
+              className="sp-mobile-bar-icon-btn"
+              style={{ width: 32, height: 32, borderRadius: 8, background: "#1e1e24", border: "1px solid var(--sp-border)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", cursor: "pointer" }}
+            >
+              <Menu size={16} />
+            </button>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{activeFile.title}</span>
+              <span style={{ fontSize: 10, color: "var(--sp-muted)", fontWeight: 500 }}>{project.title} • Feature Film</span>
+            </div>
+          </div>
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Active Collaborator Avatars */}
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {onlineUsers.slice(0, 3).map((u, idx) => (
+                <Avatar 
+                  key={u.email || idx} 
+                  src={u.avatar} 
+                  name={u.name || u.email || "User"} 
+                  size={22}
+                  style={{ 
+                    border: "1px solid #ffffff5b", 
+                    marginRight: idx < Math.min(3, onlineUsers.length) - 1 ? -6 : 0,
+                    zIndex: onlineUsers.length - idx,
+                  }} 
+                />
+              ))}
+            </div>
+            
+            {/* Yellow Saved Button Status */}
+            {saveState === "saving" ? (
+              <button className="sp-mobile-save-btn saving">
+                <span className="dot" /> Saving
+              </button>
+            ) : (
+              <button className="sp-mobile-save-btn saved" onClick={saveManually}>
+                <span className="dot" /> Saved
+              </button>
+            )}
+
+            {/* Options menu vertical three dots */}
+            <div style={{ position: "relative" }}>
+              <button 
+                className="sp-mobile-bar-icon-btn" 
+                onClick={() => setShowMenu(!showMenu)} 
+                title="More options"
+                style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "#1e1e24" }}
+              >
+                <MoreHorizontal size={14} />
+              </button>
+              {showMenu && (
+                <div className="sp-menu" style={{ right: 0, top: 36, zIndex: 210 }}>
+                  <button onClick={() => { setShowTitlePage(true); setShowMenu(false); }}>
+                    <FileText size={14} /> Title Page Settings
+                  </button>
+                  <button onClick={() => { setShowHelp(true); setShowMenu(false); }}>
+                    <AlertCircle size={14} /> Help & Shortcuts
+                  </button>
+                  <button onClick={() => { setShowExport(true); setShowMenu(false); }}>
+                    <Download size={14} /> Export Screenplay
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+      )}
 
       {/* Main Workspace Frame split into left-sidebar, center-canvas, and right-sidebar */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, position: "relative" }}>
         
+        {/* Mobile Left Sidebar Backdrop */}
+        {isMobile && showScenes && (
+          <div 
+            className="sp-sidebar-backdrop" 
+            onClick={() => setShowScenes(false)}
+            style={{ zIndex: 90 }}
+          />
+        )}
+
         {/* 2. Redesigned Left Sidebar: Files, Scenes & Collaborators list */}
         {!focusMode && showScenes && (
-          <aside className="sp-sidebar sp-no-print" style={{ 
+          <aside className="sp-sidebar sp-sidebar-left sp-no-print" style={{ 
             width: 250, 
             borderRight: "1px solid var(--sp-border)", 
             display: "flex", 
@@ -900,6 +1003,29 @@ export function EditorScreen({
           }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 24, overflowY: "auto", flex: 1 }}>
               
+              {isMobile && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--sp-border)", paddingBottom: 12, marginBottom: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>WriterDesk</span>
+                  <button 
+                    onClick={() => setShowScenes(false)}
+                    style={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: 8, 
+                      background: "#1e1e24", 
+                      border: "1px solid var(--sp-border)", 
+                      display: "flex", 
+                      alignItems: "center", 
+                      justifyContent: "center", 
+                      color: "#fff", 
+                      cursor: "pointer" 
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
               {/* FILES Section */}
               <div>
                 <div className="sp-sidebar-header">FILES</div>
@@ -996,138 +1122,263 @@ export function EditorScreen({
         <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--sp-bg)", position: "relative" }}>
           
           {/* A. Floating formatting and text toolbar */}
-          <div className="sp-no-print" style={{
-            height: 52,
-            borderBottom: "1px solid var(--sp-border)",
-            background: "var(--sp-toolbar)",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 16px",
-            justifyContent: "space-between",
-            zIndex: 10
-          }}>
-            
-            {/* Element blocks selector tabs */}
-            <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
-              {(["scene", "action", "character", "dialogue", "parenthetical"] as BlockType[]).map((t) => {
-                const active = activeBlockType === t;
-                
-                const elementLabels: Record<BlockType, string> = {
-                  scene: "Scene Heading",
-                  action: "Action",
-                  character: "Character",
-                  dialogue: "Dialogue",
-                  parenthetical: "Parenthetical"
-                };
-
-                return (
-                  <button
-                    key={t}
-                    onMouseDown={(e) => { e.preventDefault(); if (focusedId) setType(focusedId, t); }}
-                    className={`sp-btn ${active ? "sp-btn-active" : ""}`}
-                    style={{ padding: "6px 12px", fontSize: 12, height: 32, display: "flex", alignItems: "center", gap: 6 }}
-                  >
-                    {t === "scene" && <Film size={12} />}
-                    {t === "action" && <FileText size={12} />}
-                    {t === "character" && <User size={12} />}
-                    {t === "dialogue" && <MessageSquare size={12} />}
-                    {elementLabels[t]}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Formatting tools divider & buttons */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
+          {!isMobile && (
+            <div className="sp-desktop-only sp-no-print" style={{
+              height: 52,
+              borderBottom: "1px solid var(--sp-border)",
+              background: "var(--sp-toolbar)",
+              display: "flex",
+              alignItems: "center",
+              padding: "0 16px",
+              justifyContent: "space-between",
+              zIndex: 10
+            }}>
               
-              <button 
-                className="sp-btn sp-btn-ghost sp-btn-icon" 
-                onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
-                style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
-                title="Bold"
-              >
-                <Bold size={13} />
-              </button>
-              <button 
-                className="sp-btn sp-btn-ghost sp-btn-icon" 
-                onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
-                style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
-                title="Italic"
-              >
-                <Italic size={13} />
-              </button>
-              <button 
-                className="sp-btn sp-btn-ghost sp-btn-icon" 
-                onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
-                style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
-                title="Underline"
-              >
-                <Underline size={13} />
-              </button>
-
-              <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
-
-              <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "undo" }); }} style={{ width: 32, height: 32, padding: 6 }} title="Undo (Ctrl+Z)"><Undo2 size={13} /></button>
-              <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "redo" }); }} style={{ width: 32, height: 32, padding: 6 }} title="Redo (Ctrl+Y)"><Redo2 size={13} /></button>
-
-              <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
-
-              <button className="sp-btn sp-btn-ghost sp-btn-icon" style={{ width: 32, height: 32, padding: 6 }} title="Search / Find"><Search size={13} /></button>
-              <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={() => setShowScenes(v => !v)} style={{ width: 32, height: 32, padding: 6 }} title="Toggle outline layout"><Maximize2 size={13} /></button>
-            </div>
-          </div>
-
-          {/* B. Metrics and page selectors subbar */}
-          <div className="sp-no-print" style={{
-            height: 40,
-            borderBottom: "1px solid var(--sp-border)",
-            background: "rgba(24, 24, 28, 0.4)",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 20px",
-            justifyContent: "space-between",
-            fontSize: 12,
-            color: "var(--sp-muted)",
-            zIndex: 10
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <span>Page {activePageNum}/{pages.length}</span>
-              <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--sp-border)" }} />
-              <span>Scene {activeSceneNum} of {Math.max(1, scenes.length)}</span>
-              <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--sp-border)" }} />
-              <span>~{Math.max(1, Math.round(pages.length * 1.2))} min read</span>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              {/* Focus mode switch toggle */}
-              <button 
-                onClick={() => setFocusMode(!focusMode)}
-                style={{ 
-                  background: "transparent", 
-                  border: "none", 
-                  color: focusMode ? "var(--sp-accent)" : "var(--sp-muted)", 
-                  cursor: "pointer", 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: 6,
-                  fontWeight: 600
-                }}
-              >
-                {focusMode ? <EyeOff size={13} /> : <Eye size={13} />}
-                Focus Mode
-              </button>
-
-              <span style={{ width: 1, height: 16, background: "var(--sp-border)" }} />
-
-              {/* Zoom controls inline */}
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={zoomOut} style={{ padding: 2, height: 20, width: 20 }} disabled={userZoom <= ZOOM_MIN}>-</button>
-                <span style={{ minWidth: 40, textAlign: "center", fontSize: 11, fontWeight: 700 }}>{Math.round(userZoom * 100)}%</span>
-                <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={zoomIn} style={{ padding: 2, height: 20, width: 20 }} disabled={userZoom >= ZOOM_MAX}>+</button>
+              {/* Element blocks selector tabs */}
+              <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
+                {(["scene", "action", "character", "dialogue", "parenthetical"] as BlockType[]).map((t) => {
+                  const active = activeBlockType === t;
+                  
+                  const elementLabels: Record<BlockType, string> = {
+                    scene: "Scene Heading",
+                    action: "Action",
+                    character: "Character",
+                    dialogue: "Dialogue",
+                    parenthetical: "Parenthetical"
+                  };
+  
+                  return (
+                    <button
+                      key={t}
+                      onMouseDown={(e) => { e.preventDefault(); if (focusedId) setType(focusedId, t); }}
+                      className={`sp-btn ${active ? "sp-btn-active" : ""}`}
+                      style={{ padding: "6px 12px", fontSize: 12, height: 32, display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      {t === "scene" && <Film size={12} />}
+                      {t === "action" && <FileText size={12} />}
+                      {t === "character" && <User size={12} />}
+                      {t === "dialogue" && <MessageSquare size={12} />}
+                      {elementLabels[t]}
+                    </button>
+                  );
+                })}
+              </div>
+  
+              {/* Formatting tools divider & buttons */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
+                
+                <button 
+                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                  onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
+                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
+                  title="Bold"
+                >
+                  <Bold size={13} />
+                </button>
+                <button 
+                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                  onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
+                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
+                  title="Italic"
+                >
+                  <Italic size={13} />
+                </button>
+                <button 
+                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                  onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
+                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
+                  title="Underline"
+                >
+                  <Underline size={13} />
+                </button>
+  
+                <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
+  
+                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "undo" }); }} style={{ width: 32, height: 32, padding: 6 }} title="Undo (Ctrl+Z)"><Undo2 size={13} /></button>
+                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "redo" }); }} style={{ width: 32, height: 32, padding: 6 }} title="Redo (Ctrl+Y)"><Redo2 size={13} /></button>
+  
+                <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
+  
+                <button className="sp-btn sp-btn-ghost sp-btn-icon" style={{ width: 32, height: 32, padding: 6 }} title="Search / Find"><Search size={13} /></button>
+                <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={() => setShowScenes(v => !v)} style={{ width: 32, height: 32, padding: 6 }} title="Toggle outline layout"><Maximize2 size={13} /></button>
               </div>
             </div>
-          </div>
+          )}
+
+          {isMobile && (
+            <div className="sp-mobile-only sp-no-print" style={{
+              height: 48,
+              borderBottom: "1px solid var(--sp-border)",
+              background: "var(--sp-toolbar)",
+              display: "none", /* overridden by CSS */
+              alignItems: "center",
+              padding: "0 10px",
+              overflowX: "auto",
+              scrollbarWidth: "none"
+            }}>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(["scene", "action", "character", "dialogue", "parenthetical"] as BlockType[]).map((t) => {
+                  const active = activeBlockType === t;
+                  const elementLabelsMobile: Record<BlockType, string> = {
+                    scene: "Scene",
+                    action: "Action",
+                    character: "Character",
+                    dialogue: "Dialogue",
+                    parenthetical: "Paren."
+                  };
+                  return (
+                    <button
+                      key={t}
+                      onMouseDown={(e) => { e.preventDefault(); if (focusedId) setType(focusedId, t); }}
+                      className={`sp-btn ${active ? "sp-btn-active" : ""}`}
+                      style={{ padding: "4px 10px", fontSize: 12, height: 30, flexShrink: 0 }}
+                    >
+                      {elementLabelsMobile[t]}
+                    </button>
+                  );
+                })}
+                
+                {/* Divider */}
+                <div style={{ width: 1, height: 20, background: "var(--sp-border)", alignSelf: "center", margin: "0 4px", flexShrink: 0 }} />
+                
+                {/* B I U */}
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
+                  className="sp-mobile-bar-icon-btn"
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                >
+                  <Bold size={12} />
+                </button>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
+                  className="sp-mobile-bar-icon-btn"
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                >
+                  <Italic size={12} />
+                </button>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
+                  className="sp-mobile-bar-icon-btn"
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                >
+                  <Underline size={12} />
+                </button>
+                
+                {/* Divider */}
+                <div style={{ width: 1, height: 20, background: "var(--sp-border)", alignSelf: "center", margin: "0 4px", flexShrink: 0 }} />
+                
+                {/* Undo / Redo */}
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "undo" }); }}
+                  className="sp-mobile-bar-icon-btn"
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                >
+                  <Undo2 size={12} />
+                </button>
+                <button 
+                  onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "redo" }); }}
+                  className="sp-mobile-bar-icon-btn"
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                >
+                  <Redo2 size={12} />
+                </button>
+                
+                {/* Divider */}
+                <div style={{ width: 1, height: 20, background: "var(--sp-border)", alignSelf: "center", margin: "0 4px", flexShrink: 0 }} />
+                
+                {/* Search */}
+                <button 
+                  className="sp-mobile-bar-icon-btn"
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                >
+                  <Search size={12} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* B. Metrics and page selectors subbar */}
+          {!isMobile && (
+            <div className="sp-desktop-only sp-no-print" style={{
+              height: 40,
+              borderBottom: "1px solid var(--sp-border)",
+              background: "rgba(24, 24, 28, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              padding: "0 20px",
+              justifyContent: "space-between",
+              fontSize: 12,
+              color: "var(--sp-muted)",
+              zIndex: 10
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <span>Page {activePageNum}/{pages.length}</span>
+                <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--sp-border)" }} />
+                <span>Scene {activeSceneNum} of {Math.max(1, scenes.length)}</span>
+                <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--sp-border)" }} />
+                <span>~{Math.max(1, Math.round(pages.length * 1.2))} min read</span>
+              </div>
+  
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                {/* Focus mode switch toggle */}
+                <button 
+                  onClick={() => setFocusMode(!focusMode)}
+                  style={{ 
+                    background: "transparent", 
+                    border: "none", 
+                    color: focusMode ? "var(--sp-accent)" : "var(--sp-muted)", 
+                    cursor: "pointer", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 6,
+                    fontWeight: 600
+                  }}
+                >
+                  {focusMode ? <EyeOff size={13} /> : <Eye size={13} />}
+                  Focus Mode
+                </button>
+  
+                <span style={{ width: 1, height: 16, background: "var(--sp-border)" }} />
+  
+                {/* Zoom controls inline */}
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={zoomOut} style={{ padding: 2, height: 20, width: 20 }} disabled={userZoom <= ZOOM_MIN}>-</button>
+                  <span style={{ minWidth: 40, textAlign: "center", fontSize: 11, fontWeight: 700 }}>{Math.round(userZoom * 100)}%</span>
+                  <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={zoomIn} style={{ padding: 2, height: 20, width: 20 }} disabled={userZoom >= ZOOM_MAX}>+</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isMobile && (
+            <div className="sp-mobile-only sp-no-print" style={{
+              display: "none", /* overridden by CSS */
+              height: 36,
+              borderBottom: "1px solid var(--sp-border)",
+              background: "rgba(24, 24, 28, 0.4)",
+              alignItems: "center",
+              padding: "0 10px",
+              justifyContent: "space-between",
+              fontSize: 11,
+              color: "var(--sp-muted)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ background: "#1e1e24", padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>
+                  Pg {activePageNum} / {pages.length}
+                </span>
+                <span>•</span>
+                <span>Scene {activeSceneNum} of {Math.max(1, scenes.length)}</span>
+                <span>•</span>
+                <span>~{Math.max(1, Math.round(pages.length * 1.2))} min read</span>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#10b981", fontWeight: 500 }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#10b981" }} />
+                Auto-saved
+              </div>
+            </div>
+          )}
 
           {/* C. Physical sheet pagination canvas */}
           <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
@@ -1151,8 +1402,8 @@ export function EditorScreen({
         </div>
 
         {/* 4. Redesigned Right Sidebar: Comments & Revision History */}
-        {!focusMode && (
-          <aside className="sp-sidebar sp-no-print" style={{
+        {!focusMode && !isMobile && (
+          <aside className="sp-sidebar sp-desktop-only sp-no-print" style={{
             width: 280,
             borderLeft: "1px solid var(--sp-border)",
             borderRight: "none",
@@ -1321,6 +1572,181 @@ export function EditorScreen({
           onClose={() => setShowTitlePage(false)}
           onSave={(tp) => { persistFile({ ...activeFile, titlePage: tp, dateModified: Date.now() }); setShowTitlePage(false); }}
         />
+      )}
+
+      {/* Mobile-only Bottom Navigation Bar */}
+      {isMobile && (
+        <div className="sp-mobile-bottom-bar sp-no-print">
+          <div className="sp-mobile-bottom-left-icons">
+            {/* Save Icon (disk) */}
+            <button 
+              onClick={saveManually}
+              className="sp-mobile-bar-icon-btn"
+              title="Save screenplay"
+            >
+              <Save size={18} />
+            </button>
+            {/* Share Icon */}
+            <button 
+              onClick={() => setShowShare(true)}
+              className="sp-mobile-bar-icon-btn"
+              title="Share project"
+            >
+              <Share2 size={18} />
+            </button>
+            {/* Collaborators / Sidebar Toggle Icon */}
+            <button 
+              onClick={() => setShowScenes(v => !v)}
+              className="sp-mobile-bar-icon-btn"
+              title="Outline & files"
+            >
+              <Users size={18} />
+            </button>
+          </div>
+          
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* Export Button */}
+            <button 
+              onClick={() => setShowExport(true)} 
+              className="sp-mobile-export-btn"
+            >
+              <Download size={14} /> Export
+            </button>
+            {/* Comments trigger Button */}
+            <button 
+              onClick={() => setActiveMobileTab("comments")}
+              className="sp-mobile-comments-trigger-btn"
+            >
+              Comments
+              {comments.length > 0 && (
+                <span className="sp-mobile-comments-badge">
+                  {comments.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile-only Bottom Sheet Drawer */}
+      {isMobile && activeMobileTab && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="sp-sidebar-backdrop"
+            onClick={() => setActiveMobileTab(null)}
+            style={{ zIndex: 190 }}
+          />
+          
+          {/* Bottom Sheet container */}
+          <div className="sp-mobile-bottom-sheet">
+            {/* Grab handle */}
+            <div className="sp-mobile-sheet-handle" />
+            
+            {/* Sheet Tabs Header */}
+            <div className="sp-mobile-sheet-header">
+              <div className="sp-mobile-sheet-tabs">
+                <button 
+                  onClick={() => setActiveMobileTab("comments")}
+                  className={`sp-mobile-sheet-tab ${activeMobileTab === "comments" ? "active" : ""}`}
+                >
+                  Comments <span className="sp-tab-badge">{comments.length}</span>
+                </button>
+                <button 
+                  onClick={() => setActiveMobileTab("characters")}
+                  className={`sp-mobile-sheet-tab ${activeMobileTab === "characters" ? "active" : ""}`}
+                >
+                  Characters
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => setActiveMobileTab(null)}
+                className="sp-mobile-sheet-close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Sheet Content Pane */}
+            <div className="sp-mobile-sheet-content">
+              {activeMobileTab === "comments" && (
+                <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+                  <div style={{ overflowY: "auto", flex: 1, padding: "12px 0" }}>
+                    {comments.length === 0 ? (
+                      <p style={{ fontSize: 12, color: "var(--sp-muted)", fontStyle: "italic", textAlign: "center", marginTop: 20 }}>No comments yet.</p>
+                    ) : (
+                      comments.map((c) => (
+                        <div key={c.id} className="sp-comment-card">
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                            <Avatar src={c.avatar} name={c.author} size={22} style={{ background: "#2e2e34" }} />
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{c.author}</span>
+                            <span style={{ fontSize: 10, color: "var(--sp-muted)", marginLeft: "auto" }}>{c.timestamp}</span>
+                            <button
+                              onClick={() => handleDeleteComment(c.id)}
+                              className="sp-comment-delete-btn"
+                              title="Delete comment"
+                              style={{ background: "transparent", border: "none", color: "var(--sp-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                          <p style={{ fontSize: 12, color: "var(--sp-text)", lineHeight: 1.4, margin: 0 }}>
+                            {c.text}
+                          </p>
+                          {c.sceneLabel && (
+                            <span className="sp-comment-linked-scene">{c.sceneLabel}</span>
+                          )}
+                        </div>
+                      ))
+                    )}
+                    <div ref={commentsEndRef} />
+                  </div>
+                  
+                  {/* Post comment form */}
+                  <form onSubmit={handlePostComment} className="sp-mobile-comment-form">
+                    <textarea 
+                      required
+                      rows={1}
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      placeholder="Add a comment..."
+                      className="sp-mobile-comment-input"
+                    />
+                    <button type="submit" className="sp-mobile-comment-send">
+                      <Send size={14} />
+                    </button>
+                  </form>
+                </div>
+              )}
+              
+              {activeMobileTab === "characters" && (
+                <div style={{ overflowY: "auto", height: "100%", padding: "12px 0" }}>
+                  {characterNames.length === 0 ? (
+                    <p style={{ fontSize: 12, color: "var(--sp-muted)", fontStyle: "italic" }}>No characters detected yet.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {characterNames.map((name) => (
+                        <div key={name} style={{ 
+                          display: "flex", 
+                          alignItems: "center", 
+                          gap: 8, 
+                          padding: "8px 12px", 
+                          border: "1px solid var(--sp-border)", 
+                          borderRadius: 8, 
+                          background: "#16161a"
+                        }}>
+                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#60A5FA" }} />
+                          <span style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", color: "#fff" }}>{name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
