@@ -25,9 +25,12 @@ export function makeSample(): Project {
   return {
     id: "default-project",
     title: "Noir City",
-    description: "Feature Film",
+    description: "A hard-boiled detective story set in the dark streets of a rain-soaked metropolis.",
     dateCreated: 1768000000000, // Jan 12, 2026
     dateModified: 1780936800000, // Jun 8, 2026
+    type: "Feature Film",
+    genre: "Neo-Noir/Thriller",
+    status: "Active",
     files: [
       {
         id: "act-one-draft",

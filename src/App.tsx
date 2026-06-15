@@ -2,12 +2,18 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom";
 import { Store } from "./types/screenplay";
 import { loadStore, STORAGE_KEY } from "./utils/storage";
-import { ProjectsScreen } from "./components/screenplay/ProjectsScreen";
-import { FilesScreen } from "./components/screenplay/FilesScreen";
-import { EditorScreen } from "./components/screenplay/EditorScreen";
 import { LandingScreen } from "./components/screenplay/LandingScreen";
 import { LoginScreen } from "./components/screenplay/LoginScreen";
 import { GlobalStyles } from "./components/screenplay/GlobalStyles";
+import { ProjectsPage } from "./pages/ProjectsPage";
+import { FilesPage } from "./pages/FilesPage";
+import { EditorPage } from "./pages/EditorPage";
+import { CommunityPage } from "./pages/CommunityPage";
+import { ExplorePage } from "./pages/ExplorePage";
+import { MessagesPage } from "./pages/MessagesPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { supabaseService } from "./utils/supabaseService";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -124,6 +130,11 @@ function AppContent() {
     localStorage.setItem("writerdesk_user", JSON.stringify(profile));
   };
 
+  const handleUpdateUser = (newUser: UserProfile) => {
+    setUser(newUser);
+    localStorage.setItem("writerdesk_user", JSON.stringify(newUser));
+  };
+
   const handleLogout = async () => {
     if (supabaseService.isConfigured()) {
       await supabaseService.signOut();
@@ -172,6 +183,33 @@ function AppContent() {
         path="/project/:projectId/file/:fileId" 
         element={user ? <EditorRoute store={store} persist={persist} user={user} /> : <Navigate to="/login" replace />} 
       />
+
+      {/* Expanded Routes */}
+      <Route 
+        path="/community" 
+        element={user ? <CommunityPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/explore" 
+        element={user ? <ExplorePage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/messages" 
+        element={user ? <MessagesPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/notifications" 
+        element={user ? <NotificationsPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/settings" 
+        element={user ? <SettingsPage store={store} user={user} onLogout={handleLogout} onUpdateUser={handleUpdateUser} /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/profile" 
+        element={user ? <ProfilePage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+      />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -191,7 +229,7 @@ function ProjectsRoute({
 }) {
   const navigate = useNavigate();
   return (
-    <ProjectsScreen 
+    <ProjectsPage 
       store={store} 
       persist={persist} 
       openProject={(id) => navigate(`/project/${id}`)} 
@@ -209,7 +247,7 @@ function ProjectFilesRoute({ store, persist, user }: { store: Store; persist: (s
   if (!project) return <Navigate to="/projects" replace />;
 
   return (
-    <FilesScreen
+    <FilesPage
       project={project}
       user={user}
       back={() => navigate("/projects")}
@@ -235,8 +273,8 @@ function EditorRoute({ store, persist, user }: { store: Store; persist: (s: Stor
   }
 
   return (
-    // key=projectId means EditorScreen stays mounted when switching files within the same project
-    <EditorScreen
+    // key=projectId means EditorPage stays mounted when switching files within the same project
+    <EditorPage
       key={projectId}
       project={project}
       initialFileId={fileId!}

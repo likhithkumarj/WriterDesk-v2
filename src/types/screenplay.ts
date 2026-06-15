@@ -35,6 +35,9 @@ export interface Project {
   dateCreated: number;
   dateModified: number;
   files: FileDoc[];
+  type?: string;
+  genre?: string;
+  status?: string;
 }
 
 export interface Store {

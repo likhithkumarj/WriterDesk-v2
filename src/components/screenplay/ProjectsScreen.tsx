@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Project, Store } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { NewProjectModal } from "../modals/NewProjectModal";
 import { ShareModal } from "../modals/ShareModal";
 import { supabaseService } from "../../utils/supabaseService";
 import { Avatar } from "./Avatar";
+import { DashboardLayout } from "../../pages/DashboardLayout";
 import { 
   Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search, 
   Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
-  ChevronLeft, ChevronRight, MoreHorizontal, Bell, HelpCircle, ArrowUpRight, Upload, BookOpen
+  ChevronLeft, ChevronRight, MoreHorizontal, Bell, HelpCircle, ArrowUpRight, Upload, BookOpen,
+  MessageSquare
 } from "lucide-react";
 
 export function ProjectsScreen({
@@ -20,6 +23,7 @@ export function ProjectsScreen({
   user?: { name: string; email: string; avatar: string };
   onLogout?: () => void;
 }) {
+  const navigate = useNavigate();
   const [showNew, setShowNew] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
@@ -67,10 +71,17 @@ export function ProjectsScreen({
     }
   };
 
-  const createProject = (title: string, description: string) => {
+  const createProject = (title: string, description: string, type: string, genre: string) => {
     const p: Project = {
-      id: uid(), title, description,
-      dateCreated: Date.now(), dateModified: Date.now(), files: [],
+      id: uid(),
+      title,
+      description,
+      type,
+      genre,
+      status: "Draft",
+      dateCreated: Date.now(),
+      dateModified: Date.now(),
+      files: [],
     };
     persist({ ...store, projects: [p, ...store.projects] });
   };
@@ -116,12 +127,19 @@ export function ProjectsScreen({
     return colors[index % colors.length];
   };
 
-  const getProjectStatusBadge = (title: string, filesCount: number) => {
-    if (title === "Noir City") return { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" };
-    if (title === "Pilot EP1") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
-    if (title === "hiew") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
-    if (title === "check 2") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
-    return filesCount > 0 
+  const getProjectStatusBadge = (p: Project) => {
+    const s = (p.status || "").toLowerCase();
+    if (s === "active") return { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" };
+    if (s === "draft") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
+    if (s === "new") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
+    if (s === "empty") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
+    
+    // Fallback based on name/mock
+    if (p.title === "Noir City") return { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" };
+    if (p.title === "Pilot EP1") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
+    if (p.title === "hiew") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
+    if (p.title === "check 2") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
+    return p.files.length > 0 
       ? { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" }
       : { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
   };
@@ -151,15 +169,19 @@ export function ProjectsScreen({
   };
 
   return (
-    <div className="sp-db-container">
+    <DashboardLayout 
+      title="Dashboard" 
+      user={user || { name: "User", email: "", avatar: "" }} 
+      onLogout={onLogout} 
+      projectsCount={store.projects.length}
+    >
+      <div className="sp-db-container">
       {/* Styles block */}
       <style dangerouslySetInnerHTML={{ __html: `
         .sp-db-container {
           display: flex;
           flex-direction: column;
-          height: 100vh;
-          overflow: hidden;
-          background-color: #0c0c0e;
+          background-color: #08080a;
           color: #efeff1;
           font-family: 'Outfit', sans-serif;
         }
@@ -168,105 +190,17 @@ export function ProjectsScreen({
         .sp-db-desktop-layout {
           display: flex;
           flex-direction: column;
-          height: 100vh;
-          overflow: hidden;
         }
         .sp-db-mobile-layout {
           display: none;
         }
 
-        /* Desktop Sidebar styling */
-        .sp-db-body {
-          display: flex;
-          flex: 1;
-          min-height: 0;
-          position: relative;
-        }
-        .sp-db-sidebar {
-          width: 240px;
-          background-color: #0f0f11;
-          border-right: 1px solid #1c1c20;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          padding: 24px 16px;
-          flex-shrink: 0;
-        }
-        .sp-db-sidebar-section {
-          margin-bottom: 28px;
-        }
-        .sp-db-sidebar-title {
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.12em;
-          color: #55555d;
-          margin-bottom: 12px;
-          padding-left: 12px;
-        }
-        .sp-db-sidebar-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          width: 100%;
-          padding: 10px 12px;
-          border-radius: 10px;
-          background: transparent;
-          border: none;
-          color: #8e8e93;
-          font-size: 13px;
-          font-weight: 600;
-          text-align: left;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          margin-bottom: 4px;
-        }
-        .sp-db-sidebar-item:hover {
-          background: rgba(255, 255, 255, 0.02);
-          color: #efeff1;
-        }
-        .sp-db-sidebar-item.active {
-          background: rgba(232, 184, 75, 0.06);
-          color: #E8B84B;
-          border-right: 3px solid #E8B84B;
-          border-left: none;
-          border-top-right-radius: 2px;
-          border-bottom-right-radius: 2px;
-          border-top-left-radius: 0;
-          border-bottom-left-radius: 0;
-          padding-left: 12px;
-        }
-        .sp-db-logo-wrap {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          cursor: pointer;
-          margin-bottom: 24px;
-          padding-left: 12px;
-        }
-        .sp-db-logo-box {
-          width: 32px;
-          height: 32px;
-          background-color: #E8B84B;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #0f0f11;
-          font-weight: 800;
-        }
-        .sp-db-logo-text {
-          font-size: 16px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-          color: #fff;
-        }
 
-        /* Desktop Scroll Content Area */
+
         .sp-db-main-scroll {
           flex: 1;
           overflow-y: auto;
-          padding: 16px ;
+          padding: 32px 40px;
           background-color: #08080a;
         }
         .sp-db-main-grid {
@@ -274,7 +208,7 @@ export function ProjectsScreen({
           margin: 0 auto;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 32px;
         }
 
         /* Top Header */
@@ -595,16 +529,24 @@ export function ProjectsScreen({
           flex-direction: column;
           gap: 4px;
           padding-left: 8px;
+          min-width: 0;
+          flex: 1;
         }
         .sp-db-project-title {
           font-size: 14px;
           font-weight: 700;
           color: #fff;
           margin: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .sp-db-project-subtitle {
           font-size: 12px;
           color: #8e8e93;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .sp-db-project-stats {
           display: flex;
@@ -855,86 +797,8 @@ export function ProjectsScreen({
       {/* DESKTOP VIEWPORT LAYOUT                                  */}
       {/* ======================================================== */}
       <div className="sp-db-desktop-layout">
-        <div className="sp-db-body">
-          
-          {/* Left Navigation Sidebar */}
-          <aside className="sp-db-sidebar">
-            <div>
-              <div className="sp-db-logo-wrap" onClick={() => window.location.reload()}>
-                <div className="sp-db-logo-box">
-                  {/* Custom clapperboard SVG */}
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f0f11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-                    <path d="M6 6h10" />
-                    <path d="M6 10h10" />
-                  </svg>
-                </div>
-                <span className="sp-db-logo-text">WriterDesk</span>
-              </div>
-
-              <div className="sp-db-sidebar-section">
-                <div className="sp-db-sidebar-title">MAIN</div>
-                <button className="sp-db-sidebar-item active">
-                  <LayoutGrid size={16} /> 
-                  <span style={{ flex: 1 }}>Projects</span>
-                  <span style={{ fontSize: 10, background: "#E8B84B", color: "#0f0f11", padding: "1px 6px", borderRadius: 10, fontWeight: 700 }}>
-                    {store.projects.length}
-                  </span>
-                </button>
-                <button className="sp-db-sidebar-item" onClick={() => alert("Community is coming soon!")}>
-                  <Users size={16} /> Community
-                </button>
-                <button className="sp-db-sidebar-item" onClick={() => alert("Collaboration features coming soon!")}>
-                  <Users size={16} /> Collaborate
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <div className="sp-db-sidebar-section" style={{ marginBottom: 0 }}>
-                <div className="sp-db-sidebar-title">ACCOUNT</div>
-                <button className="sp-db-sidebar-item" onClick={() => alert("No new notifications.")}>
-                  <Bell size={16} /> Notifications
-                </button>
-                <button className="sp-db-sidebar-item" onClick={onLogout}>
-                  <SettingsIcon size={16} /> Settings
-                </button>
-              </div>
-            </div>
-          </aside>
-
-          {/* Main Dashboard Content Area */}
-          <main className="sp-db-main-scroll">
-            <div className="sp-db-main-grid">
-              
-              {/* Dashboard Header */}
-              <div className="sp-db-header">
-                <div className="sp-db-header-left">
-                  <span className="sp-db-header-subtitle">Good morning</span>
-                  <h1 className="sp-db-header-title">Dashboard</h1>
-                </div>
-
-                <div className="sp-db-header-right">
-                  <div className="sp-db-search-wrap">
-                    <Search size={14} className="sp-db-search-icon" />
-                    <input 
-                      type="text" 
-                      placeholder="Search projects, scripts..." 
-                      className="sp-db-search-input"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") alert("Search query submitted");
-                      }}
-                    />
-                    <span className="sp-db-badge-count">K</span>
-                  </div>
-
-                  <button className="sp-db-icon-btn" title="Notifications">
-                    <Bell size={16} />
-                  </button>
-
-                  <Avatar src={user?.avatar} name={user?.name || "User"} size={36} />
-                </div>
-              </div>
+        <div className="sp-db-main-scroll">
+          <div className="sp-db-main-grid">
 
               {/* Pending Invites Alert List */}
               {pendingInvites.length > 0 && (
@@ -1054,7 +918,7 @@ export function ProjectsScreen({
                   ) : (
                     store.projects.map((p, idx) => {
                       const accentColor = getProjectAccentColor(p.title, idx);
-                      const badgeInfo = getProjectStatusBadge(p.title, p.files.length);
+                      const badgeInfo = getProjectStatusBadge(p);
                       return (
                         <div 
                           key={p.id} 
@@ -1067,8 +931,13 @@ export function ProjectsScreen({
                           <div className="sp-db-project-info">
                             <h3 className="sp-db-project-title">{p.title}</h3>
                             <span className="sp-db-project-subtitle">
-                              {p.title === "Noir City" ? "Feature Film" : p.description || "Feature Film"} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
+                              {p.type || "Feature Film"}{p.genre ? ` • ${p.genre}` : ""} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
                             </span>
+                            {p.description && (
+                              <span style={{ fontSize: 11, color: "#55555d", marginTop: 2, display: "block", maxWidth: 450, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {p.description}
+                              </span>
+                            )}
                           </div>
 
                           <div className="sp-db-project-stats">
@@ -1150,9 +1019,7 @@ export function ProjectsScreen({
               </div>
 
             </div>
-          </main>
-
-        </div>
+          </div>
       </div>
 
       {/* ======================================================== */}
@@ -1160,24 +1027,7 @@ export function ProjectsScreen({
       {/* ======================================================== */}
       <div className="sp-db-mobile-layout">
         
-        {/* Mobile Header */}
-        <div className="sp-db-mobile-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div>
-            <span style={{ fontSize: 12, color: "#8e8e93" }}>Good morning</span>
-            <h1 className="sp-db-mobile-header-title" style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>
-              Screen<span style={{ color: "#E8B84B" }}>play</span>
-            </h1>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button className="sp-db-icon-btn" style={{ borderRadius: "50%", width: 36, height: 36 }} onClick={() => alert("Toggle Light/Dark Theme")}>
-              <Sun size={16} />
-            </button>
-            <button className="sp-db-icon-btn" style={{ borderRadius: "50%", width: 36, height: 36 }} onClick={() => alert("Notifications")}>
-              <Bell size={16} />
-            </button>
-            <Avatar src={user?.avatar} name={user?.name || "User"} size={36} />
-          </div>
-        </div>
+        {/* Mobile content starts here */}
 
         {/* Mobile Search input */}
         <div className="sp-db-search-wrap" style={{ width: "100%", marginBottom: 20 }}>
@@ -1248,7 +1098,7 @@ export function ProjectsScreen({
           ) : (
             store.projects.map((p, idx) => {
               const accentColor = getProjectAccentColor(p.title, idx);
-              const badgeInfo = getProjectStatusBadge(p.title, p.files.length);
+              const badgeInfo = getProjectStatusBadge(p);
               return (
                 <div 
                   key={p.id} 
@@ -1260,7 +1110,7 @@ export function ProjectsScreen({
                   <div className="sp-db-project-info" style={{ paddingLeft: 4 }}>
                     <h3 className="sp-db-project-title" style={{ fontSize: 14 }}>{p.title}</h3>
                     <span className="sp-db-project-subtitle" style={{ fontSize: 11 }}>
-                      {p.title === "Noir City" ? "Feature Film" : p.description || "Feature Film"} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
+                      {p.type || "Feature Film"}{p.genre ? ` • ${p.genre}` : ""} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
                     </span>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
@@ -1319,33 +1169,18 @@ export function ProjectsScreen({
           )}
         </div>
 
-        {/* Mobile Bottom Navigation Bar */}
-        <nav className="sp-ws-mobile-nav">
-          <button className="sp-ws-mobile-nav-item active" onClick={() => window.location.reload()}>
-            <LayoutGrid size={20} />
-            <span>Projects</span>
-          </button>
-          <button className="sp-ws-mobile-nav-item" onClick={() => {
-            if (store.projects[0]) openProject(store.projects[0].id);
-          }}>
-            <FileText size={20} />
-            <span>Scripts</span>
-          </button>
-          <button className="sp-ws-mobile-nav-fab" onClick={() => setShowNew(true)}>
-            <Plus size={24} />
-          </button>
-          <button className="sp-ws-mobile-nav-item" onClick={() => alert("Search clicked")}>
-            <Search size={20} />
-            <span>Search</span>
-          </button>
-          <button className="sp-ws-mobile-nav-item" onClick={() => alert("Profile clicked")}>
-            <Avatar src={user?.avatar} name={user?.name || "User"} size={20} />
-            <span>Profile</span>
-          </button>
-        </nav>
+
       </div>
 
-      {showNew && <NewProjectModal onClose={() => setShowNew(false)} onCreate={(t, d) => { createProject(t, d); setShowNew(false); }} />}
+       {showNew && (
+        <NewProjectModal 
+          onClose={() => setShowNew(false)} 
+          onCreate={(title, desc, type, genre) => { 
+            createProject(title, desc, type, genre); 
+            setShowNew(false); 
+          }} 
+        />
+      )}
       
       {shareProjectId && (
         <ShareModal 
@@ -1355,5 +1190,6 @@ export function ProjectsScreen({
         />
       )}
     </div>
+    </DashboardLayout>
   );
 }

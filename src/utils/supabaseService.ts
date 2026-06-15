@@ -90,6 +90,9 @@ export const supabaseService = {
         description: p.description || "",
         dateCreated: new Date(p.date_created).getTime(),
         dateModified: new Date(p.date_modified).getTime(),
+        type: p.type || "",
+        genre: p.genre || "",
+        status: p.status || "",
         files: (p.files || []).map((f: any) => ({
           id: f.id,
           title: f.title,
@@ -116,6 +119,9 @@ export const supabaseService = {
           user_id: userId,
           date_created: new Date(p.dateCreated).toISOString(),
           date_modified: new Date(p.dateModified).toISOString(),
+          type: p.type || null,
+          genre: p.genre || null,
+          status: p.status || null,
         });
         
         if (projErr) {
@@ -165,6 +171,9 @@ export const supabaseService = {
             user_id: supabaseUser.id,
             date_created: new Date(p.dateCreated).toISOString(),
             date_modified: new Date(p.dateModified).toISOString(),
+            type: p.type || null,
+            genre: p.genre || null,
+            status: p.status || null,
           });
           if (projErr) {
             console.error("Sync error inserting project:", p.id, projErr);
@@ -187,11 +196,21 @@ export const supabaseService = {
           }
         } else {
           // Update existing project
-          if (oldP.title !== p.title || oldP.description !== p.description || oldP.dateModified !== p.dateModified) {
+          if (
+            oldP.title !== p.title ||
+            oldP.description !== p.description ||
+            oldP.dateModified !== p.dateModified ||
+            oldP.type !== p.type ||
+            oldP.genre !== p.genre ||
+            oldP.status !== p.status
+          ) {
             const { error: projErr } = await supabase.from("projects").update({
               title: p.title,
               description: p.description,
               date_modified: new Date(p.dateModified).toISOString(),
+              type: p.type || null,
+              genre: p.genre || null,
+              status: p.status || null,
             }).eq("id", p.id);
             if (projErr) {
               console.error("Sync error updating project:", p.id, projErr);
