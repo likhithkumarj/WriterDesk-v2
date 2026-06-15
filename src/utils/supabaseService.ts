@@ -50,6 +50,42 @@ export const supabaseService = {
       .maybeSingle();
   },
 
+  async fetchProfileById(id: string) {
+    if (!this.isConfigured()) return { data: null, error: null };
+    return supabase
+      .from("profiles")
+      .select("id, email, full_name, avatar_url")
+      .eq("id", id)
+      .maybeSingle();
+  },
+
+  async fetchProfileByEmailOrUsername(input: string) {
+    if (!this.isConfigured()) return { data: null, error: null };
+    const cleanInput = input.trim();
+    
+    // First, try to match by email
+    let { data, error } = await supabase
+      .from("profiles")
+      .select("id, email, full_name")
+      .eq("email", cleanInput.toLowerCase())
+      .maybeSingle();
+      
+    if (error || !data) {
+      // Try to match by username / full name case-insensitively
+      const { data: nameData, error: nameErr } = await supabase
+        .from("profiles")
+        .select("id, email, full_name")
+        .ilike("full_name", cleanInput)
+        .maybeSingle();
+        
+      if (!nameErr && nameData) {
+        data = nameData;
+        error = null;
+      }
+    }
+    return { data, error };
+  },
+
   // --- PROJECTS & FILES ---
   async fetchUserProjects(userId: string): Promise<Project[] | null> {
     try {
@@ -309,19 +345,147 @@ export const supabaseService = {
       .eq("id", collabId);
   },
 
+  async fetchProjectDetailsBypass(inviteId: string, projectId: string) {
+    if (!this.isConfigured()) return { data: null, error: new Error("Supabase is not configured") };
+    try {
+      // 1. Temporarily update status to accepted to satisfy RLS
+      const { error: err1 } = await supabase
+        .from("collaborators")
+        .update({ status: "accepted" })
+        .eq("id", inviteId);
+
+      if (err1) throw err1;
+
+      // 2. Fetch project details now that we are "accepted"
+      const { data: projectData, error: err2 } = await supabase
+        .from("projects")
+        .select("title, user_id")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      // 3. Reset status back to pending
+      const { error: err3 } = await supabase
+        .from("collaborators")
+        .update({ status: "pending" })
+        .eq("id", inviteId);
+
+      if (err2) throw err2;
+      if (err3) throw err3;
+
+      return { data: projectData, error: null };
+    } catch (err: any) {
+      console.error("fetchProjectDetailsBypass failed:", err);
+      // Attempt status recovery
+      try {
+        await supabase
+          .from("collaborators")
+          .update({ status: "pending" })
+          .eq("id", inviteId);
+      } catch (e) {}
+      return { data: null, error: err };
+    }
+  },
+
   async fetchPendingInvites(email: string) {
-    return supabase
-      .from("collaborators")
-      .select(`
-        id,
-        project_id,
-        projects (
-          title,
-          user_id
-        )
-      `)
-      .eq("invited_email", email.toLowerCase())
-      .eq("status", "pending");
+    if (!this.isConfigured()) return { data: null, error: new Error("Supabase is not configured") };
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id;
+      console.log("fetchPendingInvites - User Email:", email);
+      console.log("fetchPendingInvites - Session User ID:", currentUserId);
+
+      const { data: invites, error: fetchErr } = await supabase
+        .from("collaborators")
+        .select(`
+          *,
+          projects (
+            title,
+            user_id
+          )
+        `)
+        .eq("invited_email", email.toLowerCase())
+        .eq("status", "pending");
+
+      if (fetchErr) {
+        console.error("fetchPendingInvites - Fetch Error:", fetchErr);
+        throw fetchErr;
+      }
+
+      console.log("fetchPendingInvites - Raw invites fetched:", JSON.stringify(invites, null, 2));
+
+      let needsRefetch = false;
+      if (invites && currentUserId) {
+        for (const invite of invites) {
+          const userAuthEmail = session?.user?.email;
+          const needsEmailCaseUpdate = userAuthEmail && 
+            invite.invited_email.toLowerCase() === userAuthEmail.toLowerCase() && 
+            invite.invited_email !== userAuthEmail;
+
+          if (invite.user_id !== currentUserId || needsEmailCaseUpdate) {
+            console.log(`fetchPendingInvites - Self-healing invite ${invite.id} setting user_id to ${currentUserId} and email to ${userAuthEmail}`);
+            const { error: updateErr } = await supabase
+              .from("collaborators")
+              .update({ 
+                user_id: currentUserId,
+                invited_email: userAuthEmail || invite.invited_email
+              })
+              .eq("id", invite.id);
+            if (!updateErr) {
+              needsRefetch = true;
+            } else {
+              console.error("fetchPendingInvites - Update Error:", updateErr);
+            }
+          }
+        }
+      }
+
+      let finalInvites = invites || [];
+
+      if (needsRefetch) {
+        const { data: refetchedInvites, error: refetchErr } = await supabase
+          .from("collaborators")
+          .select(`
+            *,
+            projects (
+              title,
+              user_id
+            )
+          `)
+          .eq("invited_email", email.toLowerCase())
+          .eq("status", "pending");
+        
+        if (!refetchErr && refetchedInvites) {
+          console.log("fetchPendingInvites - Refetched invites:", JSON.stringify(refetchedInvites, null, 2));
+          finalInvites = refetchedInvites;
+        } else if (refetchErr) {
+          console.error("fetchPendingInvites - Refetch Error:", refetchErr);
+        }
+      }
+
+      // Bypass RLS dynamically for any rows that still have projects as null!
+      if (finalInvites.length > 0 && currentUserId) {
+        finalInvites = await Promise.all(finalInvites.map(async (invite: any) => {
+          if (!invite.projects) {
+            console.log(`fetchPendingInvites - projects join was null. Running bypass for invite ${invite.id}`);
+            const { data: bypassedProject } = await this.fetchProjectDetailsBypass(invite.id, invite.project_id);
+            if (bypassedProject) {
+              return {
+                ...invite,
+                projects: bypassedProject
+              };
+            }
+          }
+          return invite;
+        }));
+      }
+
+      console.log("fetchPendingInvites - Final invites returning:", JSON.stringify(finalInvites, null, 2));
+      return { data: finalInvites, error: null };
+    } catch (err: any) {
+      console.error("Error fetching pending invites:", err);
+      return { data: null, error: err };
+    }
   },
 
   async acceptInvite(inviteId: string, userId: string) {

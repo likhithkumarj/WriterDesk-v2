@@ -89,9 +89,128 @@ function EditDetailsModal({
   );
 }
 
+function InviteCollaboratorModal({
+  projectId,
+  onClose,
+  onInviteSuccess,
+}: {
+  projectId: string;
+  onClose: () => void;
+  onInviteSuccess: () => void;
+}) {
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanInput = input.trim();
+    if (!cleanInput) return;
+
+    setIsSending(true);
+    setErrorMsg("");
+
+    try {
+      if (!supabaseService.isConfigured()) {
+        alert("Invite sent! (Simulated - Supabase is not configured)");
+        onInviteSuccess();
+        onClose();
+        return;
+      }
+
+      // 1. Fetch profile of the user to see if they are registered
+      const { data: profile } = await supabaseService.fetchProfileByEmailOrUsername(cleanInput);
+
+      if (!profile) {
+        setErrorMsg("User not found. Collaborators must be registered users.");
+        setInput(""); // clear input if invalid entry
+        setIsSending(false);
+        return;
+      }
+
+      // 2. Invite the collaborator
+      const { error } = await supabaseService.inviteCollaborator(
+        projectId,
+        profile.email,
+        profile.id
+      );
+
+      if (error) {
+        if (error.message && error.message.includes("unique")) {
+          setErrorMsg("This user is already a collaborator or has a pending invite.");
+        } else {
+          setErrorMsg(error.message || "Failed to send invitation.");
+        }
+        setInput("");
+        setIsSending(false);
+        return;
+      }
+
+      // 3. Success
+      onInviteSuccess();
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || "An unexpected error occurred.");
+      setInput("");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div className="sp-modal-backdrop" onClick={onClose}>
+      <div className="sp-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: "#fff" }}>Add Collaborator</h2>
+        <p style={{ fontSize: 13, color: "#8e8e93", marginBottom: 20 }}>
+          Enter the registered username or email address of the writer you want to invite.
+        </p>
+
+        <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", marginBottom: 6, letterSpacing: "0.05em" }}>
+              Username or Email
+            </label>
+            <input
+              className="sp-input"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (errorMsg) setErrorMsg("");
+              }}
+              placeholder="e.g. sarah.m@email.com or Sarah Mitchell"
+              required
+              autoFocus
+            />
+            {errorMsg && (
+              <p style={{ color: "#ef4444", fontSize: 12, marginTop: 6, fontWeight: 500 }}>
+                {errorMsg}
+              </p>
+            )}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+            <button type="button" className="sp-btn" onClick={onClose} disabled={isSending}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="sp-btn sp-btn-primary"
+              disabled={isSending || !input.trim()}
+              style={{ display: "flex", alignItems: "center", gap: 8 }}
+            >
+              {isSending ? "Inviting..." : "Send Invitation"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // Collaborators mock list to match mockup data as a fallback
 const mockCollaboratorsList = [
   {
+    id: "mock-1",
     name: "Ben Carter",
     email: "ben@screenplay.app",
     avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Ben",
@@ -101,6 +220,7 @@ const mockCollaboratorsList = [
     joined: "Jan 2026"
   },
   {
+    id: "mock-2",
     name: "Sarah Mitchell",
     email: "sarah.m@email.com",
     avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Sarah",
@@ -110,6 +230,7 @@ const mockCollaboratorsList = [
     joined: "Mar 2026"
   },
   {
+    id: "mock-3",
     name: "Marco Rivera",
     email: "marco.r@email.com",
     avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Marco",
@@ -137,7 +258,8 @@ export function FilesScreen({
   const [dragId, setDragId] = useState<string | null>(null);
 
   const [localProject, setLocalProject] = useState<Project>(project);
-  const [collaborators, setCollaborators] = useState<any[]>(mockCollaboratorsList);
+  const [collaborators, setCollaborators] = useState<any[]>(() => supabaseService.isConfigured() ? [] : mockCollaboratorsList);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   useEffect(() => {
     setLocalProject(project);
@@ -287,7 +409,6 @@ export function FilesScreen({
   };
 
   useEffect(() => {
-    fetchProjectFromDb();
     loadCollaborators();
 
     if (!supabaseService.isConfigured() || !project?.id) return;
@@ -356,18 +477,37 @@ export function FilesScreen({
     return "#E8B84B";
   };
 
-  const getFileDate = (title: string) => {
+  const getFileDate = (title: string, dateModified?: number) => {
+    if (dateModified) {
+      return new Date(dateModified).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    }
     if (title === "Act One Draft") return "Jun 8";
     if (title === "Act Two Outline") return "Jun 6";
     if (title === "Character Bible") return "Jun 4";
     return "Jun 8";
   };
 
-  const getFileFullDate = (title: string) => {
+  const getFileFullDate = (title: string, dateModified?: number) => {
+    if (dateModified) {
+      return new Date(dateModified).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    }
     if (title === "Act One Draft") return "Jun 8, 2026";
     if (title === "Act Two Outline") return "Jun 6, 2026";
     if (title === "Character Bible") return "Jun 4, 2026";
     return "Jun 8, 2026";
+  };
+
+  const totalPages = localProject.files.reduce((sum, f) => sum + getFilePages(f.title, f.blocks), 0);
+  const estMinutes = totalPages;
+  const getLastEditedDate = () => {
+    let maxTime = localProject.dateModified || 0;
+    localProject.files.forEach((f) => {
+      if (f.dateModified > maxTime) {
+        maxTime = f.dateModified;
+      }
+    });
+    if (maxTime === 0) return "Jun 8";
+    return new Date(maxTime).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
   const addFile = () => {
@@ -390,9 +530,34 @@ export function FilesScreen({
     persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks.map(b => ({...b, id: uid()})) }] });
   };
 
-  const deleteFile = (id: string) => {
+  const deleteFile = async (id: string) => {
     if (!window.confirm("Delete this file?")) return;
-    persist({ ...localProject, files: localProject.files.filter((x) => x.id !== id) });
+    try {
+      if (supabaseService.isConfigured()) {
+        const { error } = await supabase
+          .from("files")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+      }
+      persist({ ...localProject, files: localProject.files.filter((x) => x.id !== id) });
+    } catch (err: any) {
+      alert("Error deleting file: " + err.message);
+    }
+  };
+
+  const handleRemoveCollaborator = async (collabId: string) => {
+    if (!window.confirm("Are you sure you want to remove this collaborator?")) return;
+    try {
+      if (supabaseService.isConfigured()) {
+        const { error } = await supabaseService.removeCollaborator(collabId);
+        if (error) throw error;
+      }
+      setCollaborators(prev => prev.filter(c => c.id !== collabId));
+      alert("Collaborator removed successfully.");
+    } catch (err: any) {
+      alert("Error removing collaborator: " + err.message);
+    }
   };
 
   const onDragOver = (e: React.DragEvent) => e.preventDefault();
@@ -1294,7 +1459,7 @@ export function FilesScreen({
           </div>
 
           <div className="sp-ws-header-right">
-            <button className="sp-ws-btn-share" onClick={() => alert("Share dialog placeholder")}>
+            <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
               <Share2 size={14} /> Share
             </button>
             <button className="sp-ws-btn-gold" onClick={addFile}>
@@ -1303,7 +1468,9 @@ export function FilesScreen({
             <button className="sp-ws-icon-btn" title="Theme selector">
               <Sun size={16} />
             </button>
+            <div onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
             <Avatar src={user?.avatar} name={user?.name || "User"} size={32} />
+            </div>
           </div>
         </header>
 
@@ -1378,7 +1545,7 @@ export function FilesScreen({
                       <span className="sp-ws-banner-stat-lbl">Scripts</span>
                     </div>
                     <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">67</span>
+                      <span className="sp-ws-banner-stat-val">{totalPages}</span>
                       <span className="sp-ws-banner-stat-lbl">Total Pages</span>
                     </div>
                     <div className="sp-ws-banner-stat">
@@ -1386,11 +1553,11 @@ export function FilesScreen({
                       <span className="sp-ws-banner-stat-lbl">Collaborators</span>
                     </div>
                     <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">~67</span>
+                      <span className="sp-ws-banner-stat-val">~{estMinutes}</span>
                       <span className="sp-ws-banner-stat-lbl">Est. Minutes</span>
                     </div>
                     <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">Jun 8</span>
+                      <span className="sp-ws-banner-stat-val">{getLastEditedDate()}</span>
                       <span className="sp-ws-banner-stat-lbl">Last Edited</span>
                     </div>
                   </div>
@@ -1503,13 +1670,13 @@ export function FilesScreen({
                               </div>
                             </div>
                             
-                            <span className="sp-ws-row-edited">{getFileFullDate(f.title)}</span>
+                            <span className="sp-ws-row-edited">{getFileFullDate(f.title, f.dateModified)}</span>
                             
                             <div className="sp-ws-row-badge-wrap">
                               <span className="sp-ws-row-badge">{getFilePages(f.title, f.blocks)} pp</span>
                             </div>
                             
-                            <span className="sp-ws-row-date">{getFileDate(f.title)}</span>
+                            <span className="sp-ws-row-date">{getFileDate(f.title, f.dateModified)}</span>
                             
                             <div className="sp-ws-row-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
                               <button className="sp-ws-row-action-btn">⋮</button>
@@ -1528,11 +1695,11 @@ export function FilesScreen({
                   )}
 
                   {/* Collaborators Block: displayed in BOTH Files and Collaborators tab */}
-                  {(activeTab === "files" || activeTab === "collaborators") && (
-                    <div style={{ marginTop: activeTab === "files" ? 24 : 0 }}>
+                  {(activeTab === "collaborators") && (
+                    <div>
                       <div className="sp-ws-section-header">
                         <h2 className="sp-ws-section-title">COLLABORATORS</h2>
-                        <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8 }} onClick={() => alert("Invite link copied to clipboard!")}>
+                        <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8 }} onClick={() => setShowInviteModal(true)}>
                           <UserPlus size={14} /> Invite
                         </button>
                       </div>
@@ -1572,7 +1739,7 @@ export function FilesScreen({
                             {openMenu === c.email && (
                               <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
                                 <button onClick={() => { alert("Changing roles placeholder"); setOpenMenu(null); }}>Change Role</button>
-                                <button onClick={() => { alert("Removing collaborator placeholder"); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
+                                <button onClick={() => { handleRemoveCollaborator(c.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
                               </div>
                             )}
                           </div>
@@ -1710,7 +1877,7 @@ export function FilesScreen({
               <span className="sp-ws-mobile-card-stat-lbl">Scripts</span>
             </div>
             <div className="sp-ws-mobile-card-stat">
-              <span className="sp-ws-mobile-card-stat-val">67</span>
+              <span className="sp-ws-mobile-card-stat-val">{totalPages}</span>
               <span className="sp-ws-mobile-card-stat-lbl">Pages</span>
             </div>
             <div className="sp-ws-mobile-card-stat">
@@ -1718,7 +1885,7 @@ export function FilesScreen({
               <span className="sp-ws-mobile-card-stat-lbl">Collabs</span>
             </div>
             <div className="sp-ws-mobile-card-stat">
-              <span className="sp-ws-mobile-card-stat-val">Jun 8</span>
+              <span className="sp-ws-mobile-card-stat-val">{getLastEditedDate()}</span>
               <span className="sp-ws-mobile-card-stat-lbl">Last edited</span>
             </div>
           </div>
@@ -1773,17 +1940,26 @@ export function FilesScreen({
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                         <h3 className="sp-ws-mobile-file-title">{f.title}</h3>
-                        <p className="sp-ws-mobile-file-subtitle">Edited {getFileDate(f.title)} · {getFileAuthor(f.title)}</p>
+                        <p className="sp-ws-mobile-file-subtitle">Edited {getFileDate(f.title, f.dateModified)} · {getFileAuthor(f.title)}</p>
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, position: "relative" }}>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                         <span className="sp-ws-mobile-file-badge">{getFilePages(f.title, f.blocks)} pp</span>
-                        <span className="sp-ws-mobile-file-date">{getFileDate(f.title)}</span>
+                        <span className="sp-ws-mobile-file-date">{getFileDate(f.title, f.dateModified)}</span>
                       </div>
-                      <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
-                        <MoreVertical size={16} />
-                      </button>
+                      <div style={{ position: "relative" }}>
+                        <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
+                          <MoreVertical size={16} />
+                        </button>
+                        {openMenu === f.id && (
+                          <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
+                            <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
+                            <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1796,7 +1972,7 @@ export function FilesScreen({
             <>
               <div className="sp-ws-section-header" style={{ marginBottom: 12 }}>
                 <h2 className="sp-ws-section-title">COLLABORATORS</h2>
-                <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => alert("Invite link copied to clipboard!")}>
+                <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => setShowInviteModal(true)}>
                   <UserPlus size={12} /> Invite
                 </button>
               </div>
@@ -1810,16 +1986,24 @@ export function FilesScreen({
                       <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 10 }}>{c.email}</p>
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                       <span className="sp-ws-role-badge" style={{ color: c.roleColor, backgroundColor: c.roleBg, fontSize: 10, padding: "2px 8px" }}>
                         {c.role}
                       </span>
                       <span className="sp-ws-mobile-file-date">Joined {c.joined}</span>
                     </div>
-                    <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
-                      <MoreVertical size={16} />
-                    </button>
+                    <div style={{ position: "relative" }}>
+                      <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
+                        <MoreVertical size={16} />
+                      </button>
+                      {openMenu === c.email && (
+                        <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => { alert("Changing roles placeholder"); setOpenMenu(null); }}>Change Role</button>
+                          <button onClick={() => { handleRemoveCollaborator(c.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1901,6 +2085,13 @@ export function FilesScreen({
             });
             setShowEditDetails(false);
           }} 
+        />
+      )}
+      {showInviteModal && (
+        <InviteCollaboratorModal 
+          projectId={localProject.id} 
+          onClose={() => setShowInviteModal(false)} 
+          onInviteSuccess={loadCollaborators} 
         />
       )}
     </div>

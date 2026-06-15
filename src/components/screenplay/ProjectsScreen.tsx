@@ -35,7 +35,33 @@ export function ProjectsScreen({
     try {
       const { data, error } = await supabaseService.fetchPendingInvites(user.email);
       if (!error && data) {
-        setPendingInvites(data);
+        const resolved = await Promise.all(data.map(async (invite: any) => {
+          const projectObj = Array.isArray(invite.projects) ? invite.projects[0] : invite.projects;
+          const title = projectObj?.title || "Untitled Project";
+          const ownerId = projectObj?.user_id;
+
+          let senderName = "Unknown Sender";
+          let senderEmail = "";
+          let senderAvatar = "";
+
+          if (ownerId) {
+            const { data: profile } = await supabaseService.fetchProfileById(ownerId);
+            if (profile) {
+              senderName = profile.full_name || profile.email?.split("@")[0] || "Unknown Sender";
+              senderEmail = profile.email || "";
+              senderAvatar = profile.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile.email || ownerId}`;
+            }
+          }
+
+          return {
+            ...invite,
+            projectTitle: title,
+            senderName,
+            senderEmail,
+            senderAvatar
+          };
+        }));
+        setPendingInvites(resolved);
       }
     } catch (err) {
       console.error("Error loading pending invites:", err);
@@ -808,7 +834,7 @@ export function ProjectsScreen({
                     {pendingInvites.map((invite) => (
                       <div key={invite.id} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                         <span style={{ fontSize: 13 }}>
-                          You have been invited to collaborate on <strong>{invite.projects?.title}</strong>.
+                          You have been invited by <strong>{invite.senderName || "Unknown Sender"}</strong> {invite.senderEmail ? `(${invite.senderEmail})` : ""} to collaborate on <strong>{invite.projectTitle}</strong>.
                         </span>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button className="sp-ws-btn-gold" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => acceptInvite(invite.id)}>Accept</button>

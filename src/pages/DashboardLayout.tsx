@@ -5,6 +5,7 @@ import {
   Settings as SettingsIcon, User, LogOut, Menu, X, Search 
 } from "lucide-react";
 import { Avatar } from "../components/screenplay/Avatar";
+import { supabaseService } from "../utils/supabaseService";
 
 export interface UserProfile {
   name: string;
@@ -41,6 +42,28 @@ export function DashboardLayout({
     else setTimeGreeting("Good evening");
   }, []);
 
+  const [dynNotifCount, setDynNotifCount] = useState(unreadNotificationsCount);
+
+  useEffect(() => {
+    if (!supabaseService.isConfigured() || !user?.email) {
+      setDynNotifCount(unreadNotificationsCount);
+      return;
+    }
+
+    const fetchCount = async () => {
+      try {
+        const { data } = await supabaseService.fetchPendingInvites(user.email);
+        if (data) {
+          setDynNotifCount(data.length);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    fetchCount();
+  }, [user, unreadNotificationsCount]);
+
   const isActive = (path: string) => {
     return location.pathname === path;
   };
@@ -50,7 +73,7 @@ export function DashboardLayout({
     { label: "Community", path: "/community", icon: Users, section: "main" },
     { label: "Explore", path: "/explore", icon: Compass, section: "main" },
     { label: "Messages", path: "/messages", icon: MessageSquare, count: unreadMessagesCount, section: "main" },
-    { label: "Notifications", path: "/notifications", icon: Bell, count: unreadNotificationsCount, section: "account" },
+    { label: "Notifications", path: "/notifications", icon: Bell, count: dynNotifCount, section: "account" },
     { label: "Settings", path: "/settings", icon: SettingsIcon, section: "account" },
     { label: "Profile", path: "/profile", icon: User, section: "account" },
   ];
@@ -541,7 +564,7 @@ export function DashboardLayout({
 
             <button className="sp-layout-header-btn" onClick={() => navigate("/notifications")} title="Notifications">
               <Bell size={16} />
-              {unreadNotificationsCount > 0 && <span className="sp-layout-header-badge-dot" />}
+              {dynNotifCount > 0 && <span className="sp-layout-header-badge-dot" />}
             </button>
 
             <div onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>

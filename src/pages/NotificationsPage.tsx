@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DashboardLayout, UserProfile } from "./DashboardLayout";
 import { Bell, Heart, MessageSquare, UserPlus, Cloud, Check, X, ShieldAlert } from "lucide-react";
 import { Store } from "../types/screenplay";
 import { Avatar } from "../components/screenplay/Avatar";
+import { supabaseService } from "../utils/supabaseService";
 
 interface AlertItem {
   id: string;
@@ -27,18 +28,6 @@ export function NotificationsPage({
   onLogout: () => void;
 }) {
   const [notifications, setNotifications] = useState<AlertItem[]>([
-    {
-      id: "n-1",
-      type: "invite",
-      senderName: "Elena Rostova",
-      senderAvatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Elena",
-      text: "invited you to collaborate on their screenplay",
-      projectTitle: "Neon Tokyo",
-      time: "10 minutes ago",
-      unread: true,
-      inviteStatus: "pending",
-      inviteId: "invite-101"
-    },
     {
       id: "n-2",
       type: "like",
@@ -68,18 +57,95 @@ export function NotificationsPage({
     }
   ]);
 
-  const handleAcceptInvite = (id: string, projectTitle?: string) => {
-    alert(`Successfully accepted collaboration invite for ${projectTitle || "Project"}!`);
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, inviteStatus: "accepted", unread: false } : n
-    ));
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadRealInvites = async () => {
+      if (!supabaseService.isConfigured() || !user?.email) return;
+      setLoading(true);
+      try {
+        const { data, error } = await supabaseService.fetchPendingInvites(user.email);
+        if (!error && data) {
+          const dbInvites = await Promise.all(
+            data.map(async (invite: any) => {
+              const projectObj = Array.isArray(invite.projects) ? invite.projects[0] : invite.projects;
+              const title = projectObj?.title || "Untitled Project";
+              const ownerId = projectObj?.user_id;
+
+              let senderName = "Unknown Sender";
+              let senderEmail = "";
+              let senderAvatar = "";
+
+              if (ownerId) {
+                const { data: profile } = await supabaseService.fetchProfileById(ownerId);
+                if (profile) {
+                  senderName = profile.full_name || profile.email?.split("@")[0] || "Unknown Sender";
+                  senderEmail = profile.email || "";
+                  senderAvatar = profile.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile.email || ownerId}`;
+                }
+              }
+
+              return {
+                id: invite.id,
+                type: "invite" as const,
+                senderName,
+                senderAvatar: senderAvatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${senderEmail || invite.id}`,
+                text: `invited you to collaborate on ${senderEmail ? `(${senderEmail})` : ""}`,
+                projectTitle: title,
+                time: "Pending",
+                unread: true,
+                inviteStatus: "pending" as const,
+                inviteId: invite.id,
+              };
+            })
+          );
+
+          // We merge the db invites with our mock notifications, keeping the invite notifications at the top
+          setNotifications(prev => {
+            const nonInvites = prev.filter(n => n.type !== "invite");
+            return [...dbInvites, ...nonInvites];
+          });
+        }
+      } catch (err) {
+        console.error("Error loading invites on NotificationsPage:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRealInvites();
+  }, [user]);
+
+  const handleAcceptInvite = async (id: string, projectTitle?: string) => {
+    try {
+      const session = await supabaseService.getSession();
+      const currentUserId = session?.user?.id;
+      if (!currentUserId) throw new Error("No authenticated user found.");
+      
+      const { error } = await supabaseService.acceptInvite(id, currentUserId);
+      if (error) throw error;
+
+      alert(`Successfully accepted collaboration invite for ${projectTitle || "Project"}!`);
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, inviteStatus: "accepted", unread: false } : n
+      ));
+    } catch (err: any) {
+      alert("Error accepting invite: " + err.message);
+    }
   };
 
-  const handleDeclineInvite = (id: string, projectTitle?: string) => {
-    alert(`Declined collaboration invite for ${projectTitle || "Project"}.`);
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, inviteStatus: "declined", unread: false } : n
-    ));
+  const handleDeclineInvite = async (id: string, projectTitle?: string) => {
+    try {
+      const { error } = await supabaseService.declineInvite(id);
+      if (error) throw error;
+
+      alert(`Declined collaboration invite for ${projectTitle || "Project"}.`);
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, inviteStatus: "declined", unread: false } : n
+      ));
+    } catch (err: any) {
+      alert("Error declining invite: " + err.message);
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -100,7 +166,13 @@ export function NotificationsPage({
   };
 
   return (
-    <DashboardLayout title="Notifications" user={user} onLogout={onLogout} projectsCount={store.projects.length}>
+    <DashboardLayout 
+      title="Notifications" 
+      user={user} 
+      onLogout={onLogout} 
+      projectsCount={store.projects.length}
+      unreadNotificationsCount={notifications.filter(n => n.unread).length}
+    >
       <div className="sp-notif-container">
         <style dangerouslySetInnerHTML={{ __html: `
           .sp-notif-container {
