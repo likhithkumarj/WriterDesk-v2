@@ -5,8 +5,8 @@ import { uid } from "../../utils/uid";
 import { parseFountain } from "../../utils/import";
 import { paginate } from "../../utils/pagination";
 import { ExportModal } from "../modals/ExportModal";
-import { 
-  Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search, 
+import {
+  Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search,
   Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
   ChevronLeft, MoreHorizontal
 } from "lucide-react";
@@ -34,18 +34,18 @@ function EditDetailsModal({
     <div className="sp-modal-backdrop" onClick={onClose}>
       <div className="sp-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 450 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, color: "#fff" }}>Edit Project Details</h2>
-        
+
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 24 }}>
           <div>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", marginBottom: 6, letterSpacing: "0.05em" }}>Project Title</label>
             <input className="sp-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Noir City" />
           </div>
-          
+
           <div>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", marginBottom: 6, letterSpacing: "0.05em" }}>Description</label>
             <textarea className="sp-input" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Brief summary of the story..." rows={3} style={{ resize: "none" }} />
           </div>
-          
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", marginBottom: 6, letterSpacing: "0.05em" }}>Type</label>
@@ -56,12 +56,12 @@ function EditDetailsModal({
               <input className="sp-input" value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="e.g. Drama / Thriller" />
             </div>
           </div>
-          
+
           <div>
             <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", marginBottom: 6, letterSpacing: "0.05em" }}>Status</label>
-            <select 
-              className="sp-input" 
-              value={status} 
+            <select
+              className="sp-input"
+              value={status}
               onChange={(e) => setStatus(e.target.value)}
               style={{ background: "#232329", border: "1px solid #34343a", color: "#fff", cursor: "pointer", width: "100%" }}
             >
@@ -75,9 +75,9 @@ function EditDetailsModal({
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button className="sp-btn" onClick={onClose} style={{ padding: "8px 16px" }}>Cancel</button>
-          <button 
-            className="sp-btn sp-btn-primary" 
-            disabled={!title.trim()} 
+          <button
+            className="sp-btn sp-btn-primary"
+            disabled={!title.trim()}
             onClick={() => onSave({ title: title.trim(), description: desc.trim(), type: type.trim(), genre: genre.trim(), status })}
             style={{ padding: "8px 16px" }}
           >
@@ -243,10 +243,10 @@ const mockCollaboratorsList = [
 
 export function FilesScreen({
   project, back, persist, openFile, user,
-}: { 
-  project: Project; 
-  back: () => void; 
-  persist: (p: Project) => void; 
+}: {
+  project: Project;
+  back: () => void;
+  persist: (p: Project) => void;
   openFile: (id: string) => void;
   user: { name: string; email: string; avatar: string };
 }) {
@@ -273,7 +273,7 @@ export function FilesScreen({
         .select("*, files(*)")
         .eq("id", project.id)
         .single();
-      
+
       if (projError) throw projError;
       if (p) {
         const updatedProject: Project = {
@@ -311,13 +311,13 @@ export function FilesScreen({
       if (data) {
         const userIds = data.map((c: any) => c.user_id).filter(Boolean);
         let profilesMap: Record<string, { name: string; avatar: string }> = {};
-        
+
         if (userIds.length > 0) {
           const { data: profiles, error: profErr } = await supabase
             .from("profiles")
             .select("id, email, full_name, avatar_url")
             .in("id", userIds);
-          
+
           if (!profErr && profiles) {
             profiles.forEach((p: any) => {
               profilesMap[p.id] = {
@@ -336,7 +336,7 @@ export function FilesScreen({
           const role = c.status === "accepted" ? "Editor" : "Pending Invite";
           const roleColor = c.status === "accepted" ? "#60A5FA" : "#f59e0b";
           const roleBg = c.status === "accepted" ? "rgba(96, 165, 250, 0.08)" : "rgba(245, 158, 11, 0.08)";
-          
+
           return {
             id: c.id,
             name,
@@ -356,14 +356,14 @@ export function FilesScreen({
             .select("user_id")
             .eq("id", project.id)
             .single();
-          
+
           if (pRow?.user_id) {
             const { data: ownerProf } = await supabase
               .from("profiles")
               .select("id, email, full_name, avatar_url")
               .eq("id", pRow.user_id)
               .single();
-            
+
             if (ownerProf) {
               ownerCollab = {
                 id: "owner",
@@ -451,7 +451,7 @@ export function FilesScreen({
       supabase.removeChannel(filesChannel);
       supabase.removeChannel(collabChannel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
 
@@ -527,7 +527,7 @@ export function FilesScreen({
 
   const duplicateFile = (id: string) => {
     const f = localProject.files.find((x) => x.id === id); if (!f) return;
-    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks.map(b => ({...b, id: uid()})) }] });
+    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks.map(b => ({ ...b, id: uid() })) }] });
   };
 
   const deleteFile = async (id: string) => {
@@ -594,7 +594,8 @@ export function FilesScreen({
   return (
     <div className="sp-ws-container">
       {/* Dynamic Style overrides for Workspace page */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .sp-ws-container {
           display: flex;
           flex-direction: column;
@@ -1469,7 +1470,7 @@ export function FilesScreen({
               <Sun size={16} />
             </button>
             <div onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
-            <Avatar src={user?.avatar} name={user?.name || "User"} size={32} />
+              <Avatar src={user?.avatar} name={user?.name || "User"} size={32} />
             </div>
           </div>
         </header>
@@ -1523,7 +1524,7 @@ export function FilesScreen({
                 <div className="sp-ws-banner-info">
                   <div className="sp-ws-banner-title-row">
                     <h1 className="sp-ws-banner-title">{localProject.title}</h1>
-                    <span 
+                    <span
                       className="sp-ws-badge-active"
                       style={{
                         color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "#E8B84B",
@@ -1537,7 +1538,7 @@ export function FilesScreen({
                   <p className="sp-ws-banner-desc">
                     {localProject.type || "Feature Film"}{localProject.genre ? ` • ${localProject.genre}` : ""}
                   </p>
-                  
+
                   {/* Statistics Row */}
                   <div className="sp-ws-banner-stats-row">
                     <div className="sp-ws-banner-stat">
@@ -1580,16 +1581,16 @@ export function FilesScreen({
                   <div className="sp-ws-avatar-row">
                     <div className="sp-ws-avatar-stack">
                       {collaborators.map((c, idx) => (
-                        <Avatar 
-                          key={c.email} 
-                          src={c.avatar} 
-                          name={c.name} 
-                          size={24} 
-                          style={{ 
-                            border: "2px solid #121214", 
-                            marginRight: idx < collaborators.length - 1 ? -6 : 0, 
-                            zIndex: collaborators.length - idx 
-                          }} 
+                        <Avatar
+                          key={c.email}
+                          src={c.avatar}
+                          name={c.name}
+                          size={24}
+                          style={{
+                            border: "2px solid #121214",
+                            marginRight: idx < collaborators.length - 1 ? -6 : 0,
+                            zIndex: collaborators.length - idx
+                          }}
                         />
                       ))}
                     </div>
@@ -1600,19 +1601,19 @@ export function FilesScreen({
 
               {/* Tab switch row */}
               <div className="sp-ws-tabs">
-                <button 
+                <button
                   className={`sp-ws-tab-btn ${activeTab === "files" ? "active" : ""}`}
                   onClick={() => setActiveTab("files")}
                 >
                   Files <span className="sp-ws-tab-badge">{localProject.files.length}</span>
                 </button>
-                <button 
+                <button
                   className={`sp-ws-tab-btn ${activeTab === "collaborators" ? "active" : ""}`}
                   onClick={() => setActiveTab("collaborators")}
                 >
                   Collaborators <span className="sp-ws-tab-badge">{collaborators.length}</span>
                 </button>
-                <button 
+                <button
                   className={`sp-ws-tab-btn ${activeTab === "settings" ? "active" : ""}`}
                   onClick={() => setActiveTab("settings")}
                 >
@@ -1669,15 +1670,15 @@ export function FilesScreen({
                                 <p className="sp-ws-row-subtitle">{getFileAuthor(f.title)}</p>
                               </div>
                             </div>
-                            
+
                             <span className="sp-ws-row-edited">{getFileFullDate(f.title, f.dateModified)}</span>
-                            
+
                             <div className="sp-ws-row-badge-wrap">
                               <span className="sp-ws-row-badge">{getFilePages(f.title, f.blocks)} pp</span>
                             </div>
-                            
+
                             <span className="sp-ws-row-date">{getFileDate(f.title, f.dateModified)}</span>
-                            
+
                             <div className="sp-ws-row-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
                               <button className="sp-ws-row-action-btn">⋮</button>
                               {openMenu === f.id && (
@@ -1720,20 +1721,20 @@ export function FilesScreen({
                               <h3 className="sp-ws-row-title">{c.name}</h3>
                             </div>
                           </div>
-                          
+
                           <span className="sp-ws-row-col-email">{c.email}</span>
-                          
+
                           <div className="sp-ws-row-col-role">
-                            <span 
-                              className="sp-ws-role-badge" 
+                            <span
+                              className="sp-ws-role-badge"
                               style={{ color: c.roleColor, backgroundColor: c.roleBg }}
                             >
                               {c.role}
                             </span>
                           </div>
-                          
+
                           <span className="sp-ws-row-col-joined">{c.joined}</span>
-                          
+
                           <div className="sp-ws-row-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
                             <button className="sp-ws-row-action-btn">⋮</button>
                             {openMenu === c.email && (
@@ -1754,10 +1755,10 @@ export function FilesScreen({
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         <div>
                           <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>PROJECT TITLE</label>
-                          <input 
-                            type="text" 
-                            defaultValue={localProject.title} 
-                            className="sp-input" 
+                          <input
+                            type="text"
+                            defaultValue={localProject.title}
+                            className="sp-input"
                             style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", maxWidth: 400 }}
                             onBlur={(e) => {
                               if (e.target.value.trim()) persist({ ...localProject, title: e.target.value.trim() });
@@ -1766,9 +1767,9 @@ export function FilesScreen({
                         </div>
                         <div>
                           <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>DESCRIPTION</label>
-                          <textarea 
-                            defaultValue={localProject.description || "Feature Film"} 
-                            className="sp-input" 
+                          <textarea
+                            defaultValue={localProject.description || "Feature Film"}
+                            className="sp-input"
                             rows={3}
                             style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", maxWidth: 400, resize: "none" }}
                             onBlur={(e) => {
@@ -1790,9 +1791,9 @@ export function FilesScreen({
                         <Edit2 size={13} />
                       </button>
                     </div>
-                    
+
                     <div className="sp-ws-details-divider" />
-                    
+
                     <div className="sp-ws-details-item">
                       <span className="sp-ws-details-item-lbl">Type</span>
                       <span className="sp-ws-details-item-val">{localProject.type || "Feature Film"}</span>
@@ -1854,7 +1855,7 @@ export function FilesScreen({
               </div>
               {localProject.description && <p className="sp-ws-mobile-card-desc" style={{ marginTop: 6, marginBottom: 6 }}>{localProject.description}</p>}
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-                <span 
+                <span
                   className="sp-ws-badge-active"
                   style={{
                     color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "#E8B84B",
@@ -1893,19 +1894,19 @@ export function FilesScreen({
 
         {/* Mobile Tabs Switch */}
         <div className="sp-ws-mobile-tabs">
-          <button 
+          <button
             className={`sp-ws-mobile-tab-btn ${activeTab === "files" ? "active" : ""}`}
             onClick={() => setActiveTab("files")}
           >
             Files
           </button>
-          <button 
+          <button
             className={`sp-ws-mobile-tab-btn ${activeTab === "collaborators" ? "active" : ""}`}
             onClick={() => setActiveTab("collaborators")}
           >
             Collaborators
           </button>
-          <button 
+          <button
             className={`sp-ws-mobile-tab-btn ${activeTab === "settings" ? "active" : ""}`}
             onClick={() => setActiveTab("settings")}
           >
@@ -2017,10 +2018,10 @@ export function FilesScreen({
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>PROJECT TITLE</label>
-                  <input 
-                    type="text" 
-                    defaultValue={localProject.title} 
-                    className="sp-input" 
+                  <input
+                    type="text"
+                    defaultValue={localProject.title}
+                    className="sp-input"
                     style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box" }}
                     onBlur={(e) => {
                       if (e.target.value.trim()) persist({ ...localProject, title: e.target.value.trim() });
@@ -2029,9 +2030,9 @@ export function FilesScreen({
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>DESCRIPTION</label>
-                  <textarea 
-                    defaultValue={localProject.description || "Feature Film"} 
-                    className="sp-input" 
+                  <textarea
+                    defaultValue={localProject.description || "Feature Film"}
+                    className="sp-input"
                     rows={3}
                     style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box", resize: "none" }}
                     onBlur={(e) => {
@@ -2070,9 +2071,9 @@ export function FilesScreen({
 
       {showExport && <ExportModal project={localProject} defaultFileId={null} onClose={() => setShowExport(false)} />}
       {showEditDetails && (
-        <EditDetailsModal 
-          project={localProject} 
-          onClose={() => setShowEditDetails(false)} 
+        <EditDetailsModal
+          project={localProject}
+          onClose={() => setShowEditDetails(false)}
           onSave={(data) => {
             persist({
               ...localProject,
@@ -2084,14 +2085,14 @@ export function FilesScreen({
               dateModified: Date.now()
             });
             setShowEditDetails(false);
-          }} 
+          }}
         />
       )}
       {showInviteModal && (
-        <InviteCollaboratorModal 
-          projectId={localProject.id} 
-          onClose={() => setShowInviteModal(false)} 
-          onInviteSuccess={loadCollaborators} 
+        <InviteCollaboratorModal
+          projectId={localProject.id}
+          onClose={() => setShowInviteModal(false)}
+          onInviteSuccess={loadCollaborators}
         />
       )}
     </div>

@@ -1207,7 +1207,7 @@ export function EditorScreen({
           )}
 
           {isMobile && (
-            <div className="sp-mobile-only sp-no-print" style={{
+            <div className="sp-mobile-only sp-no-print sp-mobile-format-bar" style={{
               height: 48,
               borderBottom: "1px solid var(--sp-border)",
               background: "var(--sp-toolbar)",
@@ -1229,10 +1229,10 @@ export function EditorScreen({
                   };
                   return (
                     <button
-                      key={t}
-                      onMouseDown={(e) => { e.preventDefault(); if (focusedId) setType(focusedId, t); }}
-                      className={`sp-btn ${active ? "sp-btn-active" : ""}`}
-                      style={{ padding: "4px 10px", fontSize: 12, height: 30, flexShrink: 0 }}
+                       key={t}
+                       onMouseDown={(e) => { e.preventDefault(); if (focusedId) setType(focusedId, t); }}
+                       className={`sp-btn ${active ? "sp-btn-active" : ""}`}
+                       style={{ padding: "4px 10px", fontSize: 12, height: 30, flexShrink: 0 }}
                     >
                       {elementLabelsMobile[t]}
                     </button>
@@ -1352,7 +1352,7 @@ export function EditorScreen({
           )}
 
           {isMobile && (
-            <div className="sp-mobile-only sp-no-print" style={{
+            <div className="sp-mobile-only sp-no-print sp-mobile-metrics-bar" style={{
               display: "none", /* overridden by CSS */
               height: 36,
               borderBottom: "1px solid var(--sp-border)",

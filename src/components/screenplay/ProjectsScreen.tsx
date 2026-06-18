@@ -7,8 +7,8 @@ import { ShareModal } from "../modals/ShareModal";
 import { supabaseService } from "../../utils/supabaseService";
 import { Avatar } from "./Avatar";
 import { DashboardLayout } from "../../pages/DashboardLayout";
-import { 
-  Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search, 
+import {
+  Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search,
   Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
   ChevronLeft, ChevronRight, MoreHorizontal, Bell, HelpCircle, ArrowUpRight, Upload, BookOpen,
   MessageSquare
@@ -16,9 +16,9 @@ import {
 
 export function ProjectsScreen({
   store, persist, openProject, user, onLogout,
-}: { 
-  store: Store; 
-  persist: (s: Store) => void; 
+}: {
+  store: Store;
+  persist: (s: Store) => void;
   openProject: (id: string) => void;
   user?: { name: string; email: string; avatar: string };
   onLogout?: () => void;
@@ -111,7 +111,7 @@ export function ProjectsScreen({
     };
     persist({ ...store, projects: [p, ...store.projects] });
   };
-  
+
   const renameProject = (id: string) => {
     const p = store.projects.find((x) => x.id === id);
     if (!p) return;
@@ -123,17 +123,17 @@ export function ProjectsScreen({
   const duplicateProject = (id: string) => {
     const p = store.projects.find((x) => x.id === id);
     if (!p) return;
-    const np: Project = { 
-      ...p, 
-      id: uid(), 
-      title: p.title + " (copy)", 
-      dateCreated: Date.now(), 
-      dateModified: Date.now(), 
-      files: p.files.map(f => ({ 
-        ...f, 
-        id: uid(), 
-        blocks: f.blocks.map(b => ({...b, id: uid()})) 
-      })) 
+    const np: Project = {
+      ...p,
+      id: uid(),
+      title: p.title + " (copy)",
+      dateCreated: Date.now(),
+      dateModified: Date.now(),
+      files: p.files.map(f => ({
+        ...f,
+        id: uid(),
+        blocks: f.blocks.map(b => ({ ...b, id: uid() }))
+      }))
     };
     persist({ ...store, projects: [np, ...store.projects] });
   };
@@ -159,19 +159,19 @@ export function ProjectsScreen({
     if (s === "draft") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
     if (s === "new") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
     if (s === "empty") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
-    
+
     // Fallback based on name/mock
     if (p.title === "Noir City") return { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" };
     if (p.title === "Pilot EP1") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
     if (p.title === "hiew") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
     if (p.title === "check 2") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
-    return p.files.length > 0 
+    return p.files.length > 0
       ? { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" }
       : { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
   };
 
   // Extract all files dynamically across projects to list in Recent Files
-  const allFiles = store.projects.flatMap((p) => 
+  const allFiles = store.projects.flatMap((p) =>
     p.files.map((f) => ({
       ...f,
       projectTitle: p.title,
@@ -195,15 +195,16 @@ export function ProjectsScreen({
   };
 
   return (
-    <DashboardLayout 
-      title="Dashboard" 
-      user={user || { name: "User", email: "", avatar: "" }} 
-      onLogout={onLogout} 
+    <DashboardLayout
+      title="Dashboard"
+      user={user || { name: "User", email: "", avatar: "" }}
+      onLogout={onLogout}
       projectsCount={store.projects.length}
     >
       <div className="sp-db-container">
-      {/* Styles block */}
-      <style dangerouslySetInnerHTML={{ __html: `
+        {/* Styles block */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
         .sp-db-container {
           display: flex;
           flex-direction: column;
@@ -819,12 +820,12 @@ export function ProjectsScreen({
         }
       ` }} />
 
-      {/* ======================================================== */}
-      {/* DESKTOP VIEWPORT LAYOUT                                  */}
-      {/* ======================================================== */}
-      <div className="sp-db-desktop-layout">
-        <div className="sp-db-main-scroll">
-          <div className="sp-db-main-grid">
+        {/* ======================================================== */}
+        {/* DESKTOP VIEWPORT LAYOUT                                  */}
+        {/* ======================================================== */}
+        <div className="sp-db-desktop-layout">
+          <div className="sp-db-main-scroll">
+            <div className="sp-db-main-grid">
 
               {/* Pending Invites Alert List */}
               {pendingInvites.length > 0 && (
@@ -929,7 +930,7 @@ export function ProjectsScreen({
 
               {/* Columns layout */}
               <div className="sp-db-columns">
-                
+
                 {/* Left Column (My Projects) */}
                 <div className="sp-db-col-left">
                   <div className="sp-db-section-header">
@@ -946,14 +947,14 @@ export function ProjectsScreen({
                       const accentColor = getProjectAccentColor(p.title, idx);
                       const badgeInfo = getProjectStatusBadge(p);
                       return (
-                        <div 
-                          key={p.id} 
+                        <div
+                          key={p.id}
                           className="sp-db-project-row"
                           onClick={() => openProject(p.id)}
                         >
                           {/* Accent line */}
                           <div className="sp-db-project-accent" style={{ backgroundColor: accentColor }} />
-                          
+
                           <div className="sp-db-project-info">
                             <h3 className="sp-db-project-title">{p.title}</h3>
                             <span className="sp-db-project-subtitle">
@@ -973,13 +974,13 @@ export function ProjectsScreen({
                             <span className="sp-db-project-stat">
                               {p.title === "Noir City" ? "Jun 8" : getFileFormattedDate(p.dateModified)} Last edit
                             </span>
-                            <span 
-                              className="sp-db-project-badge" 
+                            <span
+                              className="sp-db-project-badge"
                               style={{ color: badgeInfo.color, backgroundColor: badgeInfo.bg, border: `1px solid ${badgeInfo.color}1d` }}
                             >
                               {badgeInfo.text}
                             </span>
-                            
+
                             <div className="sp-db-project-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === p.id ? null : p.id); }}>
                               <button className="sp-db-project-action-btn">⋯</button>
                               {openMenu === p.id && (
@@ -1013,8 +1014,8 @@ export function ProjectsScreen({
                     </div>
                   ) : (
                     recentFiles.map((f) => (
-                      <div 
-                        key={f.id} 
+                      <div
+                        key={f.id}
                         className="sp-db-recent-card"
                         onClick={() => openProject(f.projectId)}
                       >
@@ -1046,176 +1047,176 @@ export function ProjectsScreen({
 
             </div>
           </div>
-      </div>
-
-      {/* ======================================================== */}
-      {/* MOBILE VIEWPORT LAYOUT                                   */}
-      {/* ======================================================== */}
-      <div className="sp-db-mobile-layout">
-        
-        {/* Mobile content starts here */}
-
-        {/* Mobile Search input */}
-        <div className="sp-db-search-wrap" style={{ width: "100%", marginBottom: 20 }}>
-          <Search size={16} className="sp-db-search-icon" style={{ left: 12 }} />
-          <input 
-            type="text" 
-            placeholder="Search projects, scripts..." 
-            className="sp-db-search-input"
-            style={{ width: "100%", paddingLeft: 36, paddingRight: 36, background: "#121214", border: "1px solid #1c1c20" }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") alert("Search query submitted");
-            }}
-          />
-          <button style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#8e8e93", display: "flex", alignItems: "center", padding: 0 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="2" y1="14" x2="6" y2="14"/><line x1="10" y1="8" x2="14" y2="8"/><line x1="18" y1="16" x2="22" y2="16"/></svg>
-          </button>
         </div>
 
-        {/* Start Writing card */}
-        <div className="sp-db-banner" style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, marginBottom: 20 }}>
-          <div className="sp-db-banner-text">
-            <span className="sp-db-banner-subtitle">START WRITING</span>
-            <h2 className="sp-db-banner-title" style={{ fontSize: 20 }}>New Project</h2>
-            <p className="sp-db-banner-desc" style={{ fontSize: 12 }}>Create a blank screenplay</p>
-          </div>
-          <button className="sp-ws-mobile-nav-fab" style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(255, 255, 255, 0.2)", border: "none", color: "#0f0f11", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 0, boxShadow: "none" }} onClick={() => setShowNew(true)}>
-            <Plus size={24} />
-          </button>
-        </div>
+        {/* ======================================================== */}
+        {/* MOBILE VIEWPORT LAYOUT                                   */}
+        {/* ======================================================== */}
+        <div className="sp-db-mobile-layout">
 
-        {/* Quick Options */}
-        <div className="sp-db-mobile-quick-actions" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
-          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => setShowNew(true)}>
-            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
-              <Plus size={16} />
-            </div>
-            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>New Script</span>
-          </div>
-          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Please import script inside New Project.")}>
-            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
-              <Upload size={16} />
-            </div>
-            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Import</span>
-          </div>
-          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Export batch options available inside projects.")}>
-            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
-              <Download size={16} />
-            </div>
-            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Export All</span>
-          </div>
-          <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Collaboration features available inside screenplay editor.")}>
-            <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
-              <Users size={16} />
-            </div>
-            <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Collaborate</span>
-          </div>
-        </div>
+          {/* Mobile content starts here */}
 
-        {/* Projects List */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-          <div className="sp-db-section-header">
-            <h2 className="sp-db-section-title">My Projects</h2>
-            <span className="sp-db-section-link">See all</span>
+          {/* Mobile Search input */}
+          <div className="sp-db-search-wrap" style={{ width: "100%", marginBottom: 20 }}>
+            <Search size={16} className="sp-db-search-icon" style={{ left: 12 }} />
+            <input
+              type="text"
+              placeholder="Search projects, scripts..."
+              className="sp-db-search-input"
+              style={{ width: "100%", paddingLeft: 36, paddingRight: 36, background: "#121214", border: "1px solid #1c1c20" }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") alert("Search query submitted");
+              }}
+            />
+            <button style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#8e8e93", display: "flex", alignItems: "center", padding: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="2" y1="14" x2="6" y2="14" /><line x1="10" y1="8" x2="14" y2="8" /><line x1="18" y1="16" x2="22" y2="16" /></svg>
+            </button>
           </div>
 
-          {store.projects.length === 0 ? (
-            <p style={{ color: "#8e8e93", padding: 12, background: "#121214", borderRadius: 12, textAlign: "center" }}>No projects yet.</p>
-          ) : (
-            store.projects.map((p, idx) => {
-              const accentColor = getProjectAccentColor(p.title, idx);
-              const badgeInfo = getProjectStatusBadge(p);
-              return (
-                <div 
-                  key={p.id} 
-                  className="sp-db-project-row"
-                  onClick={() => openProject(p.id)}
+          {/* Start Writing card */}
+          <div className="sp-db-banner" style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, marginBottom: 20 }}>
+            <div className="sp-db-banner-text">
+              <span className="sp-db-banner-subtitle">START WRITING</span>
+              <h2 className="sp-db-banner-title" style={{ fontSize: 20 }}>New Project</h2>
+              <p className="sp-db-banner-desc" style={{ fontSize: 12 }}>Create a blank screenplay</p>
+            </div>
+            <button className="sp-ws-mobile-nav-fab" style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(255, 255, 255, 0.2)", border: "none", color: "#0f0f11", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", marginTop: 0, boxShadow: "none" }} onClick={() => setShowNew(true)}>
+              <Plus size={24} />
+            </button>
+          </div>
+
+          {/* Quick Options */}
+          <div className="sp-db-mobile-quick-actions" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+            <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => setShowNew(true)}>
+              <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+                <Plus size={16} />
+              </div>
+              <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>New Script</span>
+            </div>
+            <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Please import script inside New Project.")}>
+              <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+                <Upload size={16} />
+              </div>
+              <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Import</span>
+            </div>
+            <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Export batch options available inside projects.")}>
+              <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+                <Download size={16} />
+              </div>
+              <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Export All</span>
+            </div>
+            <div className="sp-db-action-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "12px 6px" }} onClick={() => alert("Collaboration features available inside screenplay editor.")}>
+              <div className="sp-db-action-icon-box" style={{ margin: 0 }}>
+                <Users size={16} />
+              </div>
+              <span style={{ fontSize: 10, color: "#8e8e93", fontWeight: 600 }}>Collaborate</span>
+            </div>
+          </div>
+
+          {/* Projects List */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+            <div className="sp-db-section-header">
+              <h2 className="sp-db-section-title">My Projects</h2>
+              <span className="sp-db-section-link">See all</span>
+            </div>
+
+            {store.projects.length === 0 ? (
+              <p style={{ color: "#8e8e93", padding: 12, background: "#121214", borderRadius: 12, textAlign: "center" }}>No projects yet.</p>
+            ) : (
+              store.projects.map((p, idx) => {
+                const accentColor = getProjectAccentColor(p.title, idx);
+                const badgeInfo = getProjectStatusBadge(p);
+                return (
+                  <div
+                    key={p.id}
+                    className="sp-db-project-row"
+                    onClick={() => openProject(p.id)}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}
+                  >
+                    <div className="sp-db-project-accent" style={{ backgroundColor: accentColor, top: 12, bottom: 12 }} />
+                    <div className="sp-db-project-info" style={{ paddingLeft: 4 }}>
+                      <h3 className="sp-db-project-title" style={{ fontSize: 14 }}>{p.title}</h3>
+                      <span className="sp-db-project-subtitle" style={{ fontSize: 11 }}>
+                        {p.type || "Feature Film"}{p.genre ? ` • ${p.genre}` : ""} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                      <span className="sp-db-project-stat" style={{ display: "inline", fontSize: 11, color: "#8e8e93" }}>
+                        {p.title === "Noir City" ? "Jun 8" : getFileFormattedDate(p.dateModified)}
+                      </span>
+                      <span
+                        className="sp-db-project-badge"
+                        style={{ color: badgeInfo.color, backgroundColor: badgeInfo.bg, border: `1px solid ${badgeInfo.color}1d`, fontSize: 9, padding: "2px 6px" }}
+                      >
+                        {badgeInfo.text}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Recent Files List */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+            <div className="sp-db-section-header">
+              <h2 className="sp-db-section-title">Recent Files</h2>
+              <span className="sp-db-section-link">See all</span>
+            </div>
+
+            {recentFiles.length === 0 ? (
+              <p style={{ color: "#8e8e93", padding: 12, background: "#121214", borderRadius: 12, textAlign: "center" }}>No recent files.</p>
+            ) : (
+              recentFiles.map((f) => (
+                <div
+                  key={f.id}
+                  className="sp-db-recent-card"
+                  onClick={() => openProject(f.projectId)}
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}
                 >
-                  <div className="sp-db-project-accent" style={{ backgroundColor: accentColor, top: 12, bottom: 12 }} />
-                  <div className="sp-db-project-info" style={{ paddingLeft: 4 }}>
-                    <h3 className="sp-db-project-title" style={{ fontSize: 14 }}>{p.title}</h3>
-                    <span className="sp-db-project-subtitle" style={{ fontSize: 11 }}>
-                      {p.type || "Feature Film"}{p.genre ? ` • ${p.genre}` : ""} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
-                    </span>
+                  <div className="sp-db-recent-left">
+                    <div className="sp-db-recent-icon">
+                      <FileText size={16} />
+                    </div>
+                    <div className="sp-db-recent-details">
+                      <h4 className="sp-db-recent-title" style={{ fontSize: 13 }}>{f.title}</h4>
+                      <span className="sp-db-recent-subtitle" style={{ fontSize: 11 }}>
+                        {f.projectTitle} • {getFileFormattedDate(f.dateModified)}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                    <span className="sp-db-project-stat" style={{ display: "inline", fontSize: 11, color: "#8e8e93" }}>
-                      {p.title === "Noir City" ? "Jun 8" : getFileFormattedDate(p.dateModified)}
+                  <div className="sp-db-recent-right" style={{ gap: 12 }}>
+                    <span className="sp-db-recent-badge" style={{ fontSize: 10, padding: "2px 6px" }}>
+                      {getFilePages(f.title, f.blocks)} pp
                     </span>
-                    <span 
-                      className="sp-db-project-badge" 
-                      style={{ color: badgeInfo.color, backgroundColor: badgeInfo.bg, border: `1px solid ${badgeInfo.color}1d`, fontSize: 9, padding: "2px 6px" }}
-                    >
-                      {badgeInfo.text}
-                    </span>
+                    <ChevronRight size={16} color="#8e8e93" />
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Recent Files List */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-          <div className="sp-db-section-header">
-            <h2 className="sp-db-section-title">Recent Files</h2>
-            <span className="sp-db-section-link">See all</span>
+              ))
+            )}
           </div>
 
-          {recentFiles.length === 0 ? (
-            <p style={{ color: "#8e8e93", padding: 12, background: "#121214", borderRadius: 12, textAlign: "center" }}>No recent files.</p>
-          ) : (
-            recentFiles.map((f) => (
-              <div 
-                key={f.id} 
-                className="sp-db-recent-card"
-                onClick={() => openProject(f.projectId)}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px" }}
-              >
-                <div className="sp-db-recent-left">
-                  <div className="sp-db-recent-icon">
-                    <FileText size={16} />
-                  </div>
-                  <div className="sp-db-recent-details">
-                    <h4 className="sp-db-recent-title" style={{ fontSize: 13 }}>{f.title}</h4>
-                    <span className="sp-db-recent-subtitle" style={{ fontSize: 11 }}>
-                      {f.projectTitle} • {getFileFormattedDate(f.dateModified)}
-                    </span>
-                  </div>
-                </div>
-                <div className="sp-db-recent-right" style={{ gap: 12 }}>
-                  <span className="sp-db-recent-badge" style={{ fontSize: 10, padding: "2px 6px" }}>
-                    {getFilePages(f.title, f.blocks)} pp
-                  </span>
-                  <ChevronRight size={16} color="#8e8e93" />
-                </div>
-              </div>
-            ))
-          )}
+
         </div>
 
+        {showNew && (
+          <NewProjectModal
+            onClose={() => setShowNew(false)}
+            onCreate={(title, desc, type, genre) => {
+              createProject(title, desc, type, genre);
+              setShowNew(false);
+            }}
+          />
+        )}
 
+        {shareProjectId && (
+          <ShareModal
+            projectId={shareProjectId}
+            projectTitle={shareProjectTitle}
+            onClose={() => setShareProjectId(null)}
+          />
+        )}
       </div>
-
-       {showNew && (
-        <NewProjectModal 
-          onClose={() => setShowNew(false)} 
-          onCreate={(title, desc, type, genre) => { 
-            createProject(title, desc, type, genre); 
-            setShowNew(false); 
-          }} 
-        />
-      )}
-      
-      {shareProjectId && (
-        <ShareModal 
-          projectId={shareProjectId} 
-          projectTitle={shareProjectTitle} 
-          onClose={() => setShareProjectId(null)} 
-        />
-      )}
-    </div>
     </DashboardLayout>
   );
 }

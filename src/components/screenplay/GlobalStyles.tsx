@@ -592,6 +592,10 @@ body {
 
   /* Mobile Header styling */
   .sp-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
     height: 56px !important;
     padding: 0 12px !important;
     background: var(--sp-toolbar) !important;
@@ -599,7 +603,40 @@ body {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    z-index: 30 !important;
+    z-index: 1000 !important;
+  }
+  
+  .sp-mobile-format-bar {
+    position: fixed !important;
+    top: 56px !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 48px !important;
+    background: var(--sp-toolbar) !important;
+    border-bottom: 1px solid var(--sp-border) !important;
+    z-index: 1000 !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 10px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+  
+  .sp-mobile-metrics-bar {
+    position: fixed !important;
+    top: 104px !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 36px !important;
+    background: #141417 !important;
+    border-bottom: 1px solid var(--sp-border) !important;
+    z-index: 1000 !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 10px !important;
+    justify-content: space-between !important;
+    font-size: 11px !important;
+    color: var(--sp-muted) !important;
   }
   
   .sp-mobile-save-btn {
@@ -630,10 +667,15 @@ body {
 
   /* Fluid Page Canvas (Warped to screen) */
   .sp-canvas {
-    padding: 14px 8px 80px 8px !important; /* extra padding bottom for bottom bar */
+    padding: 154px 8px 80px 8px !important; /* 140px top toolbar height offset + 14px padding */
     gap: 12px !important;
     background: #0f0f11 !important;
     overflow-y: auto !important;
+    box-sizing: border-box !important;
+  }
+  
+  .sp-page-wrapper, .sp-page, .sp-page-inner, .sp-block {
+    box-sizing: border-box !important;
   }
   
   .sp-page-wrapper {
@@ -643,12 +685,15 @@ body {
   
   .sp-page {
     width: 100% !important;
+    min-height: calc((100vw - 16px) * 1.414) !important; /* actual A4 aspect ratio height based on fluid width */
     height: auto !important;
     transform: none !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
     border: none !important;
     border-radius: 8px !important;
     background: #ffffff !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
   
   .sp-page-inner {
@@ -658,9 +703,11 @@ body {
     right: 0 !important;
     bottom: 0 !important;
     padding: 24px 14px !important;
-    box-sizing: border-box !important;
-    min-height: auto !important;
     background: #ffffff !important;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: calc((100vw - 16px) * 1.414) !important;
   }
   
   .sp-page-number {
@@ -672,13 +719,18 @@ body {
     font-size: 15px !important;
     padding-left: 6px !important;
     border-left-width: 2px !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+    word-wrap: break-word !important;
+    white-space: pre-wrap !important;
+    max-width: 100% !important;
   }
   
-  .sp-block[data-type="scene"]        { margin-left: 0px !important; }
-  .sp-block[data-type="action"]       { margin-left: 12px !important; }
-  .sp-block[data-type="character"]    { margin-left: 60px !important; }
-  .sp-block[data-type="parenthetical"]{ margin-left: 44px !important; }
-  .sp-block[data-type="dialogue"]     { margin-left: 28px !important; max-width: 80% !important; }
+  .sp-block[data-type="scene"]        { margin-left: 0px !important; max-width: 100% !important; }
+  .sp-block[data-type="action"]       { margin-left: 12px !important; max-width: calc(100% - 12px) !important; }
+  .sp-block[data-type="character"]    { margin-left: 60px !important; max-width: calc(100% - 60px) !important; }
+  .sp-block[data-type="parenthetical"]{ margin-left: 44px !important; max-width: calc(100% - 44px) !important; }
+  .sp-block[data-type="dialogue"]     { margin-left: 28px !important; max-width: calc(100% - 28px) !important; }
 
   /* Title Page Fluid adjustments */
   .sp-title-page-inner {
@@ -946,16 +998,39 @@ body {
 @media print {
   body { background: #fff !important; }
   .sp-no-print { display: none !important; }
-  .sp-canvas { padding: 0; gap: 0; background: #fff; }
+  .sp-canvas { padding: 0 !important; gap: 0 !important; background: #fff !important; }
   .sp-page-wrapper {
     width: 794px !important;
     height: 1123px !important;
   }
   .sp-page {
+    width: 794px !important;
+    height: 1123px !important;
+    min-height: 1123px !important;
     box-shadow: none !important; border: none !important;
     page-break-after: always; margin: 0 !important;
     transform: none !important;
+    display: block !important;
   }
+  .sp-page-inner {
+    position: absolute !important;
+    top: 72px !important;
+    left: 108px !important;
+    right: 72px !important;
+    bottom: 54px !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    display: block !important;
+  }
+  .sp-block {
+    font-size: 16px !important;
+    max-width: none !important;
+  }
+  .sp-block[data-type="scene"]        { margin-left: -7px !important; max-width: 100% !important; }
+  .sp-block[data-type="action"]       { margin-left: calc(4ch - 7px) !important; max-width: 100% !important; }
+  .sp-block[data-type="character"]    { margin-left: calc(24ch - 7px) !important; max-width: 100% !important; }
+  .sp-block[data-type="parenthetical"]{ margin-left: calc(18ch - 7px) !important; max-width: 100% !important; }
+  .sp-block[data-type="dialogue"]     { margin-left: calc(10ch - 7px) !important; max-width: 35ch !important; }
   @page { size: A4; margin: 0; }
 }
 `;
