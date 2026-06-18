@@ -576,13 +576,17 @@ body {
     height: 100% !important;
   }
   
+  .sp-workspace-frame {
+    position: static !important;
+  }
+  
   /* Sidebar layouts overlay drawers */
   .sp-sidebar-left {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     bottom: 0 !important;
-    z-index: 100 !important;
+    z-index: 2000 !important;
     width: 250px !important;
     box-shadow: 5px 0 25px rgba(0, 0, 0, 0.6) !important;
     border-right: 1px solid var(--sp-border) !important;
@@ -594,6 +598,7 @@ body {
     inset: 0 !important;
     background: rgba(0, 0, 0, 0.6) !important;
     backdrop-filter: blur(2px) !important;
+    z-index: 1999 !important;
     animation: sp-fade-in 0.2s ease-out;
   }
 
@@ -692,7 +697,7 @@ body {
   
   .sp-page {
     width: 100% !important;
-    min-height: calc((100vw - 16px) * 1.414) !important; /* actual A4 aspect ratio height based on fluid width */
+    min-height: 1123px !important;
     height: auto !important;
     transform: none !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
@@ -714,7 +719,7 @@ body {
     flex: 1 !important;
     display: flex !important;
     flex-direction: column !important;
-    min-height: calc((100vw - 16px) * 1.414) !important;
+    min-height: 1123px !important;
   }
   
   .sp-page-number {
@@ -860,7 +865,7 @@ body {
     border-top: 1px solid var(--sp-border) !important;
     border-top-left-radius: 20px !important;
     border-top-right-radius: 20px !important;
-    z-index: 200 !important;
+    z-index: 2100 !important;
     display: flex !important;
     flex-direction: column !important;
     max-height: 80vh !important;

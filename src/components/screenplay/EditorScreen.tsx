@@ -979,14 +979,21 @@ export function EditorScreen({
       )}
 
       {/* Main Workspace Frame split into left-sidebar, center-canvas, and right-sidebar */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0, position: "relative" }}>
+      <div 
+        className="sp-workspace-frame" 
+        style={{ 
+          display: "flex", 
+          flex: 1, 
+          minHeight: 0, 
+          position: isMobile ? undefined : "relative" 
+        }}
+      >
         
         {/* Mobile Left Sidebar Backdrop */}
         {isMobile && showScenes && (
           <div 
             className="sp-sidebar-backdrop" 
             onClick={() => setShowScenes(false)}
-            style={{ zIndex: 90 }}
           />
         )}
 
@@ -1635,7 +1642,6 @@ export function EditorScreen({
           <div 
             className="sp-sidebar-backdrop"
             onClick={() => setActiveMobileTab(null)}
-            style={{ zIndex: 190 }}
           />
           
           {/* Bottom Sheet container */}
