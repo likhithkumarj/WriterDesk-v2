@@ -27,13 +27,22 @@ export function BlockView({
   }, [block.text]);
 
   useEffect(() => {
-    if (focused && ref.current && document.activeElement !== ref.current) {
-      ref.current.focus();
-      const r = document.createRange();
-      r.selectNodeContents(ref.current);
-      r.collapse(false);
-      const sel = window.getSelection();
-      sel?.removeAllRanges(); sel?.addRange(r);
+    if (focused && ref.current) {
+      if (document.activeElement !== ref.current) {
+        ref.current.focus();
+        const r = document.createRange();
+        r.selectNodeContents(ref.current);
+        r.collapse(false);
+        const sel = window.getSelection();
+        sel?.removeAllRanges(); sel?.addRange(r);
+      }
+      
+      // Smoothly scroll the focused block to the center of the viewport.
+      // Timeout is set to 100ms to allow the mobile keyboard layout space to resize first.
+      const el = ref.current;
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
     }
   }, [focused]);
 

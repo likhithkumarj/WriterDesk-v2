@@ -569,6 +569,13 @@ body {
     display: flex !important;
   }
   
+  html:has(.sp-app), body:has(.sp-app) {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
   /* Sidebar layouts overlay drawers */
   .sp-sidebar-left {
     position: fixed !important;
@@ -667,7 +674,7 @@ body {
 
   /* Fluid Page Canvas (Warped to screen) */
   .sp-canvas {
-    padding: 154px 8px 80px 8px !important; /* 140px top toolbar height offset + 14px padding */
+    padding: 154px 8px 60vh 8px !important; /* 140px top toolbar height offset + 14px padding + 60vh bottom scroll margin */
     gap: 12px !important;
     background: #0f0f11 !important;
     overflow-y: auto !important;
