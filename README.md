@@ -46,6 +46,14 @@ WriterDesk is a core part of the larger **Writer Desk** ecosystem, delivering pi
 * **Profile Customization:** Modify display name, email, bio, and choose from diverse avatar seed variations.
 * **Workspace Backups:** Download your entire local store as a single `.json` file, or reset the app cache at any time.
 
+### 8. **Advanced Interactive Document Planners (Added: June 22, 2026)**
+In addition to the Screenplay Editor, WriterDesk features three specialized planning and brainstorming editors accessible from the redesigned project files screen:
+* **Idea / Note Editor:** A Notion-style rich-text note editor supporting custom formatting toolbars (headings, bold, italic, lists, and checklists), link/image embedding, tag pills management, and keystroke-debounced autosaving.
+* **Character Worksheet Editor:** A structured character profile developer with two primary views:
+  * **Worksheet Form View:** An organized dashboard to edit character details, goals, fears, relationships, and backstories.
+  * **Comparison Grid:** A spreadsheet-style tabular matrix comparing all character attributes side-by-side to easily spot themes and contrasts.
+* **Outline Tree Planner:** A hierarchical recursive story planner supporting Acts, Sequences, Beats, and Notes. Includes collapsing tree nodes, Move Up/Down reordering triggers, and a detailed summary editing sidebar panel.
+
 ---
 
 ## 🛠️ Technology Stack
