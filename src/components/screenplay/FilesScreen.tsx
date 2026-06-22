@@ -8,7 +8,7 @@ import { ExportModal } from "../modals/ExportModal";
 import {
   Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search,
   Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
-  ChevronLeft, MoreHorizontal
+  ChevronLeft, MoreHorizontal, Lightbulb, User, ListCollapse, BookOpen, Bookmark, Trash2, Gauge, CheckSquare
 } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { supabase } from "../../utils/supabaseClient";
@@ -242,13 +242,14 @@ const mockCollaboratorsList = [
 ];
 
 export function FilesScreen({
-  project, back, persist, openFile, user,
+  project, back, persist, openFile, user, allProjects = [],
 }: {
   project: Project;
   back: () => void;
   persist: (p: Project) => void;
   openFile: (id: string) => void;
   user: { name: string; email: string; avatar: string };
+  allProjects?: Project[];
 }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"files" | "collaborators" | "settings">("files");
@@ -260,6 +261,13 @@ export function FilesScreen({
   const [localProject, setLocalProject] = useState<Project>(project);
   const [collaborators, setCollaborators] = useState<any[]>(() => supabaseService.isConfigured() ? [] : mockCollaboratorsList);
   const [showInviteModal, setShowInviteModal] = useState(false);
+
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "script" | "idea" | "character" | "outline">("all");
+  const [showAddFileModal, setShowAddFileModal] = useState(false);
+  const [newFileType, setNewFileType] = useState<"script" | "idea" | "character" | "outline">("script");
+  const [newFileTitle, setNewFileTitle] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "date" | "words">("date");
 
   useEffect(() => {
     setLocalProject(project);
@@ -289,8 +297,14 @@ export function FilesScreen({
             id: f.id,
             title: f.title,
             dateModified: new Date(f.date_modified).getTime(),
+            type: f.type || "script",
+            status: f.status || "Draft",
+            wordCount: f.word_count || 0,
             blocks: f.blocks || [],
             titlePage: f.title_page || undefined,
+            content: f.content || "",
+            characters: f.characters || [],
+            outlineTree: f.outline_tree || [],
           })),
         };
         setLocalProject(updatedProject);
@@ -456,49 +470,87 @@ export function FilesScreen({
 
 
   // Helper values to map data exactly to mockup visual design
-  const getFilePages = (title: string, blocks: any[]) => {
-    if (title === "Act One Draft") return 24;
-    if (title === "Act Two Outline") return 31;
-    if (title === "Character Bible") return 12;
-    return Math.max(1, paginate(blocks).length);
+  const getFilePages = (f: FileDoc) => {
+    if (!f.type || f.type === "script") {
+      return Math.max(1, paginate(f.blocks || []).length);
+    }
+    if (f.type === "idea") {
+      return Math.max(1, Math.ceil((f.content || "").length / 1500));
+    }
+    if (f.type === "character") {
+      return Math.max(1, Math.ceil((f.characters || []).length / 2));
+    }
+    if (f.type === "outline") {
+      return Math.max(1, Math.ceil((f.outlineTree || []).length / 3));
+    }
+    return 1;
   };
 
-  const getFileAuthor = (title: string) => {
-    if (title === "Act One Draft") return "Ben Carter";
-    if (title === "Act Two Outline") return "Sarah Mitchell";
-    if (title === "Character Bible") return "Marco Rivera";
+  const getFileWords = (f: FileDoc) => {
+    if (f.wordCount) return f.wordCount;
+    if (!f.type || f.type === "script") {
+      return (f.blocks || []).reduce((sum, b) => sum + (b.text || "").split(/\s+/).filter(Boolean).length, 0);
+    }
+    if (f.type === "idea") {
+      return (f.content || "").replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+    }
+    if (f.type === "character") {
+      return (f.characters || []).reduce((sum, char) => {
+        return sum + [char.name, char.role, char.personality, char.goals, char.fears, char.motivations, char.backstory, char.relationships, char.actions, char.summary]
+          .join(" ").split(/\s+/).filter(Boolean).length;
+      }, 0);
+    }
+    if (f.type === "outline") {
+      const sumNodeWords = (node: OutlineNode): number => {
+        let count = (node.title || "").split(/\s+/).filter(Boolean).length + (node.content || "").split(/\s+/).filter(Boolean).length;
+        if (node.children) {
+          count += node.children.reduce((sum, child) => sum + sumNodeWords(child), 0);
+        }
+        return count;
+      };
+      return (f.outlineTree || []).reduce((sum, n) => sum + sumNodeWords(n), 0);
+    }
+    return 0;
+  };
+
+  const getFileAuthor = (f: FileDoc) => {
+    if (f.title === "Act One Draft") return "Ben Carter";
+    if (f.title === "Act Two Outline") return "Sarah Mitchell";
+    if (f.title === "Character Bible") return "Marco Rivera";
     return user?.name || "Ben Carter";
   };
 
-  const getFileIconColor = (title: string) => {
-    if (title === "Act One Draft") return "#E8B84B"; // Gold
-    if (title === "Act Two Outline") return "#60A5FA"; // Blue
-    if (title === "Character Bible") return "#34D399"; // Green
+  const getFileIconColor = (type: string) => {
+    if (type === "script") return "#c084fc"; // Purple
+    if (type === "idea") return "#fde047"; // Yellow
+    if (type === "character") return "#93c5fd"; // Blue
+    if (type === "outline") return "#86efac"; // Green
     return "#E8B84B";
   };
 
-  const getFileDate = (title: string, dateModified?: number) => {
+  const getFileDate = (dateModified?: number) => {
     if (dateModified) {
       return new Date(dateModified).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     }
-    if (title === "Act One Draft") return "Jun 8";
-    if (title === "Act Two Outline") return "Jun 6";
-    if (title === "Character Bible") return "Jun 4";
     return "Jun 8";
   };
 
-  const getFileFullDate = (title: string, dateModified?: number) => {
+  const getFileFullDate = (dateModified?: number) => {
     if (dateModified) {
       return new Date(dateModified).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     }
-    if (title === "Act One Draft") return "Jun 8, 2026";
-    if (title === "Act Two Outline") return "Jun 6, 2026";
-    if (title === "Character Bible") return "Jun 4, 2026";
     return "Jun 8, 2026";
   };
 
-  const totalPages = localProject.files.reduce((sum, f) => sum + getFilePages(f.title, f.blocks), 0);
-  const estMinutes = totalPages;
+  // Stats Calculations
+  const totalPages = localProject.files.reduce((sum, f) => sum + getFilePages(f), 0);
+  const totalWords = localProject.files.reduce((sum, f) => sum + getFileWords(f), 0);
+  const scriptCount = localProject.files.filter(f => !f.type || f.type === "script").length;
+  const ideaCount = localProject.files.filter(f => f.type === "idea").length;
+  const characterCount = localProject.files.filter(f => f.type === "character").length;
+  const outlineCount = localProject.files.filter(f => f.type === "outline").length;
+  const totalFilesCount = localProject.files.length;
+
   const getLastEditedDate = () => {
     let maxTime = localProject.dateModified || 0;
     localProject.files.forEach((f) => {
@@ -510,13 +562,107 @@ export function FilesScreen({
     return new Date(maxTime).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  const addFile = () => {
-    const t = window.prompt("File title", "Untitled");
-    if (!t) return;
+  // Add File Submit logic from popup modal
+  const handleCreateFile = () => {
+    if (!newFileTitle.trim()) return;
+    const title = newFileTitle.trim();
+    let newFile: FileDoc;
+    if (newFileType === "script") {
+      newFile = {
+        id: uid(),
+        title,
+        type: "script",
+        dateModified: Date.now(),
+        status: "Draft",
+        wordCount: 0,
+        blocks: [{ id: uid(), type: "scene", text: "INT. NEW LOCATION - DAY" }],
+      };
+    } else if (newFileType === "idea") {
+      newFile = {
+        id: uid(),
+        title,
+        type: "idea",
+        dateModified: Date.now(),
+        status: "Draft",
+        wordCount: 0,
+        blocks: [],
+        content: `<h1>${title}</h1><p>Start brainstorming and capturing thoughts here...</p>`,
+      };
+    } else if (newFileType === "character") {
+      newFile = {
+        id: uid(),
+        title,
+        type: "character",
+        dateModified: Date.now(),
+        status: "Draft",
+        wordCount: 0,
+        blocks: [],
+        characters: [
+          {
+            id: uid(),
+            name: "New Character",
+            role: "Protagonist",
+            personality: "Driven, mysterious",
+            goals: "Reveal the truth",
+            fears: "Being trapped",
+            motivations: "Personal values",
+            backstory: "Unknown beginnings.",
+            relationships: "Linked to the main narrative mystery.",
+            actions: "Enters the scene.",
+            summary: "Brief character summary."
+          }
+        ]
+      };
+    } else { // outline
+      newFile = {
+        id: uid(),
+        title,
+        type: "outline",
+        dateModified: Date.now(),
+        status: "Draft",
+        wordCount: 0,
+        blocks: [],
+        outlineTree: [
+          {
+            id: uid(),
+            title: "Act I: Setup",
+            type: "act",
+            collapsed: false,
+            content: "Set the stage, characters, and initial situation.",
+            children: [
+              {
+                id: uid(),
+                title: "Sequence A: Introduction",
+                type: "sequence",
+                collapsed: false,
+                content: "Introduce the main players.",
+                children: [
+                  {
+                    id: uid(),
+                    title: "First Beat",
+                    type: "beat",
+                    content: "The story begins here."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+    }
+
     persist({
-      ...localProject, dateModified: Date.now(),
-      files: [...localProject.files, { id: uid(), title: t, dateModified: Date.now(), blocks: [{ id: uid(), type: "scene", text: "INT. NEW LOCATION - DAY" }] }],
+      ...localProject,
+      dateModified: Date.now(),
+      files: [...localProject.files, newFile],
     });
+
+    setShowAddFileModal(false);
+    setNewFileTitle("");
+    setNewFileType("script");
+
+    // Open file immediately
+    openFile(newFile.id);
   };
 
   const renameFile = (id: string) => {
@@ -527,7 +673,7 @@ export function FilesScreen({
 
   const duplicateFile = (id: string) => {
     const f = localProject.files.find((x) => x.id === id); if (!f) return;
-    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks.map(b => ({ ...b, id: uid() })) }] });
+    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks ? f.blocks.map(b => ({ ...b, id: uid() })) : [], characters: f.characters ? f.characters.map(c => ({ ...c, id: uid() })) : undefined, outlineTree: f.outlineTree ? JSON.parse(JSON.stringify(f.outlineTree)) : undefined }] });
   };
 
   const deleteFile = async (id: string) => {
@@ -581,7 +727,7 @@ export function FilesScreen({
           r.onload = () => {
             const text = String(r.result || "");
             const title = f.name.replace(/\.(fountain|txt|md)$/i, "");
-            resolve({ id: uid(), title, dateModified: Date.now(), blocks: parseFountain(text) });
+            resolve({ id: uid(), title, dateModified: Date.now(), type: "script", blocks: parseFountain(text) });
           };
           r.readAsText(f);
         })
@@ -590,6 +736,25 @@ export function FilesScreen({
       persist({ ...localProject, dateModified: Date.now(), files: [...localProject.files, ...newFiles] });
     });
   };
+
+  // Searching, Filtering and Sorting
+  const filteredFiles = localProject.files.filter(f => {
+    const matchesSearch = f.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = selectedFilter === "all" || 
+      (selectedFilter === "script" && (!f.type || f.type === "script")) || 
+      f.type === selectedFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const sortedFiles = [...filteredFiles].sort((a, b) => {
+    if (sortBy === "name") {
+      return a.title.localeCompare(b.title);
+    } else if (sortBy === "words") {
+      return getFileWords(b) - getFileWords(a);
+    } else { // date
+      return b.dateModified - a.dateModified;
+    }
+  });
 
   return (
     <div className="sp-ws-container">
@@ -601,12 +766,11 @@ export function FilesScreen({
           flex-direction: column;
           height: 100vh;
           overflow: hidden;
-          background-color: #0c0c0e;
+          background-color: #08080a;
           color: #efeff1;
           font-family: 'Outfit', sans-serif;
         }
 
-        /* Partition Layout triggers */
         .sp-ws-desktop-layout {
           display: flex;
           flex-direction: column;
@@ -617,11 +781,10 @@ export function FilesScreen({
           display: none;
         }
 
-        /* Desktop Header styling */
         .sp-ws-header {
-          height: 64px;
-          background-color: #121214;
-          border-bottom: 1px solid #1c1c20;
+          height: 60px;
+          background-color: #0f0f11;
+          border-bottom: 1px solid #18181c;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -632,7 +795,7 @@ export function FilesScreen({
         .sp-ws-header-left {
           display: flex;
           align-items: center;
-          gap: 24px;
+          gap: 20px;
         }
         .sp-ws-logo-wrap {
           display: flex;
@@ -641,10 +804,10 @@ export function FilesScreen({
           cursor: pointer;
         }
         .sp-ws-logo-box {
-          width: 32px;
-          height: 32px;
+          width: 28px;
+          height: 28px;
           background-color: #E8B84B;
-          border-radius: 8px;
+          border-radius: 6px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -652,7 +815,7 @@ export function FilesScreen({
           font-weight: 800;
         }
         .sp-ws-logo-text {
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 800;
           letter-spacing: -0.02em;
           color: #fff;
@@ -663,7 +826,7 @@ export function FilesScreen({
           gap: 8px;
           font-size: 13px;
           font-weight: 500;
-          color: #8e8e93;
+          color: #6c6c74;
         }
         .sp-ws-breadcrumbs span.active {
           color: #efeff1;
@@ -672,50 +835,50 @@ export function FilesScreen({
         .sp-ws-header-right {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 12px;
         }
         .sp-ws-btn-share {
-          background: transparent;
-          border: 1px solid #232329;
+          background: #18181c;
+          border: 1px solid #282830;
           color: #efeff1;
-          padding: 8px 16px;
-          border-radius: 10px;
-          font-size: 13px;
+          padding: 6px 14px;
+          border-radius: 8px;
+          font-size: 12.5px;
           font-weight: 600;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           cursor: pointer;
           transition: all 0.15s ease;
         }
         .sp-ws-btn-share:hover {
-          border-color: #E8B84B;
-          color: #E8B84B;
-          background: rgba(232, 184, 75, 0.02);
+          border-color: rgba(232, 184, 75, 0.4);
+          color: #fff;
+          background: #1d1d22;
         }
         .sp-ws-btn-gold {
           background: #E8B84B;
           border: 1px solid #E8B84B;
           color: #0f0f11;
-          padding: 8px 16px;
-          border-radius: 10px;
-          font-size: 13px;
+          padding: 6px 14px;
+          border-radius: 8px;
+          font-size: 12.5px;
           font-weight: 700;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           cursor: pointer;
           transition: all 0.15s ease;
         }
         .sp-ws-btn-gold:hover {
-          background: rgba(232, 184, 75, 0.85);
-          border-color: rgba(232, 184, 75, 0.85);
+          background: #efc464;
+          border-color: #efc464;
         }
         .sp-ws-icon-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          border: 1px solid #232329;
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          border: 1px solid #282830;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -738,23 +901,23 @@ export function FilesScreen({
         .sp-ws-sidebar {
           width: 240px;
           background-color: #0f0f11;
-          border-right: 1px solid #1c1c20;
+          border-right: 1px solid #18181c;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          padding: 24px 16px;
+          padding: 20px 16px;
           flex-shrink: 0;
         }
         .sp-ws-sidebar-section {
-          margin-bottom: 28px;
+          margin-bottom: 24px;
         }
         .sp-ws-sidebar-title {
           font-size: 10px;
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.1em;
           color: #55555d;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
           padding-left: 12px;
         }
         .sp-ws-sidebar-item {
@@ -762,8 +925,8 @@ export function FilesScreen({
           align-items: center;
           gap: 12px;
           width: 100%;
-          padding: 10px 12px;
-          border-radius: 10px;
+          padding: 8px 12px;
+          border-radius: 8px;
           background: transparent;
           border: none;
           color: #8e8e93;
@@ -772,27 +935,34 @@ export function FilesScreen({
           text-align: left;
           cursor: pointer;
           transition: all 0.15s ease;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
         .sp-ws-sidebar-item:hover {
           background: rgba(255, 255, 255, 0.02);
           color: #efeff1;
         }
         .sp-ws-sidebar-item.active {
-          background: rgba(232, 184, 75, 0.06);
+          background: rgba(232, 184, 75, 0.05);
           color: #E8B84B;
-          border-right: 3px solid #E8B84B;
-          border-left: none;
-          border-top-right-radius: 2px;
-          border-bottom-right-radius: 2px;
-          border-top-left-radius: 0;
-          border-bottom-left-radius: 0;
-          padding-left: 12px;
+          font-weight: 700;
+        }
+        .sp-ws-sidebar-item-badge {
+          margin-left: auto;
+          background: #1c1c20;
+          color: #8e8e93;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 1px 5px;
+          border-radius: 4px;
+        }
+        .sp-ws-sidebar-item.active .sp-ws-sidebar-item-badge {
+          background: rgba(232, 184, 75, 0.12);
+          color: #E8B84B;
         }
         .sp-ws-main-scroll {
           flex: 1;
           overflow-y: auto;
-          padding: 32px 40px;
+          padding: 28px 36px;
           background-color: #08080a;
         }
         .sp-ws-main-grid {
@@ -800,638 +970,642 @@ export function FilesScreen({
           margin: 0 auto;
           display: flex;
           flex-direction: column;
-          gap: 28px;
+          gap: 24px;
         }
+
+        /* Project Banner Card */
         .sp-ws-banner {
           background: #121214;
-          border-radius: 16px;
+          border-radius: 14px;
           border: 1px solid #1c1c20;
-          border-top: 3px solid #E8B84B;
-          padding: 24px 32px;
+          padding: 24px 28px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          flex-wrap: wrap;
-          gap: 24px;
+          gap: 20px;
+          position: relative;
+        }
+        .sp-ws-banner-folder-box {
+          width: 52px;
+          height: 52px;
+          border-radius: 12px;
+          background-color: rgba(232, 184, 75, 0.08);
+          border: 1px solid rgba(232, 184, 75, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #E8B84B;
+          flex-shrink: 0;
+        }
+        .sp-ws-banner-info-wrap {
+          display: flex;
+          align-items: flex-start;
+          gap: 18px;
+          flex: 1;
         }
         .sp-ws-banner-info {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
         }
         .sp-ws-banner-title-row {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
+          flex-wrap: wrap;
         }
         .sp-ws-banner-title {
-          font-size: 26px;
+          font-size: 22px;
           font-weight: 800;
           color: #fff;
           margin: 0;
           letter-spacing: -0.01em;
         }
-        .sp-ws-badge-active {
-          background: rgba(232, 184, 75, 0.08);
-          border: 1px solid rgba(232, 184, 75, 0.2);
-          color: #E8B84B;
+        .sp-ws-tag-pill {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid #232329;
+          color: #8e8e93;
           font-size: 11px;
           font-weight: 700;
-          padding: 3px 8px;
-          border-radius: 20px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          padding: 2px 8px;
+          border-radius: 6px;
         }
-        .sp-ws-badge-active::before {
-          content: "";
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background-color: #E8B84B;
-          display: inline-block;
+        .sp-ws-tag-pill.gold {
+          background: rgba(232, 184, 75, 0.08);
+          border-color: rgba(232, 184, 75, 0.2);
+          color: #E8B84B;
+        }
+        .sp-ws-tag-pill.purple {
+          background: rgba(168, 85, 247, 0.08);
+          border-color: rgba(168, 85, 247, 0.2);
+          color: #c084fc;
         }
         .sp-ws-banner-desc {
           font-size: 13px;
           color: #8e8e93;
           margin: 0;
-          font-weight: 500;
+          line-height: 1.45;
+          max-width: 650px;
         }
-        .sp-ws-banner-stats-row {
+        .sp-ws-banner-meta-row {
           display: flex;
-          gap: 32px;
-          margin-top: 16px;
+          align-items: center;
+          gap: 16px;
+          font-size: 11.5px;
+          color: #6c6c74;
+          margin-top: 4px;
         }
-        .sp-ws-banner-stat {
+        .sp-ws-banner-meta-row span {
           display: flex;
-          flex-direction: column;
-          gap: 4px;
+          align-items: center;
+          gap: 6px;
         }
-        .sp-ws-banner-stat-val {
-          font-size: 18px;
-          font-weight: 800;
-          color: #E8B84B;
-        }
-        .sp-ws-banner-stat-lbl {
-          font-size: 10px;
-          font-weight: 600;
-          text-transform: uppercase;
-          color: #8e8e93;
-          letter-spacing: 0.05em;
-        }
-        .sp-ws-banner-actions {
+        .sp-ws-banner-actions-col {
           display: flex;
           flex-direction: column;
           align-items: flex-end;
           gap: 16px;
+          flex-shrink: 0;
         }
-        .sp-ws-banner-buttons {
+        .sp-ws-banner-buttons-row {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
         .sp-ws-avatar-row {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
         .sp-ws-avatar-stack {
           display: flex;
           align-items: center;
         }
         .sp-ws-avatar-lbl {
-          font-size: 12px;
-          color: #8e8e93;
+          font-size: 11.5px;
+          color: #6c6c74;
           font-weight: 600;
         }
-        .sp-ws-tabs {
-          display: flex;
-          border-bottom: 1px solid #1c1c20;
-          gap: 28px;
+
+        /* Redesigned Summary Cards Grid */
+        .sp-ws-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 14px;
         }
-        .sp-ws-tab-btn {
-          background: transparent;
-          border: none;
-          padding: 12px 4px;
-          color: #8e8e93;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          position: relative;
-          transition: all 0.15s ease;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .sp-ws-tab-btn:hover {
-          color: #efeff1;
-        }
-        .sp-ws-tab-btn.active {
-          color: #E8B84B;
-        }
-        .sp-ws-tab-btn.active::after {
-          content: "";
-          position: absolute;
-          bottom: -1px;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background-color: #E8B84B;
-        }
-        .sp-ws-tab-badge {
-          background: #1c1c20;
-          color: #8e8e93;
-          font-size: 10px;
-          font-weight: 700;
-          padding: 2px 6px;
-          border-radius: 6px;
-        }
-        .sp-ws-tab-btn.active .sp-ws-tab-badge {
-          background: rgba(232, 184, 75, 0.08);
-          color: #E8B84B;
-        }
-        .sp-ws-columns {
-          display: flex;
-          gap: 32px;
-          align-items: flex-start;
-        }
-        .sp-ws-col-left {
-          flex: 1;
+        .sp-ws-summary-card {
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 12px;
+          padding: 16px;
           display: flex;
           flex-direction: column;
-          gap: 24px;
-          min-width: 0;
+          gap: 10px;
+          transition: all 0.15s ease;
         }
-        .sp-ws-col-right {
-          width: 280px;
-          flex-shrink: 0;
+        .sp-ws-summary-card:hover {
+          border-color: rgba(232, 184, 75, 0.2);
+          background-color: #16161a;
         }
-        .sp-ws-section-header {
+        .sp-ws-summary-card-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 8px;
         }
-        .sp-ws-section-title {
+        .sp-ws-summary-card-icon-box {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .sp-ws-summary-card-val {
+          font-size: 22px;
+          font-weight: 800;
+          color: #fff;
+          margin: 0;
+          line-height: 1;
+        }
+        .sp-ws-summary-card-lbl {
           font-size: 11px;
           font-weight: 700;
           text-transform: uppercase;
-          color: #8e8e93;
-          letter-spacing: 0.08em;
-          margin: 0;
+          color: #6c6c74;
+          letter-spacing: 0.05em;
         }
-        .sp-ws-table-header {
-          display: flex;
-          padding: 8px 16px;
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          color: #55555d;
-          letter-spacing: 0.08em;
-        }
-        .sp-ws-table-col-name { flex: 2.5; min-width: 0; }
-        .sp-ws-table-col-edited { flex: 1.5; }
-        .sp-ws-table-col-pages { flex: 1; text-align: center; }
-        .sp-ws-table-col-date { flex: 1; text-align: center; }
-        .sp-ws-table-col-action { width: 40px; text-align: right; }
 
-        .sp-ws-row-card {
+        /* Files Section with filters */
+        .sp-ws-section {
           display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .sp-ws-section-controls {
+          display: flex;
+          justify-content: space-between;
           align-items: center;
-          padding: 16px;
-          background-color: #121214;
-          border: 1px solid #1c1c20;
-          border-radius: 12px;
-          margin-bottom: 8px;
+          border-bottom: 1px solid #18181c;
+          padding-bottom: 10px;
+        }
+        .sp-ws-filter-tabs {
+          display: flex;
+          gap: 6px;
+        }
+        .sp-ws-filter-tab {
+          background: transparent;
+          border: none;
+          padding: 6px 14px;
+          border-radius: 8px;
+          color: #8e8e93;
+          font-size: 13px;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.15s ease;
         }
-        .sp-ws-row-card:hover {
+        .sp-ws-filter-tab:hover {
+          color: #fff;
+          background: rgba(255, 255, 255, 0.02);
+        }
+        .sp-ws-filter-tab.active {
+          background: #18181c;
+          color: #fff;
+          border: 1px solid #282830;
+        }
+        .sp-ws-right-controls {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        /* Files Redesigned Table styling */
+        .sp-ws-table {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+        }
+        .sp-ws-th-row {
+          display: flex;
+          align-items: center;
+          padding: 10px 16px;
+          font-size: 10.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #6c6c74;
+          letter-spacing: 0.08em;
+          border-bottom: 1px solid #18181c;
+          margin-bottom: 8px;
+        }
+        .sp-ws-col-checkbox { width: 40px; display: flex; align-items: center; }
+        .sp-ws-col-filename { flex: 2.2; min-width: 0; display: flex; align-items: center; gap: 12px; }
+        .sp-ws-col-type { width: 120px; display: flex; justify-content: flex-start; }
+        .sp-ws-col-status { width: 120px; display: flex; justify-content: flex-start; }
+        .sp-ws-col-words { width: 110px; text-align: right; }
+        .sp-ws-col-modified { width: 140px; text-align: right; }
+        .sp-ws-col-author { width: 80px; display: flex; justify-content: flex-end; }
+        .sp-ws-col-more { width: 40px; display: flex; justify-content: flex-end; }
+
+        .sp-ws-td-row {
+          display: flex;
+          align-items: center;
+          padding: 12px 16px;
+          background: #121214;
+          border: 1px solid #1c1c20;
+          border-radius: 10px;
+          margin-bottom: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .sp-ws-td-row:hover {
           border-color: rgba(232, 184, 75, 0.25);
           background-color: #16161a;
         }
-        .sp-ws-row-name-wrap {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          flex: 2.5;
-          min-width: 0;
+        .sp-ws-td-row-selected {
+          border-color: #E8B84B;
+          background-color: rgba(232, 184, 75, 0.01);
         }
-        .sp-ws-row-icon-box {
-          width: 38px;
-          height: 38px;
-          border-radius: 8px;
-          background-color: rgba(255, 255, 255, 0.02);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .sp-ws-row-details {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          min-width: 0;
-        }
-        .sp-ws-row-title {
-          font-size: 14px;
+        .sp-ws-file-title {
+          font-size: 13.5px;
           font-weight: 700;
           color: #fff;
-          margin: 0;
+          margin: 0 0 2px 0;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .sp-ws-row-subtitle {
-          font-size: 12px;
-          color: #8e8e93;
+        .sp-ws-file-subtitle {
+          font-size: 11px;
+          color: #6c6c74;
           margin: 0;
         }
-        .sp-ws-row-edited {
-          font-size: 13px;
-          color: #efeff1;
-          font-weight: 500;
-          flex: 1.5;
-        }
-        .sp-ws-row-badge-wrap {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-        }
-        .sp-ws-row-badge {
-          background: #1c1c20;
-          color: #8e8e93;
-          font-size: 11px;
-          font-weight: 600;
-          padding: 4px 8px;
-          border-radius: 6px;
-        }
-        .sp-ws-row-date {
-          font-size: 13px;
-          color: #8e8e93;
-          font-weight: 500;
-          flex: 1;
-          text-align: center;
-        }
-        .sp-ws-row-action {
-          width: 40px;
-          display: flex;
-          justify-content: flex-end;
-          position: relative;
-        }
-        .sp-ws-row-action-btn {
-          background: transparent;
-          border: none;
-          color: #8e8e93;
-          cursor: pointer;
-          width: 24px;
-          height: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 6px;
-        }
-        .sp-ws-row-action-btn:hover {
-          background: rgba(255, 255, 255, 0.05);
-          color: #efeff1;
-        }
-        .sp-ws-row-avatar-wrap {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          flex: 2.5;
-          min-width: 0;
-        }
-        .sp-ws-row-col-email {
-          font-size: 13px;
-          color: #8e8e93;
-          font-weight: 500;
-          flex: 1.5;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .sp-ws-row-col-role {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-        }
-        .sp-ws-role-badge {
-          font-size: 11px;
+        .sp-ws-badge-type {
+          font-size: 10px;
           font-weight: 700;
-          padding: 4px 10px;
-          border-radius: 20px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          text-transform: capitalize;
         }
-        .sp-ws-row-col-joined {
-          font-size: 13px;
-          color: #8e8e93;
-          font-weight: 500;
-          flex: 1;
-          text-align: center;
+        .sp-ws-badge-status {
+          font-size: 10.5px;
+          font-weight: 600;
+          padding: 3px 8px;
+          border-radius: 6px;
         }
-        .sp-ws-details-card {
-          background: #121214;
+        .sp-ws-badge-status.draft { background: rgba(142, 142, 147, 0.08); color: #8e8e93; border: 1px solid rgba(142, 142, 147, 0.15); }
+        .sp-ws-badge-status.review { background: rgba(245, 158, 11, 0.08); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.15); }
+        .sp-ws-badge-status.final { background: rgba(34, 197, 94, 0.08); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.15); }
+
+        .sp-ws-sidebar-meter-box {
+          background-color: #121214;
           border: 1px solid #1c1c20;
-          border-radius: 16px;
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
+          border-radius: 8px;
+          padding: 12px;
+          margin-top: 16px;
         }
-        .sp-ws-details-title-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-        .sp-ws-details-title {
-          font-size: 14px;
+        .sp-ws-meter-title {
+          font-size: 11px;
           font-weight: 700;
-          color: #fff;
-          margin: 0;
-        }
-        .sp-ws-details-edit-btn {
-          background: transparent;
-          border: none;
           color: #8e8e93;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          margin-bottom: 6px;
+          display: block;
         }
-        .sp-ws-details-edit-btn:hover {
-          color: #E8B84B;
-        }
-        .sp-ws-details-divider {
-          height: 1px;
-          background: #1c1c20;
-        }
-        .sp-ws-details-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 16px;
-          font-size: 13px;
-          font-weight: 500;
-        }
-        .sp-ws-details-item-lbl {
-          color: #8e8e93;
-          flex-shrink: 0;
-        }
-        .sp-ws-details-item-val {
-          color: #efeff1;
-          font-weight: 600;
-          text-align: right;
-          word-break: break-word;
-          min-width: 0;
-        }
-        .sp-ws-details-item-val.gold {
-          color: #E8B84B;
-        }
-        .sp-ws-progress-wrap {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .sp-ws-progress-bar {
-          height: 6px;
-          background: #1c1c20;
+        .sp-ws-meter-bar-outer {
+          height: 5px;
+          background-color: #1c1c20;
           border-radius: 4px;
           overflow: hidden;
+          margin-bottom: 6px;
         }
-        .sp-ws-progress-fill {
+        .sp-ws-meter-bar-inner {
           height: 100%;
           background-color: #E8B84B;
-          border-radius: 4px;
+        }
+        .sp-ws-meter-lbl {
+          font-size: 10px;
+          color: #6c6c74;
+          display: block;
         }
 
-        /* Mobile specific styling inside media query */
-        @media (max-width: 768px) {
-          .sp-ws-container {
-            height: auto;
-            overflow-y: auto;
-            background-color: #0c0c0e;
-          }
+        /* Modal card layout popup custom styling */
+        .sp-newfile-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.8);
+          backdrop-filter: blur(4px);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .sp-newfile-modal {
+          background: #0f0f11;
+          border: 1px solid #282830;
+          border-radius: 16px;
+          width: 520px;
+          padding: 24px;
+          box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        .sp-newfile-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .sp-newfile-modal-title {
+          font-size: 18px;
+          font-weight: 800;
+          color: #fff;
+          margin: 0;
+        }
+        .sp-newfile-modal-subtitle {
+          font-size: 12px;
+          color: #8e8e93;
+          margin: 4px 0 0 0;
+        }
+        .sp-newfile-cards-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+        .sp-newfile-type-card {
+          background: #18181c;
+          border: 1px solid #282830;
+          border-radius: 10px;
+          padding: 16px;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          transition: all 0.15s ease;
+          position: relative;
+        }
+        .sp-newfile-type-card:hover {
+          border-color: rgba(232, 184, 75, 0.3);
+          background: #1d1d22;
+        }
+        .sp-newfile-type-card.selected {
+          border-color: #E8B84B;
+          background: rgba(232, 184, 75, 0.02);
+        }
+        .sp-newfile-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .sp-newfile-card-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .sp-newfile-card-title {
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #fff;
+          margin: 0;
+        }
+        .sp-newfile-card-desc {
+          font-size: 11.5px;
+          color: #8e8e93;
+          margin: 0;
+          line-height: 1.4;
+        }
+        .sp-newfile-checkmark-badge {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #E8B84B;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #0f0f11;
+        }
+        .sp-newfile-checkmark-placeholder {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          border: 1.5px solid #282830;
+        }
+
+        /* Mobile Viewport Responsive Styles overrides */
+        @media (max-width: 767px) {
           .sp-ws-desktop-layout {
             display: none !important;
           }
           .sp-ws-mobile-layout {
-            display: flex;
+            display: flex !important;
             flex-direction: column;
-            padding: 16px 16px 88px 16px;
-            box-sizing: border-box;
             min-height: 100vh;
+            background-color: #08080a;
+            padding: 16px;
+            box-sizing: border-box;
+            padding-bottom: 80px;
           }
           .sp-ws-mobile-back-btn {
             background: transparent;
             border: none;
             color: #E8B84B;
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
             padding: 0;
-            margin-bottom: 16px;
           }
           .sp-ws-mobile-card {
             background: #121214;
-            border-radius: 16px;
             border: 1px solid #1c1c20;
-            border-top: 3px solid #E8B84B;
-            padding: 20px;
-            margin-bottom: 24px;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
           }
           .sp-ws-mobile-card-title {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 800;
             color: #fff;
             margin: 0;
-            letter-spacing: -0.01em;
-          }
-          .sp-ws-mobile-card-options-btn {
-            background: #1c1c20;
-            border: none;
-            color: #8e8e93;
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
           }
           .sp-ws-mobile-card-desc {
-            font-size: 13px;
+            font-size: 12px;
             color: #8e8e93;
-            margin: 4px 0 8px 0;
+            line-height: 1.4;
+            margin: 0;
           }
           .sp-ws-mobile-card-stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 8px;
-            margin-top: 16px;
-            padding-top: 16px;
             border-top: 1px solid #1c1c20;
+            padding-top: 12px;
+            margin-top: 4px;
           }
           .sp-ws-mobile-card-stat {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
+            align-items: center;
+            text-align: center;
           }
           .sp-ws-mobile-card-stat-val {
-            font-size: 16px;
-            font-weight: 800;
-            color: #E8B84B;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
           }
           .sp-ws-mobile-card-stat-lbl {
-            font-size: 10px;
-            font-weight: 600;
+            font-size: 9px;
+            color: #6c6c74;
             text-transform: uppercase;
-            color: #8e8e93;
+            font-weight: 600;
             margin-top: 2px;
           }
-          
-          /* Tabs mobile */
           .sp-ws-mobile-tabs {
             display: flex;
-            border-bottom: 1px solid #1c1c20;
-            margin-bottom: 20px;
-            gap: 16px;
+            background: #121214;
+            border: 1px solid #1c1c20;
+            padding: 3px;
+            border-radius: 10px;
+            margin-bottom: 16px;
           }
           .sp-ws-mobile-tab-btn {
             flex: 1;
+            text-align: center;
             background: transparent;
             border: none;
-            padding: 12px 0;
+            padding: 8px;
+            border-radius: 8px;
             color: #8e8e93;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
-            text-align: center;
             cursor: pointer;
-            position: relative;
+            transition: all 0.15s ease;
           }
           .sp-ws-mobile-tab-btn.active {
-            color: #E8B84B;
+            background: #1c1c20;
+            color: #fff;
+            border: 1px solid #282830;
           }
-          .sp-ws-mobile-tab-btn.active::after {
-            content: "";
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background-color: #E8B84B;
-          }
-          
-          /* File card mobile */
           .sp-ws-mobile-file-card {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 16px;
-            background-color: #121214;
+            background: #121214;
             border: 1px solid #1c1c20;
-            border-radius: 12px;
-            margin-bottom: 10px;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
             cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .sp-ws-mobile-file-card:hover {
+            border-color: rgba(232, 184, 75, 0.2);
+            background: #151518;
           }
           .sp-ws-mobile-file-title {
-            font-size: 14px;
+            font-size: 13.5px;
             font-weight: 700;
             color: #fff;
             margin: 0;
           }
           .sp-ws-mobile-file-subtitle {
             font-size: 11px;
-            color: #8e8e93;
+            color: #6c6c74;
             margin: 0;
           }
           .sp-ws-mobile-file-badge {
-            background: #1c1c20;
-            color: #8e8e93;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 3px 6px;
-            border-radius: 5px;
+            font-size: 9px;
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid #232329;
+            color: #8e8e93;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 600;
           }
           .sp-ws-mobile-file-date {
-            font-size: 11px;
-            color: #8e8e93;
+            font-size: 10px;
+            color: #6c6c74;
           }
           .sp-ws-mobile-file-more-btn {
             background: transparent;
             border: none;
-            color: #8e8e93;
-            padding: 0;
+            color: #6c6c74;
+            padding: 6px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
           }
-
-          /* Collaborator mobile */
-          .sp-ws-mobile-collab-card {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px;
-            background-color: #121214;
-            border: 1px solid #1c1c20;
-            border-radius: 12px;
-            margin-bottom: 10px;
-          }
-
-          /* Mobile bottom bar */
           .sp-ws-mobile-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 72px;
-            background-color: #121214;
-            border-top: 1px solid #1c1c20;
+            height: 60px;
+            background: #0f0f11;
+            border-top: 1px solid #18181c;
             display: flex;
             align-items: center;
             justify-content: space-around;
-            padding: 0 12px;
-            z-index: 100;
+            z-index: 999;
           }
           .sp-ws-mobile-nav-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             gap: 4px;
             background: transparent;
             border: none;
-            color: #8e8e93;
-            font-size: 10px;
+            color: #6c6c74;
+            font-size: 9px;
             font-weight: 600;
             cursor: pointer;
+            text-decoration: none;
             width: 60px;
           }
           .sp-ws-mobile-nav-item.active {
             color: #E8B84B;
           }
           .sp-ws-mobile-nav-fab {
-            width: 56px;
-            height: 56px;
+            width: 46px;
+            height: 46px;
             border-radius: 50%;
-            background-color: #E8B84B;
+            background: #E8B84B;
             border: none;
             color: #0f0f11;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 4px 12px rgba(232, 184, 75, 0.3);
+            transform: translateY(-14px);
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(232, 184, 75, 0.3);
-            margin-top: -20px;
             transition: all 0.15s ease;
           }
+          .sp-ws-mobile-nav-fab:hover {
+            background: #efc464;
+            transform: translateY(-15px) scale(1.05);
+          }
+          .sp-ws-mobile-collab-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #121214;
+            border: 1px solid #1c1c20;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+          }
+          .sp-ws-role-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+          }
         }
-      ` }} />
+        ` }} />
 
       {/* ======================================================== */}
       {/* DESKTOP VIEWPORT LAYOUT                                  */}
@@ -1442,8 +1616,7 @@ export function FilesScreen({
           <div className="sp-ws-header-left">
             <div className="sp-ws-logo-wrap" onClick={back}>
               <div className="sp-ws-logo-box">
-                {/* Custom inline clapperboard/binder SVG */}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f0f11" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f0f11" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
                   <path d="M6 6h10" />
                   <path d="M6 10h10" />
@@ -1451,7 +1624,7 @@ export function FilesScreen({
               </div>
               <span className="sp-ws-logo-text">WriterDesk</span>
             </div>
-            <div style={{ width: 1, height: 16, background: "#1c1c20" }} />
+            <div style={{ width: 1, height: 16, background: "#282830" }} />
             <div className="sp-ws-breadcrumbs">
               <span>Projects</span>
               <span>/</span>
@@ -1461,16 +1634,17 @@ export function FilesScreen({
 
           <div className="sp-ws-header-right">
             <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
-              <Share2 size={14} /> Share
+              <Share2 size={13} /> Share
             </button>
-            <button className="sp-ws-btn-gold" onClick={addFile}>
-              <Plus size={14} /> New Script
+            <button className="sp-ws-btn-gold" onClick={() => {
+              setNewFileType("script");
+              setNewFileTitle("");
+              setShowAddFileModal(true);
+            }}>
+              <Plus size={13} /> New File
             </button>
-            <button className="sp-ws-icon-btn" title="Theme selector">
-              <Sun size={16} />
-            </button>
-            <div onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
-              <Avatar src={user?.avatar} name={user?.name || "User"} size={32} />
+            <div onClick={() => navigate("/profile")} style={{ cursor: "pointer", marginLeft: 4 }}>
+              <Avatar src={user?.avatar} name={user?.name || "User"} size={28} />
             </div>
           </div>
         </header>
@@ -1483,35 +1657,50 @@ export function FilesScreen({
               <div className="sp-ws-sidebar-section">
                 <div className="sp-ws-sidebar-title">WORKSPACE</div>
                 <button className="sp-ws-sidebar-item" onClick={back}>
-                  <LayoutGrid size={16} /> All Projects
+                  <LayoutGrid size={15} /> Dashboard
                 </button>
                 <button className="sp-ws-sidebar-item active">
-                  <Folder size={16} /> {localProject.title}
+                  <Folder size={15} /> All Projects <span className="sp-ws-sidebar-item-badge">{allProjects.length || 1}</span>
                 </button>
                 <button className="sp-ws-sidebar-item">
-                  <FileText size={16} /> My Scripts
+                  <Bookmark size={15} /> Bookmarks
                 </button>
-                <button className="sp-ws-sidebar-item" onClick={() => navigate("/community")}>
-                  <Users size={16} /> Shared With Me
+                <button className="sp-ws-sidebar-item">
+                  <Trash2 size={15} /> Trash
                 </button>
               </div>
 
               <div className="sp-ws-sidebar-section">
-                <div className="sp-ws-sidebar-title">RECENT SCRIPTS</div>
-                {localProject.files.slice(0, 3).map((f) => (
-                  <button key={f.id} className="sp-ws-sidebar-item" onClick={() => openFile(f.id)}>
-                    <FileText size={16} /> {f.title}
-                  </button>
-                ))}
+                <div className="sp-ws-sidebar-title">PROJECTS</div>
+                {allProjects.map((p) => {
+                  const isActive = p.id === localProject.id;
+                  return (
+                    <button 
+                      key={p.id} 
+                      className={`sp-ws-sidebar-item ${isActive ? "active" : ""}`}
+                      onClick={() => {
+                        if (!isActive) navigate(`/project/${p.id}`);
+                      }}
+                    >
+                      <Folder size={15} style={{ color: isActive ? "#E8B84B" : "#8e8e93" }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{p.title}</span>
+                      <span className="sp-ws-sidebar-item-badge">{p.files.length}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div>
-              <button className="sp-ws-sidebar-item" onClick={() => navigate("/explore")} style={{ marginBottom: 4 }}>
-                <Search size={16} /> Search
-              </button>
-              <button className="sp-ws-sidebar-item" onClick={() => navigate("/settings")}>
-                <SettingsIcon size={16} /> Settings
+              <div className="sp-ws-sidebar-meter-box">
+                <span className="sp-ws-meter-title">Storage Limit</span>
+                <div className="sp-ws-meter-bar-outer">
+                  <div className="sp-ws-meter-bar-inner" style={{ width: "68%" }} />
+                </div>
+                <span className="sp-ws-meter-lbl">3.4 GB of 5 GB used (68%)</span>
+              </div>
+              <button className="sp-ws-sidebar-item" onClick={() => navigate("/settings")} style={{ marginTop: 12 }}>
+                <SettingsIcon size={15} /> Settings
               </button>
             </div>
           </aside>
@@ -1521,74 +1710,61 @@ export function FilesScreen({
             <div className="sp-ws-main-grid">
               {/* Main project header stats card */}
               <div className="sp-ws-banner">
-                <div className="sp-ws-banner-info">
-                  <div className="sp-ws-banner-title-row">
-                    <h1 className="sp-ws-banner-title">{localProject.title}</h1>
-                    <span
-                      className="sp-ws-badge-active"
-                      style={{
-                        color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "#E8B84B",
-                        borderColor: localProject.status === "Draft" ? "rgba(96, 165, 250, 0.2)" : localProject.status === "New" ? "rgba(52, 211, 153, 0.2)" : "rgba(142, 142, 147, 0.2)",
-                        background: localProject.status === "Draft" ? "rgba(96, 165, 250, 0.08)" : localProject.status === "New" ? "rgba(52, 211, 153, 0.08)" : localProject.status === "Empty" ? "rgba(142, 142, 147, 0.08)" : "rgba(232, 184, 75, 0.08)"
-                      }}
-                    >
-                      {localProject.status || "Active"}
-                    </span>
+                <div className="sp-ws-banner-info-wrap">
+                  <div className="sp-ws-banner-folder-box">
+                    <Folder size={26} />
                   </div>
-                  <p className="sp-ws-banner-desc">
-                    {localProject.type || "Feature Film"}{localProject.genre ? ` • ${localProject.genre}` : ""}
-                  </p>
-
-                  {/* Statistics Row */}
-                  <div className="sp-ws-banner-stats-row">
-                    <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">{localProject.files.length}</span>
-                      <span className="sp-ws-banner-stat-lbl">Scripts</span>
+                  <div className="sp-ws-banner-info">
+                    <div className="sp-ws-banner-title-row">
+                      <h1 className="sp-ws-banner-title">{localProject.title}</h1>
+                      <span className="sp-ws-tag-pill gold">{localProject.status || "Draft"}</span>
+                      {localProject.genre && <span className="sp-ws-tag-pill">{localProject.genre}</span>}
+                      {localProject.type && <span className="sp-ws-tag-pill purple">{localProject.type}</span>}
                     </div>
-                    <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">{totalPages}</span>
-                      <span className="sp-ws-banner-stat-lbl">Total Pages</span>
-                    </div>
-                    <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">{collaborators.length}</span>
-                      <span className="sp-ws-banner-stat-lbl">Collaborators</span>
-                    </div>
-                    <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">~{estMinutes}</span>
-                      <span className="sp-ws-banner-stat-lbl">Est. Minutes</span>
-                    </div>
-                    <div className="sp-ws-banner-stat">
-                      <span className="sp-ws-banner-stat-val">{getLastEditedDate()}</span>
-                      <span className="sp-ws-banner-stat-lbl">Last Edited</span>
+                    <p className="sp-ws-banner-desc">
+                      {localProject.description || "A screenplay writing draft project inside WriterDesk workspace."}
+                    </p>
+                    <div className="sp-ws-banner-meta-row">
+                      <span>Created: {new Date(localProject.dateCreated || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                      <span>•</span>
+                      <span>Updated: {getLastEditedDate()} ago</span>
+                      <span>•</span>
+                      <span>{localProject.files.length} files</span>
+                      <span>•</span>
+                      <span>~{totalWords.toLocaleString()} words</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Banner Right Actions */}
-                <div className="sp-ws-banner-actions">
-                  <div className="sp-ws-banner-buttons">
-                    <button className="sp-ws-btn-share" onClick={() => setShowExport(true)}>
-                      <Download size={14} /> Export
+                <div className="sp-ws-banner-actions-col">
+                  <div className="sp-ws-banner-buttons-row">
+                    <button className="sp-ws-btn-gold" style={{ display: "flex", gap: 6 }} onClick={() => {
+                      const firstFile = localProject.files[0];
+                      if (firstFile) openFile(firstFile.id);
+                      else alert("Create a file first!");
+                    }}>
+                      <Edit2 size={13} /> Open Editor
                     </button>
-                    <button className="sp-ws-btn-gold" onClick={() => setShowEditDetails(true)}>
-                      <Edit2 size={14} /> Edit Details
+                    <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
+                      <Users size={13} /> Share
                     </button>
-                    <button className="sp-ws-icon-btn" onClick={() => alert("More options clicked")}>
+                    <button className="sp-ws-icon-btn" onClick={() => setShowEditDetails(true)} title="Edit details">
                       <MoreHorizontal size={14} />
                     </button>
                   </div>
 
                   <div className="sp-ws-avatar-row">
                     <div className="sp-ws-avatar-stack">
-                      {collaborators.map((c, idx) => (
+                      {collaborators.slice(0, 3).map((c, idx) => (
                         <Avatar
                           key={c.email}
                           src={c.avatar}
                           name={c.name}
-                          size={24}
+                          size={22}
                           style={{
                             border: "2px solid #121214",
-                            marginRight: idx < collaborators.length - 1 ? -6 : 0,
+                            marginRight: idx < collaborators.length - 1 ? -5 : 0,
                             zIndex: collaborators.length - idx
                           }}
                         />
@@ -1599,209 +1775,239 @@ export function FilesScreen({
                 </div>
               </div>
 
-              {/* Tab switch row */}
-              <div className="sp-ws-tabs">
-                <button
-                  className={`sp-ws-tab-btn ${activeTab === "files" ? "active" : ""}`}
-                  onClick={() => setActiveTab("files")}
-                >
-                  Files <span className="sp-ws-tab-badge">{localProject.files.length}</span>
-                </button>
-                <button
-                  className={`sp-ws-tab-btn ${activeTab === "collaborators" ? "active" : ""}`}
-                  onClick={() => setActiveTab("collaborators")}
-                >
-                  Collaborators <span className="sp-ws-tab-badge">{collaborators.length}</span>
-                </button>
-                <button
-                  className={`sp-ws-tab-btn ${activeTab === "settings" ? "active" : ""}`}
-                  onClick={() => setActiveTab("settings")}
-                >
-                  Settings
-                </button>
+              {/* Redesigned summary statistics cards row */}
+              <div className="sp-ws-cards-grid">
+                <div className="sp-ws-summary-card">
+                  <div className="sp-ws-summary-card-header">
+                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(168, 85, 247, 0.12)", color: "#c084fc" }}>
+                      <FileText size={16} />
+                    </div>
+                    <span className="sp-ws-summary-card-val">{scriptCount}</span>
+                  </div>
+                  <span className="sp-ws-summary-card-lbl">Scripts</span>
+                </div>
+
+                <div className="sp-ws-summary-card">
+                  <div className="sp-ws-summary-card-header">
+                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(234, 179, 8, 0.12)", color: "#fde047" }}>
+                      <Lightbulb size={16} />
+                    </div>
+                    <span className="sp-ws-summary-card-val">{ideaCount}</span>
+                  </div>
+                  <span className="sp-ws-summary-card-lbl">Ideas</span>
+                </div>
+
+                <div className="sp-ws-summary-card">
+                  <div className="sp-ws-summary-card-header">
+                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#93c5fd" }}>
+                      <User size={16} />
+                    </div>
+                    <span className="sp-ws-summary-card-val">{characterCount}</span>
+                  </div>
+                  <span className="sp-ws-summary-card-lbl">Characters</span>
+                </div>
+
+                <div className="sp-ws-summary-card">
+                  <div className="sp-ws-summary-card-header">
+                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(34, 197, 94, 0.12)", color: "#86efac" }}>
+                      <ListCollapse size={16} />
+                    </div>
+                    <span className="sp-ws-summary-card-val">{outlineCount}</span>
+                  </div>
+                  <span className="sp-ws-summary-card-lbl">Outlines</span>
+                </div>
+
+                <div className="sp-ws-summary-card">
+                  <div className="sp-ws-summary-card-header">
+                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(236, 72, 153, 0.12)", color: "#fbcfe8" }}>
+                      <BookOpen size={16} />
+                    </div>
+                    <span className="sp-ws-summary-card-val">3</span>
+                  </div>
+                  <span className="sp-ws-summary-card-lbl">Research</span>
+                </div>
+
+                <div className="sp-ws-summary-card">
+                  <div className="sp-ws-summary-card-header">
+                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(255, 255, 255, 0.05)", color: "#fff" }}>
+                      <Folder size={16} />
+                    </div>
+                    <span className="sp-ws-summary-card-val">{totalFilesCount}</span>
+                  </div>
+                  <span className="sp-ws-summary-card-lbl">Total</span>
+                </div>
               </div>
 
               {/* Main Content Layout with Details Sidebar */}
-              <div className="sp-ws-columns">
-                <div className="sp-ws-col-left">
-                  {/* Files block: displayed when Files tab is active */}
-                  {activeTab === "files" && (
-                    <>
-                      <div className="sp-ws-section-header">
-                        <h2 className="sp-ws-section-title">ALL FILES</h2>
-                        <div style={{ display: "flex", gap: 10 }}>
-                          <label className="sp-ws-btn-share" style={{ cursor: "pointer", padding: "6px 12px", borderRadius: 8 }}>
-                            Import
-                            <input type="file" accept=".fountain,.txt,.md,text/plain" multiple style={{ display: "none" }} onChange={(e) => { importFiles(e.target.files); e.target.value = ""; }} />
-                          </label>
-                          <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8 }} onClick={addFile}>
-                            <Plus size={14} /> Add File
-                          </button>
-                        </div>
-                      </div>
+              <div className="sp-ws-section">
+                {/* Control bar */}
+                <div className="sp-ws-section-controls">
+                  <div className="sp-ws-filter-tabs">
+                    <button 
+                      className={`sp-ws-filter-tab ${selectedFilter === "all" ? "active" : ""}`}
+                      onClick={() => setSelectedFilter("all")}
+                    >
+                      All
+                    </button>
+                    <button 
+                      className={`sp-ws-filter-tab ${selectedFilter === "script" ? "active" : ""}`}
+                      onClick={() => setSelectedFilter("script")}
+                    >
+                      Scripts
+                    </button>
+                    <button 
+                      className={`sp-ws-filter-tab ${selectedFilter === "idea" ? "active" : ""}`}
+                      onClick={() => setSelectedFilter("idea")}
+                    >
+                      Ideas
+                    </button>
+                    <button 
+                      className={`sp-ws-filter-tab ${selectedFilter === "character" ? "active" : ""}`}
+                      onClick={() => setSelectedFilter("character")}
+                    >
+                      Characters
+                    </button>
+                    <button 
+                      className={`sp-ws-filter-tab ${selectedFilter === "outline" ? "active" : ""}`}
+                      onClick={() => setSelectedFilter("outline")}
+                    >
+                      Outlines
+                    </button>
+                  </div>
 
-                      <div className="sp-ws-table-header">
-                        <span className="sp-ws-table-col-name">Name</span>
-                        <span className="sp-ws-table-col-edited">Last Edited</span>
-                        <span className="sp-ws-table-col-pages">Pages</span>
-                        <span className="sp-ws-table-col-date">Date</span>
-                        <span className="sp-ws-table-col-action" />
-                      </div>
+                  <div className="sp-ws-right-controls">
+                    {/* Search bar inside section */}
+                    <div style={{ position: "relative" }}>
+                      <Search size={13} style={{ position: "absolute", left: 10, top: 10, color: "#6c6c74" }} />
+                      <input 
+                        className="sp-input"
+                        placeholder="Search files..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ paddingLeft: 30, height: 32, fontSize: 12, width: 180, background: "#0f0f11", border: "1px solid #18181c" }}
+                      />
+                    </div>
+                    {/* Sort selector */}
+                    <select
+                      className="sp-input"
+                      value={sortBy}
+                      onChange={(e: any) => setSortBy(e.target.value)}
+                      style={{ height: 32, fontSize: 12, background: "#0f0f11", border: "1px solid #18181c", color: "#8e8e93", padding: "0 8px", cursor: "pointer" }}
+                    >
+                      <option value="date">Sort by: Date</option>
+                      <option value="name">Sort by: Name</option>
+                      <option value="words">Sort by: Words</option>
+                    </select>
+                    {/* Import / Create buttons */}
+                    <label className="sp-ws-btn-share" style={{ cursor: "pointer", height: 32, boxSizing: "border-box", display: "flex", alignItems: "center", padding: "0 12px" }}>
+                      Import
+                      <input type="file" accept=".fountain,.txt,.md,text/plain" multiple style={{ display: "none" }} onChange={(e) => { importFiles(e.target.files); e.target.value = ""; }} />
+                    </label>
+                    <button className="sp-ws-btn-gold" style={{ height: 32, display: "flex", alignItems: "center" }} onClick={() => {
+                      setNewFileType("script");
+                      setNewFileTitle("");
+                      setShowAddFileModal(true);
+                    }}>
+                      <Plus size={13} /> New File
+                    </button>
+                  </div>
+                </div>
 
-                      {localProject.files.length === 0 ? (
-                        <p style={{ textAlign: "center", color: "#8e8e93", padding: 48, background: "#121214", borderRadius: 12 }}>No files yet. Click Add File to create one.</p>
-                      ) : (
-                        localProject.files.map((f) => (
-                          <div
-                            key={f.id}
-                            className="sp-ws-row-card"
-                            draggable
-                            onDragStart={() => setDragId(f.id)}
-                            onDragOver={onDragOver}
-                            onDrop={() => onDrop(f.id)}
-                            onClick={() => openFile(f.id)}
-                          >
-                            <div className="sp-ws-row-name-wrap">
-                              <div className="sp-ws-row-icon-box">
-                                <FileText size={18} color={getFileIconColor(f.title)} />
-                              </div>
-                              <div className="sp-ws-row-details">
-                                <h3 className="sp-ws-row-title">{f.title}</h3>
-                                <p className="sp-ws-row-subtitle">{getFileAuthor(f.title)}</p>
-                              </div>
+                {/* Redesigned Files Table */}
+                <div className="sp-ws-table">
+                  <div className="sp-ws-th-row">
+                    <span className="sp-ws-col-checkbox"><input type="checkbox" readOnly checked={false} style={{ cursor: "pointer" }} /></span>
+                    <span className="sp-ws-col-filename">File Name</span>
+                    <span className="sp-ws-col-type">Type</span>
+                    <span className="sp-ws-col-status">Status</span>
+                    <span className="sp-ws-col-words">Words</span>
+                    <span className="sp-ws-col-modified">Modified</span>
+                    <span className="sp-ws-col-author">Author</span>
+                    <span className="sp-ws-col-more" />
+                  </div>
+
+                  {sortedFiles.length === 0 ? (
+                    <p style={{ textAlign: "center", color: "#8e8e93", padding: 48, background: "#121214", borderRadius: 12, border: "1px dashed #282830" }}>
+                      No files match the filters. Click New File to add one.
+                    </p>
+                  ) : (
+                    sortedFiles.map((f) => {
+                      const displayType = f.type || "script";
+                      const displayStatus = f.status || "Draft";
+                      const displayWords = getFileWords(f);
+                      const fileAuthor = getFileAuthor(f);
+                      const fileIconColor = getFileIconColor(displayType);
+
+                      return (
+                        <div
+                          key={f.id}
+                          className="sp-ws-td-row"
+                          onClick={() => openFile(f.id)}
+                        >
+                          <div className="sp-ws-col-checkbox" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" readOnly checked={false} style={{ cursor: "pointer" }} />
+                          </div>
+                          
+                          <div className="sp-ws-col-filename">
+                            <div className="sp-ws-row-icon-box" style={{ background: `rgba(255, 255, 255, 0.01)` }}>
+                              {displayType === "script" && <FileText size={15} color={fileIconColor} />}
+                              {displayType === "idea" && <Lightbulb size={15} color={fileIconColor} />}
+                              {displayType === "character" && <User size={15} color={fileIconColor} />}
+                              {displayType === "outline" && <ListCollapse size={15} color={fileIconColor} />}
                             </div>
-
-                            <span className="sp-ws-row-edited">{getFileFullDate(f.title, f.dateModified)}</span>
-
-                            <div className="sp-ws-row-badge-wrap">
-                              <span className="sp-ws-row-badge">{getFilePages(f.title, f.blocks)} pp</span>
-                            </div>
-
-                            <span className="sp-ws-row-date">{getFileDate(f.title, f.dateModified)}</span>
-
-                            <div className="sp-ws-row-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
-                              <button className="sp-ws-row-action-btn">⋮</button>
-                              {openMenu === f.id && (
-                                <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
-                                  <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
-                                  <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
-                                  <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
-                                </div>
-                              )}
+                            <div style={{ minWidth: 0 }}>
+                              <h3 className="sp-ws-file-title">{f.title}</h3>
+                              <p className="sp-ws-file-subtitle">{fileAuthor}</p>
                             </div>
                           </div>
-                        ))
-                      )}
-                    </>
-                  )}
 
-                  {/* Collaborators Block: displayed in BOTH Files and Collaborators tab */}
-                  {(activeTab === "collaborators") && (
-                    <div>
-                      <div className="sp-ws-section-header">
-                        <h2 className="sp-ws-section-title">COLLABORATORS</h2>
-                        <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8 }} onClick={() => setShowInviteModal(true)}>
-                          <UserPlus size={14} /> Invite
-                        </button>
-                      </div>
-
-                      <div className="sp-ws-table-header">
-                        <span className="sp-ws-table-col-name">Member</span>
-                        <span className="sp-ws-table-col-edited">Email</span>
-                        <span className="sp-ws-table-col-pages">Role</span>
-                        <span className="sp-ws-table-col-date">Joined</span>
-                        <span className="sp-ws-table-col-action" />
-                      </div>
-
-                      {collaborators.map((c) => (
-                        <div key={c.email} className="sp-ws-row-card" style={{ cursor: "default" }}>
-                          <div className="sp-ws-row-avatar-wrap">
-                            <Avatar src={c.avatar} name={c.name} size={36} />
-                            <div className="sp-ws-row-details">
-                              <h3 className="sp-ws-row-title">{c.name}</h3>
-                            </div>
-                          </div>
-
-                          <span className="sp-ws-row-col-email">{c.email}</span>
-
-                          <div className="sp-ws-row-col-role">
-                            <span
-                              className="sp-ws-role-badge"
-                              style={{ color: c.roleColor, backgroundColor: c.roleBg }}
+                          <div className="sp-ws-col-type">
+                            <span 
+                              className="sp-ws-badge-type" 
+                              style={{ 
+                                background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(59, 130, 246, 0.12)" : "rgba(34, 197, 94, 0.12)",
+                                color: fileIconColor
+                              }}
                             >
-                              {c.role}
+                              {displayType}
                             </span>
                           </div>
 
-                          <span className="sp-ws-row-col-joined">{c.joined}</span>
+                          <div className="sp-ws-col-status">
+                            <span className={`sp-ws-badge-status ${displayStatus.toLowerCase()}`}>
+                              {displayStatus}
+                            </span>
+                          </div>
 
-                          <div className="sp-ws-row-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
+                          <span className="sp-ws-col-words" style={{ fontSize: 13, fontWeight: 600, color: "#efeff1" }}>
+                            {displayWords.toLocaleString()}
+                          </span>
+
+                          <span className="sp-ws-col-modified" style={{ fontSize: 13, color: "#8e8e93" }}>
+                            {getFileDate(f.dateModified)}
+                          </span>
+
+                          <div className="sp-ws-col-author">
+                            <Avatar src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${fileAuthor}`} name={fileAuthor} size={22} />
+                          </div>
+
+                          <div className="sp-ws-col-more" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
                             <button className="sp-ws-row-action-btn">⋮</button>
-                            {openMenu === c.email && (
+                            {openMenu === f.id && (
                               <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => { alert("Changing roles placeholder"); setOpenMenu(null); }}>Change Role</button>
-                                <button onClick={() => { handleRemoveCollaborator(c.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
+                                <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
+                                <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
+                                <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
                               </div>
                             )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      );
+                      })
+                    )}
+                  </div>
 
-                  {activeTab === "settings" && (
-                    <div style={{ background: "#121214", borderRadius: 16, border: "1px solid #1c1c20", padding: 28 }}>
-                      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Project Settings</h2>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div>
-                          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>PROJECT TITLE</label>
-                          <input
-                            type="text"
-                            defaultValue={localProject.title}
-                            className="sp-input"
-                            style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", maxWidth: 400 }}
-                            onBlur={(e) => {
-                              if (e.target.value.trim()) persist({ ...localProject, title: e.target.value.trim() });
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>DESCRIPTION</label>
-                          <textarea
-                            defaultValue={localProject.description || "Feature Film"}
-                            className="sp-input"
-                            rows={3}
-                            style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", maxWidth: 400, resize: "none" }}
-                            onBlur={(e) => {
-                              persist({ ...localProject, description: e.target.value.trim() });
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right Column details card widget */}
-                <div className="sp-ws-col-right">
-                  <div className="sp-ws-details-card">
-                    <div className="sp-ws-details-title-row">
-                      <h3 className="sp-ws-details-title">Project Details</h3>
-                      <button className="sp-ws-details-edit-btn" onClick={() => setShowEditDetails(true)} title="Edit Project Details">
-                        <Edit2 size={13} />
-                      </button>
-                    </div>
-
-                    <div className="sp-ws-details-divider" />
-
-                    <div className="sp-ws-details-item">
-                      <span className="sp-ws-details-item-lbl">Type</span>
-                      <span className="sp-ws-details-item-val">{localProject.type || "Feature Film"}</span>
-                    </div>
-                    <div className="sp-ws-details-item">
-                      <span className="sp-ws-details-item-lbl">Genre</span>
-                      <span className="sp-ws-details-item-val">{localProject.genre || "Neo-Noir/Thriller"}</span>
-                    </div>
+                  <div className="sp-ws-details-panel">
                     <div className="sp-ws-details-item">
                       <span className="sp-ws-details-item-lbl">Created</span>
                       <span className="sp-ws-details-item-val">
@@ -1826,10 +2032,9 @@ export function FilesScreen({
                   </div>
                 </div>
               </div>
-            </div>
-          </main>
+            </main>
+          </div>
         </div>
-      </div>
 
       {/* ======================================================== */}
       {/* MOBILE VIEWPORT LAYOUT                                   */}
@@ -1921,7 +2126,11 @@ export function FilesScreen({
             <>
               <div className="sp-ws-section-header" style={{ marginBottom: 12 }}>
                 <h2 className="sp-ws-section-title">ALL FILES</h2>
-                <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={addFile}>
+                <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => {
+                  setNewFileType("script");
+                  setNewFileTitle("");
+                  setShowAddFileModal(true);
+                }}>
                   <Plus size={12} /> Add File
                 </button>
               </div>
@@ -1929,41 +2138,58 @@ export function FilesScreen({
               {localProject.files.length === 0 ? (
                 <p style={{ textAlign: "center", color: "#8e8e93", padding: 24, background: "#121214", borderRadius: 12 }}>No files yet.</p>
               ) : (
-                localProject.files.map((f) => (
-                  <div
-                    key={f.id}
-                    className="sp-ws-mobile-file-card"
-                    onClick={() => openFile(f.id)}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                      <div className="sp-ws-row-icon-box">
-                        <FileText size={18} color={getFileIconColor(f.title)} />
+                localProject.files.map((f) => {
+                  const displayType = f.type || "script";
+                  const displayStatus = f.status || "Draft";
+                  const displayWords = getFileWords(f);
+                  const fileAuthor = getFileAuthor(f);
+                  const fileIconColor = getFileIconColor(displayType);
+                  const fileDate = getFileDate(f.dateModified);
+                  const filePages = getFilePages(f);
+
+                  return (
+                    <div
+                      key={f.id}
+                      className="sp-ws-mobile-file-card"
+                      onClick={() => openFile(f.id)}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                        <div className="sp-ws-row-icon-box" style={{ background: `rgba(255, 255, 255, 0.01)` }}>
+                          {displayType === "script" && <FileText size={16} color={fileIconColor} />}
+                          {displayType === "idea" && <Lightbulb size={16} color={fileIconColor} />}
+                          {displayType === "character" && <User size={16} color={fileIconColor} />}
+                          {displayType === "outline" && <ListCollapse size={16} color={fileIconColor} />}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                          <h3 className="sp-ws-mobile-file-title" style={{ fontSize: 13.5, fontWeight: 700, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.title}</h3>
+                          <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 11, color: "#6c6c74", margin: 0 }}>
+                            {displayType} · {displayStatus} · {fileAuthor}
+                          </p>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                        <h3 className="sp-ws-mobile-file-title">{f.title}</h3>
-                        <p className="sp-ws-mobile-file-subtitle">Edited {getFileDate(f.title, f.dateModified)} · {getFileAuthor(f.title)}</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                          <span className="sp-ws-mobile-file-badge" style={{ fontSize: 10, background: "#1c1c20", color: "#8e8e93", padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>
+                            {filePages} pp
+                          </span>
+                          <span className="sp-ws-mobile-file-date" style={{ fontSize: 10, color: "#6c6c74" }}>{fileDate}</span>
+                        </div>
+                        <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+                          <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }} style={{ background: "transparent", border: "none", color: "#8e8e93", cursor: "pointer", padding: 4 }}>
+                            <MoreVertical size={16} />
+                          </button>
+                          {openMenu === f.id && (
+                            <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
+                              <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
+                              <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 16, position: "relative" }}>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                        <span className="sp-ws-mobile-file-badge">{getFilePages(f.title, f.blocks)} pp</span>
-                        <span className="sp-ws-mobile-file-date">{getFileDate(f.title, f.dateModified)}</span>
-                      </div>
-                      <div style={{ position: "relative" }}>
-                        <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
-                          <MoreVertical size={16} />
-                        </button>
-                        {openMenu === f.id && (
-                          <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
-                            <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
-                            <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </>
           )}
@@ -2055,7 +2281,11 @@ export function FilesScreen({
             <FileText size={20} />
             <span>Scripts</span>
           </button>
-          <button className="sp-ws-mobile-nav-fab" onClick={addFile}>
+          <button className="sp-ws-mobile-nav-fab" onClick={() => {
+            setNewFileType("script");
+            setNewFileTitle("");
+            setShowAddFileModal(true);
+          }}>
             <Plus size={24} />
           </button>
           <button className="sp-ws-mobile-nav-item" onClick={() => navigate("/explore")}>
@@ -2095,7 +2325,147 @@ export function FilesScreen({
           onInviteSuccess={loadCollaborators}
         />
       )}
+
+      {/* Redesigned Add File Modal Popup */}
+      {showAddFileModal && (
+        <div className="sp-newfile-modal-backdrop" onClick={() => setShowAddFileModal(false)}>
+          <div className="sp-newfile-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="sp-newfile-modal-header">
+              <div>
+                <h3 className="sp-newfile-modal-title">Add file</h3>
+                <p className="sp-newfile-modal-subtitle">Choose a file type for this project</p>
+              </div>
+              <button 
+                onClick={() => setShowAddFileModal(false)}
+                style={{ background: "transparent", border: "none", color: "#8e8e93", fontSize: 18, cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="sp-newfile-cards-grid">
+              {/* Script selector */}
+              <div 
+                className={`sp-newfile-type-card ${newFileType === "script" ? "selected" : ""}`}
+                onClick={() => setNewFileType("script")}
+              >
+                <div className="sp-newfile-card-header">
+                  <div className="sp-newfile-card-icon" style={{ background: "rgba(168, 85, 247, 0.12)", color: "#c084fc" }}>
+                    <FileText size={16} />
+                  </div>
+                  {newFileType === "script" ? (
+                    <div className="sp-newfile-checkmark-badge">✓</div>
+                  ) : (
+                    <div className="sp-newfile-checkmark-placeholder" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="sp-newfile-card-title">Script</h4>
+                  <p className="sp-newfile-card-desc">Full screenplay editor with automatic layout margins.</p>
+                </div>
+              </div>
+
+              {/* Idea selector */}
+              <div 
+                className={`sp-newfile-type-card ${newFileType === "idea" ? "selected" : ""}`}
+                onClick={() => setNewFileType("idea")}
+              >
+                <div className="sp-newfile-card-header">
+                  <div className="sp-newfile-card-icon" style={{ background: "rgba(234, 179, 8, 0.12)", color: "#fde047" }}>
+                    <Lightbulb size={16} />
+                  </div>
+                  {newFileType === "idea" ? (
+                    <div className="sp-newfile-checkmark-badge">✓</div>
+                  ) : (
+                    <div className="sp-newfile-checkmark-placeholder" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="sp-newfile-card-title">Idea</h4>
+                  <p className="sp-newfile-card-desc">Logline, tags, free notes and structured details brainstorming.</p>
+                </div>
+              </div>
+
+              {/* Outline selector */}
+              <div 
+                className={`sp-newfile-type-card ${newFileType === "outline" ? "selected" : ""}`}
+                onClick={() => setNewFileType("outline")}
+              >
+                <div className="sp-newfile-card-header">
+                  <div className="sp-newfile-card-icon" style={{ background: "rgba(34, 197, 94, 0.12)", color: "#86efac" }}>
+                    <ListCollapse size={16} />
+                  </div>
+                  {newFileType === "outline" ? (
+                    <div className="sp-newfile-checkmark-badge">✓</div>
+                  ) : (
+                    <div className="sp-newfile-checkmark-placeholder" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="sp-newfile-card-title">Outline</h4>
+                  <p className="sp-newfile-card-desc">Beat sheet, hierarchical acts planning, and collapsible tree.</p>
+                </div>
+              </div>
+
+              {/* Character selector */}
+              <div 
+                className={`sp-newfile-type-card ${newFileType === "character" ? "selected" : ""}`}
+                onClick={() => setNewFileType("character")}
+              >
+                <div className="sp-newfile-card-header">
+                  <div className="sp-newfile-card-icon" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#93c5fd" }}>
+                    <User size={16} />
+                  </div>
+                  {newFileType === "character" ? (
+                    <div className="sp-newfile-checkmark-badge">✓</div>
+                  ) : (
+                    <div className="sp-newfile-checkmark-placeholder" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="sp-newfile-card-title">Character</h4>
+                  <p className="sp-newfile-card-desc">Arc, goals, fears, relationships, and motivation grid details.</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", letterSpacing: "0.05em" }}>File Name</label>
+              <input 
+                className="sp-input"
+                placeholder="e.g. Act One Draft or Cole Profile"
+                value={newFileTitle}
+                onChange={(e) => setNewFileTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFile();
+                }}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+              <button 
+                className="sp-btn" 
+                onClick={() => setShowAddFileModal(false)}
+                style={{ padding: "8px 16px" }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="sp-btn sp-btn-primary" 
+                onClick={handleCreateFile}
+                disabled={!newFileTitle.trim()}
+                style={{ padding: "8px 16px" }}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+export default FilesScreen;
 

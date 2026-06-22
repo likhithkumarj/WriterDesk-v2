@@ -133,8 +133,14 @@ export const supabaseService = {
           id: f.id,
           title: f.title,
           dateModified: new Date(f.date_modified).getTime(),
+          type: f.type || "script",
+          status: f.status || "Draft",
+          wordCount: f.word_count || 0,
           blocks: f.blocks || [],
           titlePage: f.title_page || undefined,
+          content: f.content || "",
+          characters: f.characters || [],
+          outlineTree: f.outline_tree || [],
         })),
       }));
     } catch (err: any) {
@@ -172,8 +178,14 @@ export const supabaseService = {
             project_id: p.id,
             title: f.title,
             date_modified: new Date(f.dateModified).toISOString(),
-            blocks: f.blocks,
+            type: f.type || "script",
+            status: f.status || "Draft",
+            word_count: f.wordCount || 0,
+            blocks: f.blocks || [],
             title_page: f.titlePage || null,
+            content: f.content || null,
+            characters: f.characters || null,
+            outline_tree: f.outlineTree || null,
           });
           if (fileErr) {
             console.error("Migration error: Failed to insert file:", f.id, fileErr);
@@ -222,8 +234,14 @@ export const supabaseService = {
               project_id: p.id,
               title: f.title,
               date_modified: new Date(f.dateModified).toISOString(),
-              blocks: f.blocks,
+              type: f.type || "script",
+              status: f.status || "Draft",
+              word_count: f.wordCount || 0,
+              blocks: f.blocks || [],
               title_page: f.titlePage || null,
+              content: f.content || null,
+              characters: f.characters || null,
+              outline_tree: f.outlineTree || null,
             });
             if (fileErr) {
               console.error("Sync error inserting file:", f.id, fileErr);
@@ -263,8 +281,14 @@ export const supabaseService = {
                 project_id: p.id,
                 title: f.title,
                 date_modified: new Date(f.dateModified).toISOString(),
-                blocks: f.blocks,
+                type: f.type || "script",
+                status: f.status || "Draft",
+                word_count: f.wordCount || 0,
+                blocks: f.blocks || [],
                 title_page: f.titlePage || null,
+                content: f.content || null,
+                characters: f.characters || null,
+                outline_tree: f.outlineTree || null,
               });
               if (fileErr) {
                 console.error("Sync error inserting file:", f.id, fileErr);
@@ -273,14 +297,26 @@ export const supabaseService = {
             } else if (
               oldF.title !== f.title ||
               oldF.dateModified !== f.dateModified ||
+              oldF.type !== f.type ||
+              oldF.status !== f.status ||
+              oldF.wordCount !== f.wordCount ||
               JSON.stringify(oldF.blocks) !== JSON.stringify(f.blocks) ||
-              JSON.stringify(oldF.titlePage) !== JSON.stringify(f.titlePage)
+              JSON.stringify(oldF.titlePage) !== JSON.stringify(f.titlePage) ||
+              oldF.content !== f.content ||
+              JSON.stringify(oldF.characters) !== JSON.stringify(f.characters) ||
+              JSON.stringify(oldF.outlineTree) !== JSON.stringify(f.outlineTree)
             ) {
               const { error: fileErr } = await supabase.from("files").update({
                 title: f.title,
                 date_modified: new Date(f.dateModified).toISOString(),
-                blocks: f.blocks,
+                type: f.type || "script",
+                status: f.status || "Draft",
+                word_count: f.wordCount || 0,
+                blocks: f.blocks || [],
                 title_page: f.titlePage || null,
+                content: f.content || null,
+                characters: f.characters || null,
+                outline_tree: f.outlineTree || null,
               }).eq("id", f.id);
               if (fileErr) {
                 console.error("Sync error updating file:", f.id, fileErr);

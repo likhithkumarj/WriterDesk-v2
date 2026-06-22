@@ -249,6 +249,7 @@ function ProjectFilesRoute({ store, persist, user }: { store: Store; persist: (s
   return (
     <FilesPage
       project={project}
+      allProjects={store.projects}
       user={user}
       back={() => navigate("/projects")}
       persist={(p) => persist({ ...store, projects: store.projects.map((x) => x.id === p.id ? p : x) })}
