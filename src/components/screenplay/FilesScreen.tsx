@@ -680,6 +680,13 @@ export function FilesScreen({
     if (!window.confirm("Delete this file?")) return;
     try {
       if (supabaseService.isConfigured()) {
+        // Delete associated comments first to prevent foreign key constraint error
+        const { error: commentErr } = await supabase
+          .from("comments")
+          .delete()
+          .eq("file_id", id);
+        if (commentErr) throw commentErr;
+
         const { error } = await supabase
           .from("files")
           .delete()

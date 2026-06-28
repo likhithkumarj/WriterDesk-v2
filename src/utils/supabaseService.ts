@@ -328,6 +328,11 @@ export const supabaseService = {
           // Delete files not in new state
           for (const oldF of oldP.files) {
             if (!p.files.some((x) => x.id === oldF.id)) {
+              // Delete comments first to satisfy foreign key constraints
+              const { error: commentErr } = await supabase.from("comments").delete().eq("file_id", oldF.id);
+              if (commentErr) {
+                console.error("Sync error deleting associated comments:", oldF.id, commentErr);
+              }
               const { error: fileErr } = await supabase.from("files").delete().eq("id", oldF.id);
               if (fileErr) {
                 console.error("Sync error deleting file:", oldF.id, fileErr);
@@ -341,6 +346,15 @@ export const supabaseService = {
       // Projects deleted
       for (const oldP of oldStore.projects) {
         if (!newStore.projects.some((x) => x.id === oldP.id)) {
+          // Delete comments, files, and collaborators first to satisfy foreign key constraints
+          if (oldP.files && oldP.files.length > 0) {
+            for (const f of oldP.files) {
+              await supabase.from("comments").delete().eq("file_id", f.id);
+            }
+          }
+          await supabase.from("files").delete().eq("project_id", oldP.id);
+          await supabase.from("collaborators").delete().eq("project_id", oldP.id);
+
           const { error: projErr } = await supabase.from("projects").delete().eq("id", oldP.id);
           if (projErr) {
             console.error("Sync error deleting project:", oldP.id, projErr);
