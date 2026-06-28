@@ -31,40 +31,47 @@ function AppContent() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const loadData = async (userId?: string) => {
-      if (supabaseService.isConfigured() && userId) {
-        try {
-          const projectsList = await supabaseService.fetchUserProjects(userId);
+  const loadData = async (userId?: string) => {
+    if (supabaseService.isConfigured() && userId) {
+      try {
+        const projectsList = await supabaseService.fetchUserProjects(userId);
 
-          if (projectsList === null) {
-            console.warn("Supabase fetch failed. Falling back to local storage projects.");
-            setStore(loadStore());
-            return;
-          }
+        if (projectsList === null) {
+          console.warn("Supabase fetch failed. Falling back to local storage projects.");
+          setStore(loadStore());
+          return;
+        }
 
-          // Migrate local storage projects if database is empty
-          if (projectsList.length === 0) {
-            const localStore = loadStore();
-            if (localStore.projects && localStore.projects.length > 0) {
-              console.log("Migrating local projects to Supabase...");
-              const migrated = await supabaseService.migrateLocalProjects(userId, localStore.projects);
-              if (migrated.length > 0) {
-                projectsList.push(...migrated);
-              }
+        // Migrate local storage projects if database is empty
+        if (projectsList.length === 0) {
+          const localStore = loadStore();
+          if (localStore.projects && localStore.projects.length > 0) {
+            console.log("Migrating local projects to Supabase...");
+            const migrated = await supabaseService.migrateLocalProjects(userId, localStore.projects);
+            if (migrated.length > 0) {
+              projectsList.push(...migrated);
             }
           }
-
-          setStore({ projects: projectsList });
-        } catch (err) {
-          console.error("Unexpected error loading Supabase data, falling back to local storage:", err);
-          setStore(loadStore());
         }
-      } else {
+
+        setStore({ projects: projectsList });
+      } catch (err) {
+        console.error("Unexpected error loading Supabase data, falling back to local storage:", err);
         setStore(loadStore());
       }
-    };
+    } else {
+      setStore(loadStore());
+    }
+  };
 
+  const handleRefreshProjects = async () => {
+    const session = await supabaseService.getSession();
+    if (session?.user?.id) {
+      await loadData(session.user.id);
+    }
+  };
+
+  useEffect(() => {
     // Check active session
     supabaseService.getSession().then((session) => {
       if (session?.user) {
@@ -199,7 +206,7 @@ function AppContent() {
       />
       <Route 
         path="/notifications" 
-        element={user ? <NotificationsPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        element={user ? <NotificationsPage store={store} user={user} onLogout={handleLogout} onRefreshProjects={handleRefreshProjects} /> : <Navigate to="/login" replace />} 
       />
       <Route 
         path="/settings" 

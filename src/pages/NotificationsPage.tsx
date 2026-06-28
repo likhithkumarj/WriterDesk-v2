@@ -22,10 +22,12 @@ export function NotificationsPage({
   store,
   user,
   onLogout,
+  onRefreshProjects,
 }: {
   store: Store;
   user: UserProfile;
   onLogout: () => void;
+  onRefreshProjects?: () => void;
 }) {
   const [notifications, setNotifications] = useState<AlertItem[]>([
     {
@@ -129,6 +131,10 @@ export function NotificationsPage({
       setNotifications(notifications.map(n => 
         n.id === id ? { ...n, inviteStatus: "accepted", unread: false } : n
       ));
+      
+      if (onRefreshProjects) {
+        onRefreshProjects();
+      }
     } catch (err: any) {
       alert("Error accepting invite: " + err.message);
     }
