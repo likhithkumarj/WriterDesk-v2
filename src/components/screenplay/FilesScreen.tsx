@@ -687,11 +687,17 @@ export function FilesScreen({
           .eq("file_id", id);
         if (commentErr) throw commentErr;
 
-        const { error } = await supabase
+        // Perform the delete and check if any rows were deleted (tests for RLS deletion permissions)
+        const { data, error } = await supabase
           .from("files")
           .delete()
-          .eq("id", id);
+          .eq("id", id)
+          .select("id");
+        
         if (error) throw error;
+        if (!data || data.length === 0) {
+          throw new Error("Deletion failed. You may not have permission to delete files from this project, or the file has already been deleted.");
+        }
       }
       persist({ ...localProject, files: localProject.files.filter((x) => x.id !== id) });
     } catch (err: any) {

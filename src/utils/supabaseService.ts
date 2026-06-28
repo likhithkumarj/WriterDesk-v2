@@ -209,133 +209,64 @@ export const supabaseService = {
       let syncSuccess = true;
 
       for (const p of newStore.projects) {
-        const oldP = oldStore.projects.find((x) => x.id === p.id);
-        if (!oldP) {
-          // New Project
-          const { error: projErr } = await supabase.from("projects").insert({
-            id: p.id,
-            title: p.title,
-            description: p.description,
-            user_id: supabaseUser.id,
-            date_created: new Date(p.dateCreated).toISOString(),
-            date_modified: new Date(p.dateModified).toISOString(),
-            type: p.type || null,
-            genre: p.genre || null,
-            status: p.status || null,
+        // Upsert project metadata
+        const { error: projErr } = await supabase.from("projects").upsert({
+          id: p.id,
+          title: p.title,
+          description: p.description,
+          user_id: supabaseUser.id,
+          date_created: new Date(p.dateCreated).toISOString(),
+          date_modified: new Date(p.dateModified).toISOString(),
+          type: p.type || null,
+          genre: p.genre || null,
+          status: p.status || null,
+        });
+
+        if (projErr) {
+          console.error("Sync error upserting project:", p.id, projErr);
+          syncSuccess = false;
+          continue;
+        }
+
+        // Upsert files inside project
+        for (const f of p.files) {
+          const { error: fileErr } = await supabase.from("files").upsert({
+            id: f.id,
+            project_id: p.id,
+            title: f.title,
+            date_modified: new Date(f.dateModified).toISOString(),
+            type: f.type || "script",
+            status: f.status || "Draft",
+            word_count: f.wordCount || 0,
+            blocks: f.blocks || [],
+            title_page: f.titlePage || null,
+            content: f.content || null,
+            characters: f.characters || null,
+            outline_tree: f.outlineTree || null,
           });
-          if (projErr) {
-            console.error("Sync error inserting project:", p.id, projErr);
+          if (fileErr) {
+            console.error("Sync error upserting file:", f.id, fileErr);
             syncSuccess = false;
-            continue;
           }
-          for (const f of p.files) {
-            const { error: fileErr } = await supabase.from("files").insert({
-              id: f.id,
-              project_id: p.id,
-              title: f.title,
-              date_modified: new Date(f.dateModified).toISOString(),
-              type: f.type || "script",
-              status: f.status || "Draft",
-              word_count: f.wordCount || 0,
-              blocks: f.blocks || [],
-              title_page: f.titlePage || null,
-              content: f.content || null,
-              characters: f.characters || null,
-              outline_tree: f.outlineTree || null,
-            });
-            if (fileErr) {
-              console.error("Sync error inserting file:", f.id, fileErr);
-              syncSuccess = false;
-            }
-          }
-        } else {
-          // Update existing project
-          if (
-            oldP.title !== p.title ||
-            oldP.description !== p.description ||
-            oldP.dateModified !== p.dateModified ||
-            oldP.type !== p.type ||
-            oldP.genre !== p.genre ||
-            oldP.status !== p.status
-          ) {
-            const { error: projErr } = await supabase.from("projects").update({
-              title: p.title,
-              description: p.description,
-              date_modified: new Date(p.dateModified).toISOString(),
-              type: p.type || null,
-              genre: p.genre || null,
-              status: p.status || null,
-            }).eq("id", p.id);
-            if (projErr) {
-              console.error("Sync error updating project:", p.id, projErr);
-              syncSuccess = false;
-            }
-          }
+        }
 
-          // Check files inside project
-          for (const f of p.files) {
-            const oldF = oldP.files.find((x) => x.id === f.id);
-            if (!oldF) {
-              const { error: fileErr } = await supabase.from("files").insert({
-                id: f.id,
-                project_id: p.id,
-                title: f.title,
-                date_modified: new Date(f.dateModified).toISOString(),
-                type: f.type || "script",
-                status: f.status || "Draft",
-                word_count: f.wordCount || 0,
-                blocks: f.blocks || [],
-                title_page: f.titlePage || null,
-                content: f.content || null,
-                characters: f.characters || null,
-                outline_tree: f.outlineTree || null,
-              });
-              if (fileErr) {
-                console.error("Sync error inserting file:", f.id, fileErr);
-                syncSuccess = false;
-              }
-            } else if (
-              oldF.title !== f.title ||
-              oldF.dateModified !== f.dateModified ||
-              oldF.type !== f.type ||
-              oldF.status !== f.status ||
-              oldF.wordCount !== f.wordCount ||
-              JSON.stringify(oldF.blocks) !== JSON.stringify(f.blocks) ||
-              JSON.stringify(oldF.titlePage) !== JSON.stringify(f.titlePage) ||
-              oldF.content !== f.content ||
-              JSON.stringify(oldF.characters) !== JSON.stringify(f.characters) ||
-              JSON.stringify(oldF.outlineTree) !== JSON.stringify(f.outlineTree)
-            ) {
-              const { error: fileErr } = await supabase.from("files").update({
-                title: f.title,
-                date_modified: new Date(f.dateModified).toISOString(),
-                type: f.type || "script",
-                status: f.status || "Draft",
-                word_count: f.wordCount || 0,
-                blocks: f.blocks || [],
-                title_page: f.titlePage || null,
-                content: f.content || null,
-                characters: f.characters || null,
-                outline_tree: f.outlineTree || null,
-              }).eq("id", f.id);
-              if (fileErr) {
-                console.error("Sync error updating file:", f.id, fileErr);
-                syncSuccess = false;
-              }
-            }
-          }
+        // Delete files from DB that are not in the new store state for this project
+        const { data: dbFiles, error: dbFilesErr } = await supabase
+          .from("files")
+          .select("id")
+          .eq("project_id", p.id);
 
-          // Delete files not in new state
-          for (const oldF of oldP.files) {
-            if (!p.files.some((x) => x.id === oldF.id)) {
+        if (!dbFilesErr && dbFiles) {
+          for (const dbF of dbFiles) {
+            if (!p.files.some((x) => x.id === dbF.id)) {
               // Delete comments first to satisfy foreign key constraints
-              const { error: commentErr } = await supabase.from("comments").delete().eq("file_id", oldF.id);
+              const { error: commentErr } = await supabase.from("comments").delete().eq("file_id", dbF.id);
               if (commentErr) {
-                console.error("Sync error deleting associated comments:", oldF.id, commentErr);
+                console.error("Sync error deleting associated comments:", dbF.id, commentErr);
               }
-              const { error: fileErr } = await supabase.from("files").delete().eq("id", oldF.id);
+              const { error: fileErr } = await supabase.from("files").delete().eq("id", dbF.id);
               if (fileErr) {
-                console.error("Sync error deleting file:", oldF.id, fileErr);
+                console.error("Sync error deleting file:", dbF.id, fileErr);
                 syncSuccess = false;
               }
             }
@@ -343,22 +274,29 @@ export const supabaseService = {
         }
       }
 
-      // Projects deleted
-      for (const oldP of oldStore.projects) {
-        if (!newStore.projects.some((x) => x.id === oldP.id)) {
-          // Delete comments, files, and collaborators first to satisfy foreign key constraints
-          if (oldP.files && oldP.files.length > 0) {
-            for (const f of oldP.files) {
-              await supabase.from("comments").delete().eq("file_id", f.id);
-            }
-          }
-          await supabase.from("files").delete().eq("project_id", oldP.id);
-          await supabase.from("collaborators").delete().eq("project_id", oldP.id);
+      // Projects deleted: Delete projects from DB that are not in the new store
+      const { data: dbProjects, error: dbProjErr } = await supabase
+        .from("projects")
+        .select("id");
 
-          const { error: projErr } = await supabase.from("projects").delete().eq("id", oldP.id);
-          if (projErr) {
-            console.error("Sync error deleting project:", oldP.id, projErr);
-            syncSuccess = false;
+      if (!dbProjErr && dbProjects) {
+        for (const dbP of dbProjects) {
+          if (!newStore.projects.some((x) => x.id === dbP.id)) {
+            // Fetch project files to delete their comments first
+            const { data: projFiles } = await supabase.from("files").select("id").eq("project_id", dbP.id);
+            if (projFiles) {
+              for (const f of projFiles) {
+                await supabase.from("comments").delete().eq("file_id", f.id);
+              }
+            }
+            await supabase.from("files").delete().eq("project_id", dbP.id);
+            await supabase.from("collaborators").delete().eq("project_id", dbP.id);
+
+            const { error: projErr } = await supabase.from("projects").delete().eq("id", dbP.id);
+            if (projErr) {
+              console.error("Sync error deleting project:", dbP.id, projErr);
+              syncSuccess = false;
+            }
           }
         }
       }
