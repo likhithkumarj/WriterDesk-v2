@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   LayoutGrid, Users, Compass, MessageSquare, Bell, 
-  Settings as SettingsIcon, User, LogOut, Menu, X, Search 
+  Settings as SettingsIcon, User, LogOut, Menu, X, Search, MoreVertical 
 } from "lucide-react";
 import { Avatar } from "../components/screenplay/Avatar";
 import { supabaseService } from "../utils/supabaseService";
@@ -33,6 +33,7 @@ export function DashboardLayout({
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuDropdownOpen, setMobileMenuDropdownOpen] = useState(false);
   const [timeGreeting, setTimeGreeting] = useState("Good morning");
 
   useEffect(() => {
@@ -493,51 +494,7 @@ export function DashboardLayout({
         </div>
       </aside>
 
-      {/* MOBILE SIDEBAR DRAWER OVERLAY */}
-      {mobileMenuOpen && (
-        <div className="sp-layout-mobile-drawer" onClick={() => setMobileMenuOpen(false)}>
-          <div className="sp-layout-mobile-drawer-content" onClick={(e) => e.stopPropagation()}>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <span className="sp-layout-logo-text" style={{ color: "#E8B84B" }}>WriterDesk Menu</span>
-                <button style={{ background: "none", border: "none", color: "#8e8e93" }} onClick={() => setMobileMenuOpen(false)}>
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="sp-layout-sidebar-section">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.path);
-                  return (
-                    <button 
-                      key={item.path} 
-                      className={`sp-layout-sidebar-item ${active ? "active" : ""}`}
-                      onClick={() => {
-                        navigate(item.path);
-                        setMobileMenuOpen(false);
-                      }}
-                    >
-                      <Icon size={16} />
-                      <span>{item.label}</span>
-                      {item.count !== undefined && item.count > 0 && (
-                        <span className={`sp-layout-sidebar-badge ${item.section === "account" ? "notification" : ""}`}>{item.count}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <button className="sp-layout-sidebar-item" onClick={onLogout}>
-                <LogOut size={16} />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MOBILE SIDEBAR DRAWER OVERLAY REMOVED */}
 
       {/* CONTENT PANEL */}
       <div className="sp-layout-content-pane">
@@ -562,25 +519,41 @@ export function DashboardLayout({
               />
             </div>
 
-            <button className="sp-layout-header-btn" onClick={() => navigate("/notifications")} title="Notifications">
-              <Bell size={16} />
-              {dynNotifCount > 0 && <span className="sp-layout-header-badge-dot" />}
-            </button>
-
-            <div onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
+            <div onClick={() => navigate("/profile")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#efeff1" }}>{user.name}</span>
               <Avatar src={user.avatar} name={user.name} size={36} />
             </div>
           </div>
         </header>
 
         {/* MOBILE HEADER */}
-        <header className="sp-layout-mobile-header">
-          <button style={{ background: "none", border: "none", color: "#E8B84B", display: "flex", padding: 0 }} onClick={() => setMobileMenuOpen(true)}>
-            <Menu size={24} />
-          </button>
-          <h1 className="sp-layout-mobile-header-title">{title}</h1>
-          <div onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
-            <Avatar src={user.avatar} name={user.name} size={32} />
+        <header className="sp-layout-mobile-header" style={{ position: "relative" }}>
+          <h1 className="sp-layout-mobile-header-title" style={{ marginRight: "auto" }}>{title}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#efeff1" }}>{user.name}</span>
+            <div onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
+              <Avatar src={user.avatar} name={user.name} size={32} />
+            </div>
+            <div style={{ position: "relative" }}>
+              <button 
+                onClick={() => setMobileMenuDropdownOpen(!mobileMenuDropdownOpen)} 
+                style={{ background: "none", border: "none", color: "#8e8e93", display: "flex", padding: 4, cursor: "pointer" }}
+              >
+                <MoreVertical size={20} />
+              </button>
+              {mobileMenuDropdownOpen && (
+                <div className="sp-menu" style={{ right: 0, top: 36, zIndex: 110 }} onClick={() => setMobileMenuDropdownOpen(false)}>
+                  <button onClick={() => navigate("/settings")}>
+                    <SettingsIcon size={14} />
+                    <span>Settings</span>
+                  </button>
+                  <button onClick={onLogout} style={{ color: "#ef4444" }}>
+                    <LogOut size={14} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { supabaseService } from "../../utils/supabaseService";
+import { supabase } from "../../utils/supabaseClient";
 import { Loader2, Trash2, Mail, CheckCircle, Clock } from "lucide-react";
 
 interface Collaborator {
   id: string;
   invited_email: string;
   status: string;
+  role?: string;
+  user_id?: string | null;
 }
 
 export function ShareModal({
@@ -21,6 +24,30 @@ export function ShareModal({
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isOwner, setIsOwner] = useState(true);
+
+  const checkOwner = async () => {
+    if (!supabaseService.isConfigured()) {
+      setIsOwner(true);
+      return;
+    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: p } = await supabase
+        .from("projects")
+        .select("user_id")
+        .eq("id", projectId)
+        .single();
+
+      if (p) {
+        setIsOwner(p.user_id === user.id);
+      }
+    } catch (err) {
+      console.error("Error checking owner in ShareModal:", err);
+    }
+  };
 
   const loadCollaborators = async () => {
     if (!supabaseService.isConfigured()) {
@@ -42,7 +69,11 @@ export function ShareModal({
   };
 
   useEffect(() => {
-    loadCollaborators();
+    const init = async () => {
+      await checkOwner();
+      await loadCollaborators();
+    };
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -113,6 +144,10 @@ export function ShareModal({
         {!supabaseService.isConfigured() ? (
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center">
             ⚠️ Supabase is not configured. Real-time collaboration is disabled in mock/demo mode.
+          </div>
+        ) : !isOwner ? (
+          <div style={{ marginBottom: 24, padding: "10px 12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--sp-border)", borderRadius: 8, fontSize: 13, color: "var(--sp-muted)", textAlign: "center" }}>
+            ℹ️ Only the project owner can invite new collaborators.
           </div>
         ) : (
           <form onSubmit={handleInvite} style={{ display: "flex", gap: 8, marginBottom: 24 }}>
@@ -185,14 +220,58 @@ export function ShareModal({
                     )}
                   </span>
                 </div>
-                <button 
-                  className="sp-btn sp-btn-ghost sp-btn-icon" 
-                  onClick={() => handleRemove(c.id)}
-                  title="Remove collaborator"
-                  style={{ color: "var(--sp-muted)", padding: 6 }}
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {isOwner ? (
+                    <select
+                      value={c.role || "Viewer"}
+                      onChange={async (e) => {
+                        const newRole = e.target.value as "Editor" | "Viewer";
+                        try {
+                          const { error } = await supabaseService.updateCollaboratorRole(c.id, newRole);
+                          if (error) throw error;
+                          loadCollaborators();
+                        } catch (err: any) {
+                          alert("Error updating role: " + err.message);
+                        }
+                      }}
+                      style={{
+                        background: "#1c1c20",
+                        border: "1px solid var(--sp-border)",
+                        color: "var(--sp-text)",
+                        fontSize: 12,
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="Viewer">Viewer</option>
+                      <option value="Editor">Editor</option>
+                    </select>
+                  ) : (
+                    <span 
+                      style={{ 
+                        fontSize: 11, 
+                        color: c.role === "Editor" ? "#60A5FA" : "#8e8e93",
+                        background: c.role === "Editor" ? "rgba(96, 165, 250, 0.08)" : "rgba(142, 142, 147, 0.08)",
+                        padding: "2px 8px",
+                        borderRadius: 4,
+                        fontWeight: 500
+                      }}
+                    >
+                      {c.role || "Viewer"}
+                    </span>
+                  )}
+                  {isOwner && (
+                    <button 
+                      className="sp-btn sp-btn-ghost sp-btn-icon" 
+                      onClick={() => handleRemove(c.id)}
+                      title="Remove collaborator"
+                      style={{ color: "var(--sp-muted)", padding: 6 }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Project, FileDoc } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
@@ -248,7 +248,7 @@ export function FilesScreen({
   back: () => void;
   persist: (p: Project) => void;
   openFile: (id: string) => void;
-  user: { name: string; email: string; avatar: string };
+  user: { id?: string; name: string; email: string; avatar: string };
   allProjects?: Project[];
 }) {
   const navigate = useNavigate();
@@ -272,6 +272,21 @@ export function FilesScreen({
   useEffect(() => {
     setLocalProject(project);
   }, [project]);
+
+  const isOwner = useMemo(() => {
+    if (!supabaseService.isConfigured()) return true;
+    const projectOwnerId = localProject.ownerId;
+    return !projectOwnerId || projectOwnerId === user.id;
+  }, [localProject.ownerId, user.id]);
+
+  const hasWriteAccess = useMemo(() => {
+    if (!supabaseService.isConfigured()) return true;
+    if (isOwner) return true;
+    const curEmail = user.email?.toLowerCase();
+    return collaborators.some(
+      (c) => c.email?.toLowerCase() === curEmail && c.role === "Editor"
+    );
+  }, [isOwner, user.email, collaborators]);
 
   const fetchProjectFromDb = async () => {
     if (!supabaseService.isConfigured() || !project?.id) return;
@@ -319,12 +334,75 @@ export function FilesScreen({
       setCollaborators(mockCollaboratorsList);
       return;
     }
+
+    let finalCollabs: any[] = [];
+    let ownerUserId: string | null = null;
+    let ownerEmail: string | null = null;
+    let ownerCollab: any = null;
+
+    // 1. Fetch the REAL owner user_id from the projects table
+    try {
+      const { data: pRow, error: pErr } = await supabase
+        .from("projects")
+        .select("user_id")
+        .eq("id", project.id)
+        .single();
+
+      if (pErr) {
+        console.error("Could not read project owner:", pErr.message);
+      }
+
+      if (pRow?.user_id) {
+        ownerUserId = pRow.user_id;
+
+        // Fetch owner's profile
+        const { data: ownerProf } = await supabase
+          .from("profiles")
+          .select("id, email, full_name, avatar_url")
+          .eq("id", pRow.user_id)
+          .single();
+
+        if (ownerProf) {
+          ownerEmail = ownerProf.email || null;
+          ownerCollab = {
+            id: "owner",
+            name: ownerProf.full_name || ownerProf.email?.split("@")[0] || "Owner",
+            email: ownerProf.email || "",
+            avatar: ownerProf.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${ownerProf.email || "Owner"}`,
+            role: "Owner",
+            roleColor: "#E8B84B",
+            roleBg: "rgba(232, 184, 75, 0.08)",
+            joined: "Creator"
+          };
+        }
+      }
+    } catch (ownerErr) {
+      console.error("Error loading project owner profile:", ownerErr);
+    }
+
+    // Fallback owner placeholder (only if DB lookup totally failed)
+    if (!ownerCollab) {
+      ownerCollab = {
+        id: "owner",
+        name: "Project Owner",
+        email: "",
+        avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Owner",
+        role: "Owner",
+        roleColor: "#E8B84B",
+        roleBg: "rgba(232, 184, 75, 0.08)",
+        joined: "Creator"
+      };
+    }
+
+    finalCollabs.push(ownerCollab);
+
+    // 2. Load other collaborators — skip entries that match the owner
     try {
       const { data, error } = await supabaseService.fetchCollaborators(project.id);
       if (error) throw error;
-      if (data) {
+      if (data && data.length > 0) {
         const userIds = data.map((c: any) => c.user_id).filter(Boolean);
-        let profilesMap: Record<string, { name: string; avatar: string }> = {};
+        let profilesMap: Record<string, { name: string; avatar: string; email: string }> = {};
 
         if (userIds.length > 0) {
           const { data: profiles, error: profErr } = await supabase
@@ -336,90 +414,60 @@ export function FilesScreen({
             profiles.forEach((p: any) => {
               profilesMap[p.id] = {
                 name: p.full_name || p.email?.split("@")[0] || "Collaborator",
-                avatar: p.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.email || p.id}`
+                avatar: p.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${p.email || p.id}`,
+                email: p.email || ""
               };
             });
           }
         }
 
-        const mapped = data.map((c: any) => {
-          const profile = c.user_id ? profilesMap[c.user_id] : null;
-          const email = c.invited_email;
-          const name = profile?.name || email.split("@")[0] || "Collaborator";
-          const avatar = profile?.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${email}`;
-          const role = c.status === "accepted" ? "Editor" : "Pending Invite";
-          const roleColor = c.status === "accepted" ? "#60A5FA" : "#f59e0b";
-          const roleBg = c.status === "accepted" ? "rgba(96, 165, 250, 0.08)" : "rgba(245, 158, 11, 0.08)";
+        data.forEach((c: any) => {
+          const email = (c.invited_email || "").toLowerCase();
+          const collabUserId = c.user_id || null;
 
-          return {
+          // Skip if this collaborator entry IS the owner (by user_id or email)
+          const matchesOwnerById = ownerUserId && collabUserId && collabUserId === ownerUserId;
+          const matchesOwnerByEmail = ownerEmail && email && email === ownerEmail.toLowerCase();
+          if (matchesOwnerById || matchesOwnerByEmail) return;
+
+          const profile = collabUserId ? profilesMap[collabUserId] : null;
+          const name = profile?.name || email.split("@")[0] || "Collaborator";
+          const avatar = profile?.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${email || c.id}`;
+          const resolvedEmail = profile?.email || c.invited_email || "";
+
+          const isAccepted = c.status === "accepted";
+          const dbRole = c.role || "Viewer";
+          const role = isAccepted ? dbRole : "Pending Invite";
+
+          let roleColor = "#f59e0b";
+          let roleBg = "rgba(245, 158, 11, 0.08)";
+          if (isAccepted) {
+            if (dbRole === "Editor") {
+              roleColor = "#60A5FA";
+              roleBg = "rgba(96, 165, 250, 0.08)";
+            } else {
+              roleColor = "#8e8e93";
+              roleBg = "rgba(142, 142, 147, 0.08)";
+            }
+          }
+
+          finalCollabs.push({
             id: c.id,
             name,
-            email,
+            email: resolvedEmail,
             avatar,
             role,
             roleColor,
             roleBg,
-            joined: c.status === "accepted" ? "Joined" : "Pending"
-          };
+            joined: isAccepted ? "Joined" : "Pending"
+          });
         });
-
-        let ownerCollab = null;
-        try {
-          const { data: pRow } = await supabase
-            .from("projects")
-            .select("user_id")
-            .eq("id", project.id)
-            .single();
-
-          if (pRow?.user_id) {
-            const { data: ownerProf } = await supabase
-              .from("profiles")
-              .select("id, email, full_name, avatar_url")
-              .eq("id", pRow.user_id)
-              .single();
-
-            if (ownerProf) {
-              ownerCollab = {
-                id: "owner",
-                name: ownerProf.full_name || ownerProf.email?.split("@")[0] || "Owner",
-                email: ownerProf.email || "",
-                avatar: ownerProf.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${ownerProf.email || "Owner"}`,
-                role: "Owner",
-                roleColor: "#E8B84B",
-                roleBg: "rgba(232, 184, 75, 0.08)",
-                joined: "Creator"
-              };
-            }
-          }
-        } catch (ownerErr) {
-          console.error("Error loading project owner profile:", ownerErr);
-        }
-
-        if (!ownerCollab) {
-          ownerCollab = {
-            id: "owner",
-            name: "Project Owner",
-            email: "owner@screenplay.app",
-            avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Owner",
-            role: "Owner",
-            roleColor: "#E8B84B",
-            roleBg: "rgba(232, 184, 75, 0.08)",
-            joined: "Jan 2026"
-          };
-        }
-
-        const finalCollabs = [ownerCollab];
-        mapped.forEach((m: any) => {
-          if (m.email.toLowerCase() !== ownerCollab?.email.toLowerCase()) {
-            finalCollabs.push(m);
-          }
-        });
-
-        setCollaborators(finalCollabs);
       }
     } catch (err) {
       console.error("Error loading collaborators in files page:", err);
     }
+
+    setCollaborators(finalCollabs);
   };
 
   useEffect(() => {
@@ -693,7 +741,7 @@ export function FilesScreen({
           .delete()
           .eq("id", id)
           .select("id");
-        
+
         if (error) throw error;
         if (!data || data.length === 0) {
           throw new Error("Deletion failed. You may not have permission to delete files from this project, or the file has already been deleted.");
@@ -753,8 +801,8 @@ export function FilesScreen({
   // Searching, Filtering and Sorting
   const filteredFiles = localProject.files.filter(f => {
     const matchesSearch = f.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = selectedFilter === "all" || 
-      (selectedFilter === "script" && (!f.type || f.type === "script")) || 
+    const matchesFilter = selectedFilter === "all" ||
+      (selectedFilter === "script" && (!f.type || f.type === "script")) ||
       f.type === selectedFilter;
     return matchesSearch && matchesFilter;
   });
@@ -1216,7 +1264,42 @@ export function FilesScreen({
         .sp-ws-col-words { width: 110px; text-align: right; }
         .sp-ws-col-modified { width: 140px; text-align: right; }
         .sp-ws-col-author { width: 80px; display: flex; justify-content: flex-end; }
-        .sp-ws-col-more { width: 40px; display: flex; justify-content: flex-end; }
+        .sp-ws-col-more {
+          width: 40px;
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          position: relative;
+        }
+        .sp-ws-row-icon-box {
+          width: 30px;
+          height: 30px;
+          border-radius: 6px;
+          border: 1px solid #1c1c20;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .sp-ws-row-action-btn {
+          background: transparent;
+          border: none;
+          color: #6c6c74;
+          font-size: 18px;
+          line-height: 1;
+          cursor: pointer;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s ease;
+        }
+        .sp-ws-row-action-btn:hover {
+          background: rgba(255,255,255,0.05);
+          color: #efeff1;
+        }
 
         .sp-ws-td-row {
           display: flex;
@@ -1406,17 +1489,28 @@ export function FilesScreen({
 
         /* Mobile Viewport Responsive Styles overrides */
         @media (max-width: 767px) {
+          .sp-ws-container {
+            height: 100vh !important;
+            overflow: hidden !important;
+          }
           .sp-ws-desktop-layout {
             display: none !important;
           }
           .sp-ws-mobile-layout {
             display: flex !important;
             flex-direction: column;
-            min-height: 100vh;
+            position: absolute !important;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 100% !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
             background-color: #08080a;
             padding: 16px;
             box-sizing: border-box;
-            padding-bottom: 80px;
+            padding-bottom: 140px;
           }
           .sp-ws-mobile-back-btn {
             background: transparent;
@@ -1425,23 +1519,24 @@ export function FilesScreen({
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 700;
             cursor: pointer;
             padding: 0;
           }
           .sp-ws-mobile-card {
-            background: #121214;
-            border: 1px solid #1c1c20;
-            border-radius: 12px;
-            padding: 16px;
+            background: linear-gradient(135deg, #121214 0%, #161619 100%);
+            border: 1px solid #232329;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            border-radius: 14px;
+            padding: 18px;
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
             gap: 14px;
           }
           .sp-ws-mobile-card-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 800;
             color: #fff;
             margin: 0;
@@ -1456,8 +1551,8 @@ export function FilesScreen({
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 8px;
-            border-top: 1px solid #1c1c20;
-            padding-top: 12px;
+            border-top: 1px solid #232329;
+            padding-top: 14px;
             margin-top: 4px;
           }
           .sp-ws-mobile-card-stat {
@@ -1467,42 +1562,43 @@ export function FilesScreen({
             text-align: center;
           }
           .sp-ws-mobile-card-stat-val {
-            font-size: 13px;
-            font-weight: 700;
+            font-size: 15px;
+            font-weight: 800;
             color: #fff;
           }
           .sp-ws-mobile-card-stat-lbl {
-            font-size: 9px;
-            color: #6c6c74;
+            font-size: 8px;
+            color: #8e8e93;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
-            font-weight: 600;
-            margin-top: 2px;
+            font-weight: 700;
+            margin-top: 3px;
           }
           .sp-ws-mobile-tabs {
             display: flex;
-            background: #121214;
-            border: 1px solid #1c1c20;
-            padding: 3px;
-            border-radius: 10px;
-            margin-bottom: 16px;
+            background: #111113;
+            border: 1px solid #232329;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 20px;
           }
           .sp-ws-mobile-tab-btn {
             flex: 1;
             text-align: center;
             background: transparent;
             border: none;
-            padding: 8px;
+            padding: 10px;
             border-radius: 8px;
             color: #8e8e93;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
           }
           .sp-ws-mobile-tab-btn.active {
             background: #1c1c20;
-            color: #fff;
-            border: 1px solid #282830;
+            color: #E8B84B;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
           }
           .sp-ws-mobile-file-card {
             display: flex;
@@ -1510,26 +1606,30 @@ export function FilesScreen({
             justify-content: space-between;
             background: #121214;
             border: 1px solid #1c1c20;
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 8px;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
+          }
+          .sp-ws-mobile-file-card:active {
+            transform: scale(0.98);
+            background: #151518;
           }
           .sp-ws-mobile-file-card:hover {
             border-color: rgba(232, 184, 75, 0.2);
             background: #151518;
           }
           .sp-ws-mobile-file-title {
-            font-size: 13.5px;
+            font-size: 14px;
             font-weight: 700;
-            color: #fff;
+            color: #efeff1;
             margin: 0;
           }
           .sp-ws-mobile-file-subtitle {
             font-size: 11px;
             color: #6c6c74;
-            margin: 0;
+            margin-top: 2px;
           }
           .sp-ws-mobile-file-badge {
             font-size: 9px;
@@ -1556,13 +1656,15 @@ export function FilesScreen({
             bottom: 0;
             left: 0;
             right: 0;
-            height: 60px;
-            background: #0f0f11;
-            border-top: 1px solid #18181c;
+            height: 64px;
+            background: rgba(15, 15, 17, 0.92);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid #1c1c20;
             display: flex;
             align-items: center;
             justify-content: space-around;
             z-index: 999;
+            padding-bottom: env(safe-area-inset-bottom);
           }
           .sp-ws-mobile-nav-item {
             display: flex;
@@ -1582,8 +1684,8 @@ export function FilesScreen({
             color: #E8B84B;
           }
           .sp-ws-mobile-nav-fab {
-            width: 46px;
-            height: 46px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             background: #E8B84B;
             border: none;
@@ -1606,14 +1708,14 @@ export function FilesScreen({
             justify-content: space-between;
             background: #121214;
             border: 1px solid #1c1c20;
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 8px;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
           }
           .sp-ws-role-badge {
             font-size: 9px;
             font-weight: 700;
-            padding: 1px 6px;
+            padding: 2px 8px;
             border-radius: 4px;
             text-transform: uppercase;
           }
@@ -1646,16 +1748,20 @@ export function FilesScreen({
           </div>
 
           <div className="sp-ws-header-right">
-            <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
-              <Share2 size={13} /> Share
-            </button>
-            <button className="sp-ws-btn-gold" onClick={() => {
-              setNewFileType("script");
-              setNewFileTitle("");
-              setShowAddFileModal(true);
-            }}>
-              <Plus size={13} /> New File
-            </button>
+            {isOwner && (
+              <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
+                <Share2 size={13} /> Share
+              </button>
+            )}
+            {hasWriteAccess && (
+              <button className="sp-ws-btn-gold" onClick={() => {
+                setNewFileType("script");
+                setNewFileTitle("");
+                setShowAddFileModal(true);
+              }}>
+                <Plus size={13} /> New File
+              </button>
+            )}
             <div onClick={() => navigate("/profile")} style={{ cursor: "pointer", marginLeft: 4 }}>
               <Avatar src={user?.avatar} name={user?.name || "User"} size={28} />
             </div>
@@ -1688,8 +1794,8 @@ export function FilesScreen({
                 {allProjects.map((p) => {
                   const isActive = p.id === localProject.id;
                   return (
-                    <button 
-                      key={p.id} 
+                    <button
+                      key={p.id}
                       className={`sp-ws-sidebar-item ${isActive ? "active" : ""}`}
                       onClick={() => {
                         if (!isActive) navigate(`/project/${p.id}`);
@@ -1705,13 +1811,6 @@ export function FilesScreen({
             </div>
 
             <div>
-              <div className="sp-ws-sidebar-meter-box">
-                <span className="sp-ws-meter-title">Storage Limit</span>
-                <div className="sp-ws-meter-bar-outer">
-                  <div className="sp-ws-meter-bar-inner" style={{ width: "68%" }} />
-                </div>
-                <span className="sp-ws-meter-lbl">3.4 GB of 5 GB used (68%)</span>
-              </div>
               <button className="sp-ws-sidebar-item" onClick={() => navigate("/settings")} style={{ marginTop: 12 }}>
                 <SettingsIcon size={15} /> Settings
               </button>
@@ -1759,12 +1858,16 @@ export function FilesScreen({
                     }}>
                       <Edit2 size={13} /> Open Editor
                     </button>
-                    <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
-                      <Users size={13} /> Share
-                    </button>
-                    <button className="sp-ws-icon-btn" onClick={() => setShowEditDetails(true)} title="Edit details">
-                      <MoreHorizontal size={14} />
-                    </button>
+                    {isOwner && (
+                      <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
+                        <Users size={13} /> Share
+                      </button>
+                    )}
+                    {isOwner && (
+                      <button className="sp-ws-icon-btn" onClick={() => setShowEditDetails(true)} title="Edit details">
+                        <MoreHorizontal size={14} />
+                      </button>
+                    )}
                   </div>
 
                   <div className="sp-ws-avatar-row">
@@ -1788,276 +1891,375 @@ export function FilesScreen({
                 </div>
               </div>
 
-              {/* Redesigned summary statistics cards row */}
-              <div className="sp-ws-cards-grid">
-                <div className="sp-ws-summary-card">
-                  <div className="sp-ws-summary-card-header">
-                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(168, 85, 247, 0.12)", color: "#c084fc" }}>
-                      <FileText size={16} />
-                    </div>
-                    <span className="sp-ws-summary-card-val">{scriptCount}</span>
-                  </div>
-                  <span className="sp-ws-summary-card-lbl">Scripts</span>
-                </div>
-
-                <div className="sp-ws-summary-card">
-                  <div className="sp-ws-summary-card-header">
-                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(234, 179, 8, 0.12)", color: "#fde047" }}>
-                      <Lightbulb size={16} />
-                    </div>
-                    <span className="sp-ws-summary-card-val">{ideaCount}</span>
-                  </div>
-                  <span className="sp-ws-summary-card-lbl">Ideas</span>
-                </div>
-
-                <div className="sp-ws-summary-card">
-                  <div className="sp-ws-summary-card-header">
-                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#93c5fd" }}>
-                      <User size={16} />
-                    </div>
-                    <span className="sp-ws-summary-card-val">{characterCount}</span>
-                  </div>
-                  <span className="sp-ws-summary-card-lbl">Characters</span>
-                </div>
-
-                <div className="sp-ws-summary-card">
-                  <div className="sp-ws-summary-card-header">
-                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(34, 197, 94, 0.12)", color: "#86efac" }}>
-                      <ListCollapse size={16} />
-                    </div>
-                    <span className="sp-ws-summary-card-val">{outlineCount}</span>
-                  </div>
-                  <span className="sp-ws-summary-card-lbl">Outlines</span>
-                </div>
-
-                <div className="sp-ws-summary-card">
-                  <div className="sp-ws-summary-card-header">
-                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(236, 72, 153, 0.12)", color: "#fbcfe8" }}>
-                      <BookOpen size={16} />
-                    </div>
-                    <span className="sp-ws-summary-card-val">3</span>
-                  </div>
-                  <span className="sp-ws-summary-card-lbl">Research</span>
-                </div>
-
-                <div className="sp-ws-summary-card">
-                  <div className="sp-ws-summary-card-header">
-                    <div className="sp-ws-summary-card-icon-box" style={{ background: "rgba(255, 255, 255, 0.05)", color: "#fff" }}>
-                      <Folder size={16} />
-                    </div>
-                    <span className="sp-ws-summary-card-val">{totalFilesCount}</span>
-                  </div>
-                  <span className="sp-ws-summary-card-lbl">Total</span>
-                </div>
+              {/* Tab Switcher */}
+              <div className="sp-ws-desktop-tabs" style={{ display: "flex", gap: 24, borderBottom: "1px solid #1c1c20", paddingBottom: 12, marginBottom: 20 }}>
+                <button
+                  className={`sp-ws-desktop-tab-btn ${activeTab === "files" ? "active" : ""}`}
+                  onClick={() => setActiveTab("files")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: activeTab === "files" ? "#E8B84B" : "#8e8e93",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    padding: "4px 0",
+                    position: "relative",
+                    transition: "color 0.2s ease"
+                  }}
+                >
+                  Files
+                  {activeTab === "files" && (
+                    <div style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "#E8B84B" }} />
+                  )}
+                </button>
+                <button
+                  className={`sp-ws-desktop-tab-btn ${activeTab === "collaborators" ? "active" : ""}`}
+                  onClick={() => setActiveTab("collaborators")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: activeTab === "collaborators" ? "#E8B84B" : "#8e8e93",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    padding: "4px 0",
+                    position: "relative",
+                    transition: "color 0.2s ease"
+                  }}
+                >
+                  Collaborators
+                  {activeTab === "collaborators" && (
+                    <div style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "#E8B84B" }} />
+                  )}
+                </button>
               </div>
 
-              {/* Main Content Layout with Details Sidebar */}
-              <div className="sp-ws-section">
-                {/* Control bar */}
-                <div className="sp-ws-section-controls">
-                  <div className="sp-ws-filter-tabs">
-                    <button 
-                      className={`sp-ws-filter-tab ${selectedFilter === "all" ? "active" : ""}`}
-                      onClick={() => setSelectedFilter("all")}
-                    >
-                      All
-                    </button>
-                    <button 
-                      className={`sp-ws-filter-tab ${selectedFilter === "script" ? "active" : ""}`}
-                      onClick={() => setSelectedFilter("script")}
-                    >
-                      Scripts
-                    </button>
-                    <button 
-                      className={`sp-ws-filter-tab ${selectedFilter === "idea" ? "active" : ""}`}
-                      onClick={() => setSelectedFilter("idea")}
-                    >
-                      Ideas
-                    </button>
-                    <button 
-                      className={`sp-ws-filter-tab ${selectedFilter === "character" ? "active" : ""}`}
-                      onClick={() => setSelectedFilter("character")}
-                    >
-                      Characters
-                    </button>
-                    <button 
-                      className={`sp-ws-filter-tab ${selectedFilter === "outline" ? "active" : ""}`}
-                      onClick={() => setSelectedFilter("outline")}
-                    >
-                      Outlines
-                    </button>
-                  </div>
-
-                  <div className="sp-ws-right-controls">
-                    {/* Search bar inside section */}
-                    <div style={{ position: "relative" }}>
-                      <Search size={13} style={{ position: "absolute", left: 10, top: 10, color: "#6c6c74" }} />
-                      <input 
-                        className="sp-input"
-                        placeholder="Search files..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ paddingLeft: 30, height: 32, fontSize: 12, width: 180, background: "#0f0f11", border: "1px solid #18181c" }}
-                      />
+              {/* Files Tab Section */}
+              {activeTab === "files" && (
+                <div className="sp-ws-section">
+                  {/* Control bar */}
+                  <div className="sp-ws-section-controls">
+                    <div className="sp-ws-filter-tabs">
+                      <button
+                        className={`sp-ws-filter-tab ${selectedFilter === "all" ? "active" : ""}`}
+                        onClick={() => setSelectedFilter("all")}
+                      >
+                        All
+                      </button>
+                      <button
+                        className={`sp-ws-filter-tab ${selectedFilter === "script" ? "active" : ""}`}
+                        onClick={() => setSelectedFilter("script")}
+                      >
+                        Scripts
+                      </button>
+                      <button
+                        className={`sp-ws-filter-tab ${selectedFilter === "idea" ? "active" : ""}`}
+                        onClick={() => setSelectedFilter("idea")}
+                      >
+                        Ideas
+                      </button>
+                      <button
+                        className={`sp-ws-filter-tab ${selectedFilter === "character" ? "active" : ""}`}
+                        onClick={() => setSelectedFilter("character")}
+                      >
+                        Characters
+                      </button>
+                      <button
+                        className={`sp-ws-filter-tab ${selectedFilter === "outline" ? "active" : ""}`}
+                        onClick={() => setSelectedFilter("outline")}
+                      >
+                        Outlines
+                      </button>
                     </div>
-                    {/* Sort selector */}
-                    <select
-                      className="sp-input"
-                      value={sortBy}
-                      onChange={(e: any) => setSortBy(e.target.value)}
-                      style={{ height: 32, fontSize: 12, background: "#0f0f11", border: "1px solid #18181c", color: "#8e8e93", padding: "0 8px", cursor: "pointer" }}
-                    >
-                      <option value="date">Sort by: Date</option>
-                      <option value="name">Sort by: Name</option>
-                      <option value="words">Sort by: Words</option>
-                    </select>
-                    {/* Import / Create buttons */}
-                    <label className="sp-ws-btn-share" style={{ cursor: "pointer", height: 32, boxSizing: "border-box", display: "flex", alignItems: "center", padding: "0 12px" }}>
-                      Import
-                      <input type="file" accept=".fountain,.txt,.md,text/plain" multiple style={{ display: "none" }} onChange={(e) => { importFiles(e.target.files); e.target.value = ""; }} />
-                    </label>
-                    <button className="sp-ws-btn-gold" style={{ height: 32, display: "flex", alignItems: "center" }} onClick={() => {
-                      setNewFileType("script");
-                      setNewFileTitle("");
-                      setShowAddFileModal(true);
-                    }}>
-                      <Plus size={13} /> New File
-                    </button>
-                  </div>
-                </div>
 
-                {/* Redesigned Files Table */}
-                <div className="sp-ws-table">
-                  <div className="sp-ws-th-row">
-                    <span className="sp-ws-col-checkbox"><input type="checkbox" readOnly checked={false} style={{ cursor: "pointer" }} /></span>
-                    <span className="sp-ws-col-filename">File Name</span>
-                    <span className="sp-ws-col-type">Type</span>
-                    <span className="sp-ws-col-status">Status</span>
-                    <span className="sp-ws-col-words">Words</span>
-                    <span className="sp-ws-col-modified">Modified</span>
-                    <span className="sp-ws-col-author">Author</span>
-                    <span className="sp-ws-col-more" />
-                  </div>
-
-                  {sortedFiles.length === 0 ? (
-                    <p style={{ textAlign: "center", color: "#8e8e93", padding: 48, background: "#121214", borderRadius: 12, border: "1px dashed #282830" }}>
-                      No files match the filters. Click New File to add one.
-                    </p>
-                  ) : (
-                    sortedFiles.map((f) => {
-                      const displayType = f.type || "script";
-                      const displayStatus = f.status || "Draft";
-                      const displayWords = getFileWords(f);
-                      const fileAuthor = getFileAuthor(f);
-                      const fileIconColor = getFileIconColor(displayType);
-
-                      return (
-                        <div
-                          key={f.id}
-                          className="sp-ws-td-row"
-                          onClick={() => openFile(f.id)}
+                    <div className="sp-ws-right-controls">
+                      {/* Search bar inside section */}
+                      <div style={{ position: "relative" }}>
+                        <Search size={13} style={{ position: "absolute", left: 10, top: 10, color: "#6c6c74" }} />
+                        <input
+                          className="sp-input"
+                          placeholder="Search files..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          style={{ paddingLeft: 30, height: 32, fontSize: 12, width: 180, background: "#0f0f11", border: "1px solid #18181c" }}
+                        />
+                      </div>
+                      {/* Sort selector */}
+                      <select
+                        className="sp-input"
+                        value={sortBy}
+                        onChange={(e: any) => setSortBy(e.target.value)}
+                        style={{ height: 32, fontSize: 12, background: "#0f0f11", border: "1px solid #18181c", color: "#8e8e93", padding: "0 8px", cursor: "pointer" }}
+                      >
+                        <option value="date">Sort by: Date</option>
+                        <option value="name">Sort by: Name</option>
+                        <option value="words">Sort by: Words</option>
+                      </select>
+                      {/* Create new file */}
+                      {hasWriteAccess && (
+                        <button
+                          className="sp-ws-btn-gold"
+                          style={{ height: 32, display: "flex", alignItems: "center", gap: 6, padding: "0 14px", whiteSpace: "nowrap" }}
+                          onClick={() => {
+                            setNewFileType("script");
+                            setNewFileTitle("");
+                            setShowAddFileModal(true);
+                          }}
                         >
-                          <div className="sp-ws-col-checkbox" onClick={(e) => e.stopPropagation()}>
-                            <input type="checkbox" readOnly checked={false} style={{ cursor: "pointer" }} />
-                          </div>
-                          
-                          <div className="sp-ws-col-filename">
-                            <div className="sp-ws-row-icon-box" style={{ background: `rgba(255, 255, 255, 0.01)` }}>
-                              {displayType === "script" && <FileText size={15} color={fileIconColor} />}
-                              {displayType === "idea" && <Lightbulb size={15} color={fileIconColor} />}
-                              {displayType === "character" && <User size={15} color={fileIconColor} />}
-                              {displayType === "outline" && <ListCollapse size={15} color={fileIconColor} />}
+                          <Plus size={13} /> New File
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Redesigned Files Table */}
+                  <div className="sp-ws-table">
+                    <div className="sp-ws-th-row">
+                      <span className="sp-ws-col-checkbox"><input type="checkbox" readOnly checked={false} style={{ cursor: "pointer" }} /></span>
+                      <span className="sp-ws-col-filename">File Name</span>
+                      <span className="sp-ws-col-type">Type</span>
+                      <span className="sp-ws-col-status">Status</span>
+                      <span className="sp-ws-col-words">Words</span>
+                      <span className="sp-ws-col-modified">Modified</span>
+                      <span className="sp-ws-col-author">Author</span>
+                      <span className="sp-ws-col-more" />
+                    </div>
+
+                    {sortedFiles.length === 0 ? (
+                      <p style={{ textAlign: "center", color: "#8e8e93", padding: 48, background: "#121214", borderRadius: 12, border: "1px dashed #282830" }}>
+                        No files match the filters. Click New File to add one.
+                      </p>
+                    ) : (
+                      sortedFiles.map((f) => {
+                        const displayType = f.type || "script";
+                        const displayStatus = f.status || "Draft";
+                        const displayWords = getFileWords(f);
+                        const fileAuthor = getFileAuthor(f);
+                        const fileIconColor = getFileIconColor(displayType);
+
+                        return (
+                          <div
+                            key={f.id}
+                            className="sp-ws-td-row"
+                            onClick={() => openFile(f.id)}
+                          >
+                            <div className="sp-ws-col-checkbox" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" readOnly checked={false} style={{ cursor: "pointer" }} />
                             </div>
-                            <div style={{ minWidth: 0 }}>
-                              <h3 className="sp-ws-file-title">{f.title}</h3>
-                              <p className="sp-ws-file-subtitle">{fileAuthor}</p>
+
+                            <div className="sp-ws-col-filename">
+                              <div className="sp-ws-row-icon-box" style={{ background: `rgba(255, 255, 255, 0.01)` }}>
+                                {displayType === "script" && <FileText size={15} color={fileIconColor} />}
+                                {displayType === "idea" && <Lightbulb size={15} color={fileIconColor} />}
+                                {displayType === "character" && <User size={15} color={fileIconColor} />}
+                                {displayType === "outline" && <ListCollapse size={15} color={fileIconColor} />}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <h3 className="sp-ws-file-title">{f.title}</h3>
+                                <p className="sp-ws-file-subtitle">{fileAuthor}</p>
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="sp-ws-col-type">
-                            <span 
-                              className="sp-ws-badge-type" 
-                              style={{ 
-                                background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(59, 130, 246, 0.12)" : "rgba(34, 197, 94, 0.12)",
-                                color: fileIconColor
-                              }}
-                            >
-                              {displayType}
+                            <div className="sp-ws-col-type">
+                              <span
+                                className="sp-ws-badge-type"
+                                style={{
+                                  background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(59, 130, 246, 0.12)" : "rgba(34, 197, 94, 0.12)",
+                                  color: fileIconColor
+                                }}
+                              >
+                                {displayType}
+                              </span>
+                            </div>
+
+                            <div className="sp-ws-col-status">
+                              <span className={`sp-ws-badge-status ${displayStatus.toLowerCase()}`}>
+                                {displayStatus}
+                              </span>
+                            </div>
+
+                            <span className="sp-ws-col-words" style={{ fontSize: 13, fontWeight: 600, color: "#efeff1" }}>
+                              {displayWords.toLocaleString()}
                             </span>
-                          </div>
 
-                          <div className="sp-ws-col-status">
-                            <span className={`sp-ws-badge-status ${displayStatus.toLowerCase()}`}>
-                              {displayStatus}
+                            <span className="sp-ws-col-modified" style={{ fontSize: 13, color: "#8e8e93" }}>
+                              {getFileDate(f.dateModified)}
                             </span>
-                          </div>
 
-                          <span className="sp-ws-col-words" style={{ fontSize: 13, fontWeight: 600, color: "#efeff1" }}>
-                            {displayWords.toLocaleString()}
-                          </span>
+                            <div className="sp-ws-col-author">
+                              <Avatar src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${fileAuthor}`} name={fileAuthor} size={22} />
+                            </div>
 
-                          <span className="sp-ws-col-modified" style={{ fontSize: 13, color: "#8e8e93" }}>
-                            {getFileDate(f.dateModified)}
-                          </span>
-
-                          <div className="sp-ws-col-author">
-                            <Avatar src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${fileAuthor}`} name={fileAuthor} size={22} />
-                          </div>
-
-                          <div className="sp-ws-col-more" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
-                            <button className="sp-ws-row-action-btn">⋮</button>
-                            {openMenu === f.id && (
-                              <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
-                                <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
-                                <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                            {hasWriteAccess && (
+                              <div className="sp-ws-col-more" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
+                                <button className="sp-ws-row-action-btn">⋮</button>
+                                {openMenu === f.id && (
+                                  <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                                    <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
+                                    <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
+                                    <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
-                        </div>
-                      );
+                        );
                       })
+                    )}
+                  </div>{/* end sp-ws-table */}
+
+                </div>
+              )}
+
+              {/* Collaborators Tab Section */}
+              {activeTab === "collaborators" && (
+                <div className="sp-ws-section" style={{ display: "block" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>Project Collaborators</h2>
+                    {isOwner && (
+                      <button className="sp-ws-btn-gold" style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={() => setShowInviteModal(true)}>
+                        <UserPlus size={14} /> Invite Collaborator
+                      </button>
                     )}
                   </div>
 
-                  <div className="sp-ws-details-panel">
-                    <div className="sp-ws-details-item">
-                      <span className="sp-ws-details-item-lbl">Created</span>
-                      <span className="sp-ws-details-item-val">
-                        {new Date(localProject.dateCreated || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </span>
+                  <div className="sp-ws-table" style={{ width: "100%" }}>
+                    <div className="sp-ws-th-row" style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 0.5fr", borderBottom: "1px solid #1c1c20" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", paddingLeft: 12 }}>Name</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Email</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Status</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Role</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", textAlign: "right", paddingRight: 12 }}>Actions</span>
                     </div>
-                    <div className="sp-ws-details-item">
-                      <span className="sp-ws-details-item-lbl">Status</span>
-                      <span className="sp-ws-details-item-val gold" style={{
-                        color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "#E8B84B"
-                      }}>{localProject.status || "Active"}</span>
-                    </div>
-                    {localProject.description && (
-                      <>
-                        <div className="sp-ws-details-divider" />
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                          <span className="sp-ws-details-item-lbl" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Description</span>
-                          <span style={{ fontSize: 13, color: "#8e8e93", lineHeight: 1.4, wordBreak: "break-word" }}>{localProject.description}</span>
-                        </div>
-                      </>
+
+                    {collaborators.length === 0 ? (
+                      <p style={{ textAlign: "center", color: "#8e8e93", padding: 48, background: "#121214", borderRadius: 12 }}>
+                        No collaborators loaded.
+                      </p>
+                    ) : (
+                      collaborators.map((c) => {
+                        const isCreator = c.joined === "Creator";
+                        return (
+                          <div
+                            key={c.email}
+                            className="sp-ws-td-row"
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1.5fr 2fr 1fr 1fr 0.5fr",
+                              alignItems: "center",
+                              borderBottom: "1px solid #1c1c20",
+                              padding: "12px 0",
+                              background: "transparent",
+                              cursor: "default"
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 12 }}>
+                              <Avatar src={c.avatar} name={c.name} size={24} />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "#efeff1" }}>{c.name}</span>
+                            </div>
+                            <span style={{ fontSize: 13, color: "#8e8e93" }}>{c.email}</span>
+                            <div>
+                              <span
+                                className="sp-ws-badge-status"
+                                style={{
+                                  fontSize: 10,
+                                  background: c.joined === "Creator" ? "rgba(232, 184, 75, 0.08)" : c.status === "accepted" || c.joined === "Joined" ? "rgba(16, 185, 129, 0.08)" : "rgba(245, 158, 11, 0.08)",
+                                  color: c.joined === "Creator" ? "#E8B84B" : c.status === "accepted" || c.joined === "Joined" ? "#10b981" : "#f59e0b",
+                                  borderColor: "transparent",
+                                  padding: "2px 8px",
+                                  borderRadius: 4,
+                                  fontWeight: 600
+                                }}
+                              >
+                                {c.joined === "Creator" ? "Creator" : c.status === "accepted" || c.joined === "Joined" ? "Joined" : "Pending"}
+                              </span>
+                            </div>
+                            <div>
+                              {isOwner && !isCreator ? (
+                                <select
+                                  value={c.role || "Viewer"}
+                                  onChange={async (e) => {
+                                    const newRole = e.target.value as "Editor" | "Viewer";
+                                    try {
+                                      const { error } = await supabaseService.updateCollaboratorRole(c.id, newRole);
+                                      if (error) throw error;
+                                      loadCollaborators();
+                                    } catch (err: any) {
+                                      alert("Error updating role: " + err.message);
+                                    }
+                                  }}
+                                  style={{
+                                    background: "#1c1c20",
+                                    border: "1px solid var(--sp-border)",
+                                    color: "var(--sp-text)",
+                                    fontSize: 12,
+                                    padding: "4px 8px",
+                                    borderRadius: 6,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <option value="Viewer">Viewer</option>
+                                  <option value="Editor">Editor</option>
+                                </select>
+                              ) : (
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: c.role === "Owner" ? "#E8B84B" : c.role === "Editor" ? "#60A5FA" : "#8e8e93",
+                                    background: c.role === "Owner" ? "rgba(232, 184, 75, 0.08)" : c.role === "Editor" ? "rgba(96, 165, 250, 0.08)" : "rgba(142, 142, 147, 0.08)",
+                                    padding: "2px 8px",
+                                    borderRadius: 4,
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  {c.role || "Viewer"}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ textAlign: "right", paddingRight: 12 }}>
+                              {isOwner && !isCreator && (
+                                <button
+                                  className="sp-btn sp-btn-ghost sp-btn-icon"
+                                  onClick={() => handleRemoveCollaborator(c.id)}
+                                  title="Remove collaborator"
+                                  style={{ color: "var(--sp-muted)", padding: 4 }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>
-              </div>
-            </main>
-          </div>
+              )}
+            </div>
+          </main>
         </div>
+      </div>
 
       {/* ======================================================== */}
       {/* MOBILE VIEWPORT LAYOUT                                   */}
       {/* ======================================================== */}
       <div className="sp-ws-mobile-layout">
-        {/* Mobile header (Projects back link) */}
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+        {/* Mobile Header Top Bar */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, paddingBottom: 10, borderBottom: "1px solid #1c1c20" }}>
           <button className="sp-ws-mobile-back-btn" onClick={back}>
-            <ChevronLeft size={16} /> Projects
+            <ChevronLeft size={20} /> Projects
           </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="sp-ws-mobile-file-more-btn" onClick={() => setShowExport(true)} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid #1c1c20", color: "#efeff1", padding: "6px 12px", borderRadius: 8, fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", height: 32, boxSizing: "border-box" }}>
+              <Download size={14} /> Export
+            </button>
+            {isOwner && (
+              <button className="sp-ws-mobile-file-more-btn" onClick={() => setShowInviteModal(true)} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid #1c1c20", color: "#efeff1", padding: "6px 12px", borderRadius: 8, fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", height: 32, boxSizing: "border-box" }}>
+                <Share2 size={14} /> Share
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Mobile Project stats card */}
@@ -2085,29 +2287,14 @@ export function FilesScreen({
                 </span>
               </div>
             </div>
-            <button className="sp-ws-mobile-card-options-btn" onClick={() => setShowEditDetails(true)} title="Edit Project Details">
-              <Edit2 size={16} />
-            </button>
+            {isOwner && (
+              <button className="sp-ws-mobile-card-options-btn" onClick={() => setShowEditDetails(true)} title="Edit Project Details">
+                <Edit2 size={16} />
+              </button>
+            )}
           </div>
 
-          <div className="sp-ws-mobile-card-stats">
-            <div className="sp-ws-mobile-card-stat">
-              <span className="sp-ws-mobile-card-stat-val">{localProject.files.length}</span>
-              <span className="sp-ws-mobile-card-stat-lbl">Scripts</span>
-            </div>
-            <div className="sp-ws-mobile-card-stat">
-              <span className="sp-ws-mobile-card-stat-val">{totalPages}</span>
-              <span className="sp-ws-mobile-card-stat-lbl">Pages</span>
-            </div>
-            <div className="sp-ws-mobile-card-stat">
-              <span className="sp-ws-mobile-card-stat-val">{collaborators.length}</span>
-              <span className="sp-ws-mobile-card-stat-lbl">Collabs</span>
-            </div>
-            <div className="sp-ws-mobile-card-stat">
-              <span className="sp-ws-mobile-card-stat-val">{getLastEditedDate()}</span>
-              <span className="sp-ws-mobile-card-stat-lbl">Last edited</span>
-            </div>
-          </div>
+
         </div>
 
         {/* Mobile Tabs Switch */}
@@ -2139,13 +2326,15 @@ export function FilesScreen({
             <>
               <div className="sp-ws-section-header" style={{ marginBottom: 12 }}>
                 <h2 className="sp-ws-section-title">ALL FILES</h2>
-                <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => {
-                  setNewFileType("script");
-                  setNewFileTitle("");
-                  setShowAddFileModal(true);
-                }}>
-                  <Plus size={12} /> Add File
-                </button>
+                {hasWriteAccess && (
+                  <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => {
+                    setNewFileType("script");
+                    setNewFileTitle("");
+                    setShowAddFileModal(true);
+                  }}>
+                    <Plus size={12} /> Add File
+                  </button>
+                )}
               </div>
 
               {localProject.files.length === 0 ? (
@@ -2187,18 +2376,20 @@ export function FilesScreen({
                           </span>
                           <span className="sp-ws-mobile-file-date" style={{ fontSize: 10, color: "#6c6c74" }}>{fileDate}</span>
                         </div>
-                        <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
-                          <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }} style={{ background: "transparent", border: "none", color: "#8e8e93", cursor: "pointer", padding: 4 }}>
-                            <MoreVertical size={16} />
-                          </button>
-                          {openMenu === f.id && (
-                            <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
-                              <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
-                              <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
-                              <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
-                            </div>
-                          )}
-                        </div>
+                        {hasWriteAccess && (
+                          <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+                            <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }} style={{ background: "transparent", border: "none", color: "#8e8e93", cursor: "pointer", padding: 4 }}>
+                              <MoreVertical size={16} />
+                            </button>
+                            {openMenu === f.id && (
+                              <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
+                                <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
+                                <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2212,9 +2403,11 @@ export function FilesScreen({
             <>
               <div className="sp-ws-section-header" style={{ marginBottom: 12 }}>
                 <h2 className="sp-ws-section-title">COLLABORATORS</h2>
-                <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => setShowInviteModal(true)}>
-                  <UserPlus size={12} /> Invite
-                </button>
+                {isOwner && (
+                  <button className="sp-ws-btn-gold" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => setShowInviteModal(true)}>
+                    <UserPlus size={12} /> Invite
+                  </button>
+                )}
               </div>
 
               {collaborators.map((c) => (
@@ -2233,17 +2426,26 @@ export function FilesScreen({
                       </span>
                       <span className="sp-ws-mobile-file-date">Joined {c.joined}</span>
                     </div>
-                    <div style={{ position: "relative" }}>
-                      <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
-                        <MoreVertical size={16} />
-                      </button>
-                      {openMenu === c.email && (
-                        <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => { alert("Changing roles placeholder"); setOpenMenu(null); }}>Change Role</button>
-                          <button onClick={() => { handleRemoveCollaborator(c.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
-                        </div>
-                      )}
-                    </div>
+                    {isOwner && c.id !== "owner" && (
+                      <div style={{ position: "relative" }}>
+                        <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
+                          <MoreVertical size={16} />
+                        </button>
+                        {openMenu === c.email && (
+                          <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                            <button onClick={async () => {
+                              const newRole = c.role === "Editor" ? "Viewer" : "Editor";
+                              await supabaseService.updateCollaboratorRole(c.id, newRole);
+                              loadCollaborators();
+                              setOpenMenu(null);
+                            }}>
+                              Make {c.role === "Editor" ? "Viewer" : "Editor"}
+                            </button>
+                            <button onClick={() => { handleRemoveCollaborator(c.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2262,8 +2464,9 @@ export function FilesScreen({
                     defaultValue={localProject.title}
                     className="sp-input"
                     style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box" }}
+                    readOnly={!isOwner}
                     onBlur={(e) => {
-                      if (e.target.value.trim()) persist({ ...localProject, title: e.target.value.trim() });
+                      if (isOwner && e.target.value.trim()) persist({ ...localProject, title: e.target.value.trim() });
                     }}
                   />
                 </div>
@@ -2274,8 +2477,9 @@ export function FilesScreen({
                     className="sp-input"
                     rows={3}
                     style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box", resize: "none" }}
+                    readOnly={!isOwner}
                     onBlur={(e) => {
-                      persist({ ...localProject, description: e.target.value.trim() });
+                      if (isOwner) persist({ ...localProject, description: e.target.value.trim() });
                     }}
                   />
                 </div>
@@ -2294,13 +2498,15 @@ export function FilesScreen({
             <FileText size={20} />
             <span>Scripts</span>
           </button>
-          <button className="sp-ws-mobile-nav-fab" onClick={() => {
-            setNewFileType("script");
-            setNewFileTitle("");
-            setShowAddFileModal(true);
-          }}>
-            <Plus size={24} />
-          </button>
+          {hasWriteAccess && (
+            <button className="sp-ws-mobile-nav-fab" onClick={() => {
+              setNewFileType("script");
+              setNewFileTitle("");
+              setShowAddFileModal(true);
+            }}>
+              <Plus size={24} />
+            </button>
+          )}
           <button className="sp-ws-mobile-nav-item" onClick={() => navigate("/explore")}>
             <Search size={20} />
             <span>Explore</span>
@@ -2348,7 +2554,7 @@ export function FilesScreen({
                 <h3 className="sp-newfile-modal-title">Add file</h3>
                 <p className="sp-newfile-modal-subtitle">Choose a file type for this project</p>
               </div>
-              <button 
+              <button
                 onClick={() => setShowAddFileModal(false)}
                 style={{ background: "transparent", border: "none", color: "#8e8e93", fontSize: 18, cursor: "pointer" }}
               >
@@ -2358,7 +2564,7 @@ export function FilesScreen({
 
             <div className="sp-newfile-cards-grid">
               {/* Script selector */}
-              <div 
+              <div
                 className={`sp-newfile-type-card ${newFileType === "script" ? "selected" : ""}`}
                 onClick={() => setNewFileType("script")}
               >
@@ -2379,7 +2585,7 @@ export function FilesScreen({
               </div>
 
               {/* Idea selector */}
-              <div 
+              <div
                 className={`sp-newfile-type-card ${newFileType === "idea" ? "selected" : ""}`}
                 onClick={() => setNewFileType("idea")}
               >
@@ -2400,7 +2606,7 @@ export function FilesScreen({
               </div>
 
               {/* Outline selector */}
-              <div 
+              <div
                 className={`sp-newfile-type-card ${newFileType === "outline" ? "selected" : ""}`}
                 onClick={() => setNewFileType("outline")}
               >
@@ -2421,7 +2627,7 @@ export function FilesScreen({
               </div>
 
               {/* Character selector */}
-              <div 
+              <div
                 className={`sp-newfile-type-card ${newFileType === "character" ? "selected" : ""}`}
                 onClick={() => setNewFileType("character")}
               >
@@ -2444,7 +2650,7 @@ export function FilesScreen({
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", letterSpacing: "0.05em" }}>File Name</label>
-              <input 
+              <input
                 className="sp-input"
                 placeholder="e.g. Act One Draft or Cole Profile"
                 value={newFileTitle}
@@ -2457,15 +2663,15 @@ export function FilesScreen({
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
-              <button 
-                className="sp-btn" 
+              <button
+                className="sp-btn"
                 onClick={() => setShowAddFileModal(false)}
                 style={{ padding: "8px 16px" }}
               >
                 Cancel
               </button>
-              <button 
-                className="sp-btn sp-btn-primary" 
+              <button
+                className="sp-btn sp-btn-primary"
                 onClick={handleCreateFile}
                 disabled={!newFileTitle.trim()}
                 style={{ padding: "8px 16px" }}

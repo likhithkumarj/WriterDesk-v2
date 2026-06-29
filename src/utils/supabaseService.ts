@@ -108,13 +108,13 @@ export const supabaseService = {
 
       const projectsList: any[] = [];
       if (ownedData) {
-        projectsList.push(...ownedData);
+        projectsList.push(...ownedData.map((p: any) => ({ ...p, ownerId: p.user_id })));
       }
 
       if (collabData) {
         collabData.forEach((c: any) => {
           if (c.projects && !projectsList.some((p) => p.id === c.projects.id)) {
-            projectsList.push(c.projects);
+            projectsList.push({ ...c.projects, ownerId: c.projects.user_id });
           }
         });
       }
@@ -129,6 +129,7 @@ export const supabaseService = {
         type: p.type || "",
         genre: p.genre || "",
         status: p.status || "",
+        ownerId: p.ownerId,
         files: (p.files || []).map((f: any) => ({
           id: f.id,
           title: f.title,
@@ -209,23 +210,27 @@ export const supabaseService = {
       let syncSuccess = true;
 
       for (const p of newStore.projects) {
-        // Upsert project metadata
-        const { error: projErr } = await supabase.from("projects").upsert({
-          id: p.id,
-          title: p.title,
-          description: p.description,
-          user_id: supabaseUser.id,
-          date_created: new Date(p.dateCreated).toISOString(),
-          date_modified: new Date(p.dateModified).toISOString(),
-          type: p.type || null,
-          genre: p.genre || null,
-          status: p.status || null,
-        });
+        const isOwner = !p.ownerId || p.ownerId === supabaseUser.id;
+        
+        if (isOwner) {
+          // Upsert project metadata
+          const { error: projErr } = await supabase.from("projects").upsert({
+            id: p.id,
+            title: p.title,
+            description: p.description,
+            user_id: p.ownerId || supabaseUser.id,
+            date_created: new Date(p.dateCreated).toISOString(),
+            date_modified: new Date(p.dateModified).toISOString(),
+            type: p.type || null,
+            genre: p.genre || null,
+            status: p.status || null,
+          });
 
-        if (projErr) {
-          console.error("Sync error upserting project:", p.id, projErr);
-          syncSuccess = false;
-          continue;
+          if (projErr) {
+            console.error("Sync error upserting project:", p.id, projErr);
+            syncSuccess = false;
+            continue;
+          }
         }
 
         // Upsert files inside project
@@ -311,7 +316,7 @@ export const supabaseService = {
   async fetchCollaborators(projectId: string) {
     return supabase
       .from("collaborators")
-      .select("id, invited_email, status")
+      .select("id, invited_email, status, user_id, role")
       .eq("project_id", projectId);
   },
 
@@ -323,7 +328,15 @@ export const supabaseService = {
         invited_email: email,
         user_id: userId,
         status: "pending",
+        role: "Viewer", // DEFAULT Viewer
       });
+  },
+
+  async updateCollaboratorRole(collabId: string, role: "Editor" | "Viewer") {
+    return supabase
+      .from("collaborators")
+      .update({ role })
+      .eq("id", collabId);
   },
 
   async removeCollaborator(collabId: string) {

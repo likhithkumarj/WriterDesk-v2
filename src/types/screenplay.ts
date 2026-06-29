@@ -69,6 +69,7 @@ export interface Project {
   type?: string;
   genre?: string;
   status?: string;
+  ownerId?: string;
 }
 
 export interface Store {

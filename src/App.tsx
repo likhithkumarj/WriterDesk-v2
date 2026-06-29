@@ -18,6 +18,7 @@ import { supabaseService } from "./utils/supabaseService";
 import { Analytics } from "@vercel/analytics/react";
 
 interface UserProfile {
+  id?: string;
   name: string;
   email: string;
   avatar: string;
@@ -76,6 +77,7 @@ function AppContent() {
     supabaseService.getSession().then((session) => {
       if (session?.user) {
         const profile = {
+          id: session.user.id,
           name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
           email: session.user.email || "",
           avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
@@ -94,6 +96,7 @@ function AppContent() {
     const { data: { subscription } } = supabaseService.onAuthStateChange((event, session) => {
       if (session?.user) {
         const profile = {
+          id: session.user.id,
           name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
           email: session.user.email || "",
           avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
