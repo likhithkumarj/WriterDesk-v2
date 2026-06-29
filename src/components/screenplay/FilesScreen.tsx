@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Project, FileDoc } from "../../types/screenplay";
+import { Project, FileDoc, OutlineNode } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { parseFountain } from "../../utils/import";
 import { paginate } from "../../utils/pagination";
@@ -552,7 +552,7 @@ export function FilesScreen({
       const sumNodeWords = (node: OutlineNode): number => {
         let count = (node.title || "").split(/\s+/).filter(Boolean).length + (node.content || "").split(/\s+/).filter(Boolean).length;
         if (node.children) {
-          count += node.children.reduce((sum, child) => sum + sumNodeWords(child), 0);
+          count += node.children.reduce((sum: number, child: OutlineNode) => sum + sumNodeWords(child), 0);
         }
         return count;
       };
