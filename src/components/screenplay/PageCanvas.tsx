@@ -18,6 +18,7 @@ export function PageCanvas({
   deleteBlock,
   cycleType,
   showBlockBars,
+  readOnly = false,
 }: {
   pages: Block[][];
   file: FileDoc;
@@ -32,6 +33,7 @@ export function PageCanvas({
   deleteBlock: (id: string) => void;
   cycleType: (id: string) => void;
   showBlockBars: boolean;
+  readOnly?: boolean;
 }) {
   const hasTitlePage = !!(file.titlePage && file.titlePage.title.trim());
 
@@ -64,6 +66,7 @@ export function PageCanvas({
                   onBackspaceEmpty={() => deleteBlock(b.id)}
                   onTab={() => cycleType(b.id)}
                   showBlockBars={showBlockBars}
+                  readOnly={readOnly}
                 />
               ))}
             </div>

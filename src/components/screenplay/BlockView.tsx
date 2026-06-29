@@ -3,7 +3,7 @@ import { Block, Suggestion } from "../../types/screenplay";
 import { TYPE_LABEL } from "../../utils/formatting";
 
 export function BlockView({
-  block, focused, sceneNumber, suggestions, onFocus, onChange, onBlur, onEnter, onBackspaceEmpty, onTab, onAcceptSuggestion, showBlockBars,
+  block, focused, sceneNumber, suggestions, onFocus, onChange, onBlur, onEnter, onBackspaceEmpty, onTab, onAcceptSuggestion, showBlockBars, readOnly = false,
 }: {
   block: Block; focused: boolean; sceneNumber?: number;
   suggestions: Suggestion[];
@@ -11,6 +11,7 @@ export function BlockView({
   onEnter: () => void; onBackspaceEmpty: () => void; onTab: () => void;
   onAcceptSuggestion: (insert: string) => void;
   showBlockBars: boolean;
+  readOnly?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [sugIdx, setSugIdx] = useState(0);
@@ -49,9 +50,10 @@ export function BlockView({
   // reset selection when suggestion list changes
   useEffect(() => { setSugIdx(0); setSugOpen(true); }, [block.text, block.type]);
 
-  const showSug = focused && sugOpen && suggestions.length > 0;
+  const showSug = focused && sugOpen && suggestions.length > 0 && !readOnly;
 
   const accept = (i: number) => {
+    if (readOnly) return;
     const s = suggestions[i];
     if (!s) return;
     if (ref.current) {
@@ -69,6 +71,10 @@ export function BlockView({
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (readOnly) {
+      e.preventDefault();
+      return;
+    }
     if (showSug) {
       if (e.key === "ArrowDown") { e.preventDefault(); setSugIdx((i) => (i + 1) % suggestions.length); return; }
       if (e.key === "ArrowUp")   { e.preventDefault(); setSugIdx((i) => (i - 1 + suggestions.length) % suggestions.length); return; }
@@ -103,11 +109,16 @@ export function BlockView({
         data-block-id={block.id}
         data-type={block.type}
         data-placeholder={block.type === "scene" ? "INT. LOCATION - DAY" : ""}
-        contentEditable
+        contentEditable={!readOnly}
         suppressContentEditableWarning
         onFocus={() => { onFocus(); setSugOpen(true); }}
-        onInput={(e) => { setSugOpen(true); onChange((e.target as HTMLDivElement).innerHTML); }}
+        onInput={(e) => {
+          if (readOnly) return;
+          setSugOpen(true);
+          onChange((e.target as HTMLDivElement).innerHTML);
+        }}
         onBlur={(e) => {
+          if (readOnly) return;
           const val = (e.target as HTMLDivElement).innerHTML;
           onChange(val);
           onBlur(val);

@@ -42,14 +42,15 @@ interface Comment {
 }
 
 export function EditorScreen({
-  project, initialFileId, user, back, persistFile, addFiles,
+  project, initialFileId, user, back, persistFile, addFiles, readOnly = false,
 }: { 
   project: Project; 
   initialFileId: string;
   user: { name: string; email: string; avatar: string }; 
   back: () => void; 
   persistFile: (f: FileDoc) => void; 
-  addFiles: (newFiles: FileDoc[], openId?: string) => void 
+  addFiles: (newFiles: FileDoc[], openId?: string) => void;
+  readOnly?: boolean;
 }) {
 
   const navigate = useNavigate();
@@ -311,10 +312,12 @@ export function EditorScreen({
   }, [urlFileId]);
 
   const updateBlock = (id: string, patch: Partial<Block>) => {
+    if (readOnly) return;
     setBlocks(blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   };
 
   const applyFormat = (command: "bold" | "italic" | "underline") => {
+    if (readOnly) return;
     document.execCommand(command);
     if (focusedId) {
       const el = document.querySelector(`[data-block-id="${focusedId}"]`) as HTMLDivElement | null;
@@ -325,6 +328,7 @@ export function EditorScreen({
   };
 
   const insertAfter = (id: string, type: BlockType) => {
+    if (readOnly) return;
     const idx = blocks.findIndex((b) => b.id === id);
     const nb: Block = { id: uid(), type, text: "" };
     const next = [...blocks.slice(0, idx + 1), nb, ...blocks.slice(idx + 1)];
@@ -333,6 +337,7 @@ export function EditorScreen({
   };
 
   const deleteBlock = (id: string) => {
+    if (readOnly) return;
     const idx = blocks.findIndex((b) => b.id === id);
     if (idx <= 0) return;
     const next = blocks.filter((b) => b.id !== id);
@@ -341,6 +346,7 @@ export function EditorScreen({
   };
 
   const cycleType = (id: string) => {
+    if (readOnly) return;
     const b = blocks.find((x) => x.id === id); if (!b) return;
     const i = TYPE_ORDER.indexOf(b.type);
     const nextType = TYPE_ORDER[(i + 1) % TYPE_ORDER.length];
@@ -348,12 +354,14 @@ export function EditorScreen({
   };
 
   const setType = (id: string, type: BlockType) => {
+    if (readOnly) return;
     const b = blocks.find((x) => x.id === id); if (!b) return;
     updateBlock(id, { type, text: normalizeText(type, b.text) });
   };
 
   // Global key bindings
   useEffect(() => {
+    if (readOnly) return;
     const h = (e: KeyboardEvent) => {
       // Handle delete/backspace/typing when selection spans multiple blocks
       const sel = window.getSelection();
@@ -709,6 +717,7 @@ export function EditorScreen({
 
   // Add scene helper
   const handleAddSceneBlock = () => {
+    if (readOnly) return;
     const newScene: Block = { id: uid(), type: "scene", text: "INT. NEW LOCATION - DAY" };
     setBlocks([...blocks, newScene]);
     setTimeout(() => scrollToBlock(newScene.id), 50);
@@ -1403,6 +1412,7 @@ export function EditorScreen({
               deleteBlock={deleteBlock}
               cycleType={cycleType}
               showBlockBars={showBlockBars}
+              readOnly={readOnly}
             />
           </div>
 

@@ -85,7 +85,8 @@ export function OutlineEditor({
   user,
   back,
   persistFile,
-}: OutlineEditorProps) {
+  readOnly = false,
+}: OutlineEditorProps & { readOnly?: boolean }) {
   const [tree, setTree] = useState<OutlineNode[]>(file.outlineTree || defaultOutline);
   const [selectedId, setSelectedId] = useState<string>("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -375,39 +376,41 @@ export function OutlineEditor({
           </span>
 
           {/* Quick Actions overlay on hover */}
-          <div className="sp-outline-actions-overlay">
-            {/* Move Up/Down */}
-            <button className="sp-outline-mini-btn" onClick={(e) => handleMoveNode(node.id, "up", e)} title="Move Up">
-              <ArrowUp size={11} />
-            </button>
-            <button className="sp-outline-mini-btn" onClick={(e) => handleMoveNode(node.id, "down", e)} title="Move Down">
-              <ArrowDown size={11} />
-            </button>
-            <div style={{ width: 1, height: 12, background: "#282830" }} />
-            
-            {/* Add Child Node triggers */}
-            {node.type === "act" && (
-              <button className="sp-outline-mini-btn add" onClick={(e) => { e.stopPropagation(); handleAddChildNode(node.id, "sequence"); }} title="Add Sequence">
-                <Film size={11} />+
+          {!readOnly && (
+            <div className="sp-outline-actions-overlay">
+              {/* Move Up/Down */}
+              <button className="sp-outline-mini-btn" onClick={(e) => handleMoveNode(node.id, "up", e)} title="Move Up">
+                <ArrowUp size={11} />
               </button>
-            )}
-            {node.type === "sequence" && (
-              <button className="sp-outline-mini-btn add" onClick={(e) => { e.stopPropagation(); handleAddChildNode(node.id, "beat"); }} title="Add Beat">
-                <Zap size={11} />+
+              <button className="sp-outline-mini-btn" onClick={(e) => handleMoveNode(node.id, "down", e)} title="Move Down">
+                <ArrowDown size={11} />
               </button>
-            )}
-            {node.type === "beat" && (
-              <button className="sp-outline-mini-btn add" onClick={(e) => { e.stopPropagation(); handleAddChildNode(node.id, "note"); }} title="Add Note">
-                <FileText size={11} />+
+              <div style={{ width: 1, height: 12, background: "#282830" }} />
+              
+              {/* Add Child Node triggers */}
+              {node.type === "act" && (
+                <button className="sp-outline-mini-btn add" onClick={(e) => { e.stopPropagation(); handleAddChildNode(node.id, "sequence"); }} title="Add Sequence">
+                  <Film size={11} />+
+                </button>
+              )}
+              {node.type === "sequence" && (
+                <button className="sp-outline-mini-btn add" onClick={(e) => { e.stopPropagation(); handleAddChildNode(node.id, "beat"); }} title="Add Beat">
+                  <Zap size={11} />+
+                </button>
+              )}
+              {node.type === "beat" && (
+                <button className="sp-outline-mini-btn add" onClick={(e) => { e.stopPropagation(); handleAddChildNode(node.id, "note"); }} title="Add Note">
+                  <FileText size={11} />+
+                </button>
+              )}
+              <div style={{ width: 1, height: 12, background: "#282830" }} />
+              
+              {/* Delete */}
+              <button className="sp-outline-mini-btn delete" onClick={(e) => handleDeleteNode(node.id, e)} title="Delete Node">
+                <Trash2 size={11} />
               </button>
-            )}
-            <div style={{ width: 1, height: 12, background: "#282830" }} />
-            
-            {/* Delete */}
-            <button className="sp-outline-mini-btn delete" onClick={(e) => handleDeleteNode(node.id, e)} title="Delete Node">
-              <Trash2 size={11} />
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Children render */}
@@ -833,9 +836,11 @@ export function OutlineEditor({
               <Check size={12} /> Changes Saved
             </span>
           )}
-          <button className="sp-ws-btn-share" onClick={() => triggerSave(tree)} style={{ height: 32, display: "flex", alignItems: "center", padding: "0 12px" }}>
-            <Save size={13} /> Save Now
-          </button>
+          {!readOnly && (
+            <button className="sp-ws-btn-share" onClick={() => triggerSave(tree)} style={{ height: 32, display: "flex", alignItems: "center", padding: "0 12px" }}>
+              <Save size={13} /> Save Now
+            </button>
+          )}
         </div>
       </nav>
 
@@ -863,10 +868,12 @@ export function OutlineEditor({
         {/* Left Tree Panel */}
         <section className="sp-outline-tree-panel">
           <div className="sp-outline-tree-toolbar">
-            <button className="sp-btn sp-btn-primary" onClick={handleAddRootAct} style={{ height: 32, padding: "0 12px" }}>
-              <Plus size={13} /> Add Act
-            </button>
-            <div style={{ display: "flex", gap: 8 }}>
+            {!readOnly && (
+              <button className="sp-btn sp-btn-primary" onClick={handleAddRootAct} style={{ height: 32, padding: "0 12px" }}>
+                <Plus size={13} /> Add Act
+              </button>
+            )}
+            <div style={{ display: "flex", gap: 8, marginLeft: readOnly ? 0 : "auto" }}>
               <button className="sp-btn sp-btn-ghost" onClick={handleCollapseAll} style={{ fontSize: 11, height: 28, padding: "0 8px" }}>
                 Collapse All
               </button>
@@ -900,6 +907,7 @@ export function OutlineEditor({
                 <select 
                   value={selectedNode.type}
                   onChange={(e) => handleUpdateNode(selectedNode.id, { type: e.target.value as any })}
+                  disabled={readOnly}
                 >
                   <option value="act">Act (Highest Hierarchy)</option>
                   <option value="sequence">Sequence (Mid Hierarchy)</option>
@@ -916,6 +924,7 @@ export function OutlineEditor({
                   value={selectedNode.title}
                   placeholder={`Unnamed ${selectedNode.type}`}
                   onChange={(e) => handleUpdateNode(selectedNode.id, { title: e.target.value })}
+                  readOnly={readOnly}
                 />
               </div>
 
@@ -926,6 +935,7 @@ export function OutlineEditor({
                   value={selectedNode.content || ""}
                   placeholder="Outline the story points, action sequence, characters present, dialogue hooks, or scene beats here..."
                   onChange={(e) => handleUpdateNode(selectedNode.id, { content: e.target.value })}
+                  readOnly={readOnly}
                 />
               </div>
 

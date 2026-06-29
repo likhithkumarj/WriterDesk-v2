@@ -19,7 +19,8 @@ export function CharacterEditor({
   user,
   back,
   persistFile,
-}: CharacterEditorProps) {
+  readOnly = false,
+}: CharacterEditorProps & { readOnly?: boolean }) {
   const [characters, setCharacters] = useState<CharacterRecord[]>(file.characters || []);
   const [selectedId, setSelectedId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -66,6 +67,7 @@ export function CharacterEditor({
   };
 
   const handleAddCharacter = () => {
+    if (readOnly) return;
     const newChar: CharacterRecord = {
       id: "char_" + Date.now() + Math.random().toString(36).substring(2, 5),
       name: "New Character",
@@ -88,6 +90,7 @@ export function CharacterEditor({
 
   const handleDeleteCharacter = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (readOnly) return;
     if (!window.confirm("Are you sure you want to delete this character?")) return;
 
     const newChars = characters.filter((c) => c.id !== id);
@@ -700,9 +703,11 @@ export function CharacterEditor({
               <Check size={12} /> Changes Saved
             </span>
           )}
-          <button className="sp-ws-btn-share" onClick={() => triggerSave(characters)} style={{ height: 32, display: "flex", alignItems: "center", padding: "0 12px" }}>
-            <Save size={13} /> Save Now
-          </button>
+          {!readOnly && (
+            <button className="sp-ws-btn-share" onClick={() => triggerSave(characters)} style={{ height: 32, display: "flex", alignItems: "center", padding: "0 12px" }}>
+              <Save size={13} /> Save Now
+            </button>
+          )}
         </div>
       </nav>
 
@@ -736,9 +741,11 @@ export function CharacterEditor({
           <User size={48} className="animate-pulse" style={{ color: "#E8B84B" }} />
           <div className="sp-char-empty-title">No characters added yet</div>
           <p style={{ fontSize: 13, margin: "0 0 10px 0" }}>Start building your cast profile and design worksheets for comparisons.</p>
-          <button className="sp-btn sp-btn-primary" onClick={handleAddCharacter}>
-            <Plus size={14} /> Add First Character
-          </button>
+          {!readOnly && (
+            <button className="sp-btn sp-btn-primary" onClick={handleAddCharacter}>
+              <Plus size={14} /> Add First Character
+            </button>
+          )}
         </div>
       ) : (
         <div className="sp-char-workspace">
@@ -754,9 +761,11 @@ export function CharacterEditor({
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <button className="sp-btn sp-btn-primary" onClick={handleAddCharacter} style={{ width: "100%", height: 36 }}>
-                <Plus size={14} /> Add Character
-              </button>
+              {!readOnly && (
+                <button className="sp-btn sp-btn-primary" onClick={handleAddCharacter} style={{ width: "100%", height: 36 }}>
+                  <Plus size={14} /> Add Character
+                </button>
+              )}
             </div>
 
             <div className="sp-char-list">
@@ -770,9 +779,11 @@ export function CharacterEditor({
                     <span className="sp-char-item-name">{char.name || "Unnamed"}</span>
                     <span className="sp-char-item-role">{char.role || "No Role Specified"}</span>
                   </div>
-                  <button className="sp-char-delete-btn" onClick={(e) => handleDeleteCharacter(char.id, e)} title="Delete Character">
-                    <Trash2 size={13} />
-                  </button>
+                  {!readOnly && (
+                    <button className="sp-char-delete-btn" onClick={(e) => handleDeleteCharacter(char.id, e)} title="Delete Character">
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               ))}
               {filteredCharacters.length === 0 && (
@@ -821,6 +832,7 @@ export function CharacterEditor({
                           value={selectedChar.name} 
                           placeholder="Character Name"
                           onChange={(e) => handleUpdateField(selectedChar.id, "name", e.target.value)}
+                          readOnly={readOnly}
                         />
                       </div>
                       <div className="sp-char-field-group">
@@ -829,6 +841,7 @@ export function CharacterEditor({
                           value={selectedChar.role} 
                           placeholder="e.g. Protagonist, Antagonist, Sidekick"
                           onChange={(e) => handleUpdateField(selectedChar.id, "role", e.target.value)}
+                          readOnly={readOnly}
                         />
                       </div>
                     </div>
@@ -845,6 +858,7 @@ export function CharacterEditor({
                         placeholder="Provide a brief paragraph summary of the character..."
                         onChange={(e) => handleUpdateField(selectedChar.id, "summary", e.target.value)}
                         style={{ minHeight: "70px" }}
+                        readOnly={readOnly}
                       />
                     </div>
 
@@ -856,6 +870,7 @@ export function CharacterEditor({
                         value={selectedChar.personality} 
                         placeholder="Temperament, habits, strengths, weaknesses, speech patterns..."
                         onChange={(e) => handleUpdateField(selectedChar.id, "personality", e.target.value)}
+                        readOnly={readOnly}
                       />
                     </div>
 
@@ -867,6 +882,7 @@ export function CharacterEditor({
                         value={selectedChar.goals} 
                         placeholder="What do they consciously want to achieve in the narrative?"
                         onChange={(e) => handleUpdateField(selectedChar.id, "goals", e.target.value)}
+                        readOnly={readOnly}
                       />
                     </div>
 
@@ -878,6 +894,7 @@ export function CharacterEditor({
                         value={selectedChar.fears} 
                         placeholder="What do they fear most? What are they trying to avoid?"
                         onChange={(e) => handleUpdateField(selectedChar.id, "fears", e.target.value)}
+                        readOnly={readOnly}
                       />
                     </div>
 
@@ -889,6 +906,7 @@ export function CharacterEditor({
                         value={selectedChar.motivations} 
                         placeholder="Why do they want what they want? What drives them?"
                         onChange={(e) => handleUpdateField(selectedChar.id, "motivations", e.target.value)}
+                        readOnly={readOnly}
                       />
                     </div>
 
@@ -900,6 +918,7 @@ export function CharacterEditor({
                         value={selectedChar.backstory} 
                         placeholder="Significant events from their past that shape who they are today..."
                         onChange={(e) => handleUpdateField(selectedChar.id, "backstory", e.target.value)}
+                        readOnly={readOnly}
                       />
                     </div>
 
@@ -911,6 +930,7 @@ export function CharacterEditor({
                         value={selectedChar.relationships} 
                         placeholder="How do they relate to others? (e.g. allies, enemies, love interest)..."
                         onChange={(e) => handleUpdateField(selectedChar.id, "relationships", e.target.value)}
+                        readOnly={readOnly}
                       />
                     </div>
 
@@ -922,6 +942,7 @@ export function CharacterEditor({
                         value={selectedChar.actions || ""} 
                         placeholder="What key choices do they make that drive the plot forward?"
                         onChange={(e) => handleUpdateField(selectedChar.id, "actions", e.target.value)}
+                        readOnly={readOnly}
                       />
                     </div>
                   </div>

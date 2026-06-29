@@ -16,7 +16,8 @@ export function IdeaEditor({
   user,
   back,
   persistFile,
-}: IdeaEditorProps) {
+  readOnly = false,
+}: IdeaEditorProps & { readOnly?: boolean }) {
   const [title, setTitle] = useState(file.title);
   const [content, setContent] = useState(file.content || "");
   const [tags, setTags] = useState<string[]>(() => {
@@ -353,29 +354,33 @@ export function IdeaEditor({
               <Check size={12} /> Changes Saved
             </span>
           )}
-          <button className="sp-ws-btn-share" onClick={() => triggerSave(title, content, tags)} style={{ height: 32, display: "flex", alignItems: "center", padding: "0 12px" }}>
-            <Save size={13} /> Save Now
-          </button>
+          {!readOnly && (
+            <button className="sp-ws-btn-share" onClick={() => triggerSave(title, content, tags)} style={{ height: 32, display: "flex", alignItems: "center", padding: "0 12px" }}>
+              <Save size={13} /> Save Now
+            </button>
+          )}
         </div>
       </nav>
 
       {/* Formatting Toolbar */}
-      <div className="sp-idea-toolbar">
-        <button className="sp-idea-tool-btn" onClick={() => executeCmd("bold")} title="Bold (Ctrl+B)"><Bold size={14} /></button>
-        <button className="sp-idea-tool-btn" onClick={() => executeCmd("italic")} title="Italic (Ctrl+I)"><Italic size={14} /></button>
-        <div className="sp-idea-tool-divider" />
-        <button className="sp-idea-tool-btn" onClick={() => executeCmd("formatBlock", "h1")} title="Heading 1"><Heading1 size={14} /></button>
-        <button className="sp-idea-tool-btn" onClick={() => executeCmd("formatBlock", "h2")} title="Heading 2"><Heading2 size={14} /></button>
-        <button className="sp-idea-tool-btn" onClick={() => executeCmd("formatBlock", "h3")} title="Heading 3"><Heading3 size={14} /></button>
-        <div className="sp-idea-tool-divider" />
-        <button className="sp-idea-tool-btn" onClick={() => executeCmd("insertUnorderedList")} title="Unordered List"><List size={14} /></button>
-        <button className="sp-idea-tool-btn" onClick={insertChecklist} title="Add Checklist Item"><CheckSquare size={14} /></button>
-        <div className="sp-idea-tool-divider" />
-        <button className="sp-idea-tool-btn" onClick={insertLink} title="Insert Hyperlink"><Link size={14} /></button>
-        <button className="sp-idea-tool-btn" onClick={insertImage} title="Insert Image"><Image size={14} /></button>
-        <div className="sp-idea-tool-divider" />
-        <button className="sp-idea-tool-btn" onClick={() => executeCmd("removeFormat")} title="Clear Formatting"><Trash2 size={14} /></button>
-      </div>
+      {!readOnly && (
+        <div className="sp-idea-toolbar">
+          <button className="sp-idea-tool-btn" onClick={() => executeCmd("bold")} title="Bold (Ctrl+B)"><Bold size={14} /></button>
+          <button className="sp-idea-tool-btn" onClick={() => executeCmd("italic")} title="Italic (Ctrl+I)"><Italic size={14} /></button>
+          <div className="sp-idea-tool-divider" />
+          <button className="sp-idea-tool-btn" onClick={() => executeCmd("formatBlock", "h1")} title="Heading 1"><Heading1 size={14} /></button>
+          <button className="sp-idea-tool-btn" onClick={() => executeCmd("formatBlock", "h2")} title="Heading 2"><Heading2 size={14} /></button>
+          <button className="sp-idea-tool-btn" onClick={() => executeCmd("formatBlock", "h3")} title="Heading 3"><Heading3 size={14} /></button>
+          <div className="sp-idea-tool-divider" />
+          <button className="sp-idea-tool-btn" onClick={() => executeCmd("insertUnorderedList")} title="Unordered List"><List size={14} /></button>
+          <button className="sp-idea-tool-btn" onClick={insertChecklist} title="Add Checklist Item"><CheckSquare size={14} /></button>
+          <div className="sp-idea-tool-divider" />
+          <button className="sp-idea-tool-btn" onClick={insertLink} title="Insert Hyperlink"><Link size={14} /></button>
+          <button className="sp-idea-tool-btn" onClick={insertImage} title="Insert Image"><Image size={14} /></button>
+          <div className="sp-idea-tool-divider" />
+          <button className="sp-idea-tool-btn" onClick={() => executeCmd("removeFormat")} title="Clear Formatting"><Trash2 size={14} /></button>
+        </div>
+      )}
 
       {/* Document Workspace */}
       <div className="sp-idea-body-scroll">
@@ -386,6 +391,7 @@ export function IdeaEditor({
             value={title}
             onChange={handleTitleChange}
             placeholder="Untitled Document"
+            readOnly={readOnly}
           />
 
           {/* Tags management row */}
@@ -393,23 +399,25 @@ export function IdeaEditor({
             {tags.map((tag) => (
               <span key={tag} className="sp-idea-tag-badge">
                 <Tag size={10} /> {tag}
-                <span className="sp-idea-tag-remove" onClick={() => handleRemoveTag(tag)}>✕</span>
+                {!readOnly && <span className="sp-idea-tag-remove" onClick={() => handleRemoveTag(tag)}>✕</span>}
               </span>
             ))}
-            <input 
-              className="sp-idea-tag-input"
-              placeholder="Add tag + press Enter"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleAddTag}
-            />
+            {!readOnly && (
+              <input 
+                className="sp-idea-tag-input"
+                placeholder="Add tag + press Enter"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleAddTag}
+              />
+            )}
           </div>
 
           {/* Editable Editor Area */}
           <div 
             ref={editorRef}
             className="sp-idea-richtext-editor"
-            contentEditable={true}
+            contentEditable={!readOnly}
             onInput={handleContentInput}
             style={{ minHeight: "60vh" }}
           />
