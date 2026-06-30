@@ -117,8 +117,8 @@ export function ExplorePage({
           }
 
           .sp-exp-hero {
-            background: linear-gradient(135deg, rgba(232, 184, 75, 0.1) 0%, rgba(15, 15, 17, 0) 100%);
-            border: 1px solid rgba(232, 184, 75, 0.15);
+            background: linear-gradient(135deg, rgba(var(--sp-accent-rgb), 0.1) 0%, rgba(15, 15, 17, 0) 100%);
+            border: 1px solid rgba(var(--sp-accent-rgb), 0.15);
             border-radius: 16px;
             padding: 32px;
             margin-bottom: 32px;
@@ -136,9 +136,9 @@ export function ExplorePage({
           }
 
           .sp-exp-hero-badge {
-            background-color: rgba(232, 184, 75, 0.08);
-            border: 1px solid rgba(232, 184, 75, 0.2);
-            color: #E8B84B;
+            background-color: rgba(var(--sp-accent-rgb), 0.08);
+            border: 1px solid rgba(var(--sp-accent-rgb), 0.2);
+            color: var(--sp-accent);
             font-size: 11px;
             font-weight: 700;
             padding: 4px 10px;
@@ -190,14 +190,14 @@ export function ExplorePage({
           }
 
           .sp-exp-chip:hover {
-            border-color: rgba(232, 184, 75, 0.25);
+            border-color: rgba(var(--sp-accent-rgb), 0.25);
             color: #efeff1;
           }
 
           .sp-exp-chip.active {
-            background-color: rgba(232, 184, 75, 0.08);
-            border-color: #E8B84B;
-            color: #E8B84B;
+            background-color: rgba(var(--sp-accent-rgb), 0.08);
+            border-color: var(--sp-accent);
+            color: var(--sp-accent);
           }
 
           .sp-exp-grid {
@@ -219,7 +219,7 @@ export function ExplorePage({
           }
 
           .sp-exp-card:hover {
-            border-color: rgba(232, 184, 75, 0.25);
+            border-color: rgba(var(--sp-accent-rgb), 0.25);
             background-color: #16161a;
           }
 
@@ -406,7 +406,7 @@ export function ExplorePage({
             </p>
           </div>
           <div style={{ paddingRight: 12 }}>
-            <Compass size={64} style={{ color: "#E8B84B", opacity: 0.8 }} />
+            <Compass size={64} style={{ color: "var(--sp-accent)", opacity: 0.8 }} />
           </div>
         </div>
 

@@ -153,7 +153,7 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
       .sp-block.no-bars {
         border-left-color: transparent !important;
       }
-      .sp-block[data-type="scene"]        { border-left-color: #E8B84B !important; font-weight: 700 !important; text-transform: uppercase !important; margin-top: 1.5em !important; margin-left: -7px !important; }
+      .sp-block[data-type="scene"]        { border-left-color: var(--sp-accent) !important; font-weight: 700 !important; text-transform: uppercase !important; margin-top: 1.5em !important; margin-left: -7px !important; }
       .sp-block[data-type="action"]       { border-left-color: #9CA3AF !important; margin-left: calc(4ch - 7px) !important; margin-top: 0.75em !important; }
       .sp-block[data-type="character"]    { border-left-color: #60A5FA !important; margin-left: calc(24ch - 7px) !important; text-transform: uppercase !important; margin-top: 1em !important; }
       .sp-block[data-type="parenthetical"]{ border-left-color: #34D399 !important; margin-left: calc(18ch - 7px) !important; }

@@ -53,7 +53,7 @@ export function ZoomControls({
           borderRadius: 999,
           transition: "background 0.12s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,184,75,0.15)")}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(var(--sp-accent-rgb),0.15)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
       >
         −
@@ -76,7 +76,7 @@ export function ZoomControls({
           borderRadius: 999,
           transition: "background 0.12s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,184,75,0.15)")}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(var(--sp-accent-rgb),0.15)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
       >
         {Math.round(pageScale * 100)}%
@@ -97,7 +97,7 @@ export function ZoomControls({
           borderRadius: 999,
           transition: "background 0.12s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(232,184,75,0.15)")}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(var(--sp-accent-rgb),0.15)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
       >
         +

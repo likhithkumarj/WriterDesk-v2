@@ -329,7 +329,7 @@ export function OutlineEditor({
 
   const getNodeIcon = (type: string) => {
     switch (type) {
-      case "act": return <Layers size={14} style={{ color: "#E8B84B" }} />;
+      case "act": return <Layers size={14} style={{ color: "var(--sp-accent)" }} />;
       case "sequence": return <Film size={14} style={{ color: "#38bdf8" }} />;
       case "beat": return <Zap size={14} style={{ color: "#a855f7" }} />;
       default: return <FileText size={14} style={{ color: "#9ca3af" }} />;
@@ -489,7 +489,7 @@ export function OutlineEditor({
           border-radius: 4px;
         }
 
-        .sp-outline-metric-badge.act { background: rgba(232, 184, 75, 0.08); border: 1px solid rgba(232, 184, 75, 0.15); color: #E8B84B; }
+        .sp-outline-metric-badge.act { background: rgba(var(--sp-accent-rgb), 0.08); border: 1px solid rgba(var(--sp-accent-rgb), 0.15); color: var(--sp-accent); }
         .sp-outline-metric-badge.sequence { background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.15); color: #38bdf8; }
         .sp-outline-metric-badge.beat { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.15); color: #a855f7; }
         .sp-outline-metric-badge.note { background: rgba(156, 163, 175, 0.08); border: 1px solid rgba(156, 163, 175, 0.15); color: #9ca3af; }
@@ -567,8 +567,8 @@ export function OutlineEditor({
         }
 
         .sp-outline-node-row.selected {
-          background: rgba(232, 184, 75, 0.04);
-          border-color: rgba(232, 184, 75, 0.2);
+          background: rgba(var(--sp-accent-rgb), 0.04);
+          border-color: rgba(var(--sp-accent-rgb), 0.2);
           box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
         }
 
@@ -580,8 +580,8 @@ export function OutlineEditor({
           padding: 10px 14px;
         }
         .sp-outline-node-row.sp-depth-0.selected {
-          border-color: rgba(232, 184, 75, 0.25);
-          background: rgba(232, 184, 75, 0.05);
+          border-color: rgba(var(--sp-accent-rgb), 0.25);
+          background: rgba(var(--sp-accent-rgb), 0.05);
         }
 
         .sp-outline-chevron-container {
@@ -676,8 +676,8 @@ export function OutlineEditor({
         }
 
         .sp-outline-mini-btn.add:hover {
-          color: #E8B84B;
-          background: rgba(232, 184, 75, 0.08);
+          color: var(--sp-accent);
+          background: rgba(var(--sp-accent-rgb), 0.08);
         }
 
         .sp-outline-mini-btn.delete:hover {
@@ -703,7 +703,7 @@ export function OutlineEditor({
           font-weight: 700;
           font-size: 13px;
           text-transform: uppercase;
-          color: #E8B84B;
+          color: var(--sp-accent);
           letter-spacing: 0.05em;
           flex-shrink: 0;
         }
@@ -756,7 +756,7 @@ export function OutlineEditor({
 
         .sp-outline-group input:focus, 
         .sp-outline-group select:focus {
-          border-color: #E8B84B;
+          border-color: var(--sp-accent);
         }
 
         .sp-outline-group textarea {
@@ -777,7 +777,7 @@ export function OutlineEditor({
         }
 
         .sp-outline-group textarea:focus {
-          border-color: #E8B84B;
+          border-color: var(--sp-accent);
         }
 
         /* Empty state details */
@@ -828,11 +828,11 @@ export function OutlineEditor({
         <div className="sp-outline-navbar-right">
           {saveStatus === "saving" && (
             <span style={{ fontSize: 12, color: "#8e8e93", display: "flex", alignItems: "center", gap: 4 }}>
-              <span className="animate-pulse" style={{ width: 6, height: 6, background: "#E8B84B", borderRadius: "50%" }} /> Saving changes...
+              <span className="animate-pulse" style={{ width: 6, height: 6, background: "var(--sp-accent)", borderRadius: "50%" }} /> Saving changes...
             </span>
           )}
           {saveStatus === "saved" && (
-            <span style={{ fontSize: 12, color: "#E8B84B", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "var(--sp-accent)", display: "flex", alignItems: "center", gap: 4 }}>
               <Check size={12} /> Changes Saved
             </span>
           )}
@@ -896,7 +896,7 @@ export function OutlineEditor({
         {/* Right Details Panel */}
         <aside className="sp-outline-details-sidebar">
           <div className="sp-outline-details-header">
-            <FolderKanban size={15} style={{ color: "#E8B84B" }} /> Element Details
+            <FolderKanban size={15} style={{ color: "var(--sp-accent)" }} /> Element Details
           </div>
 
           {selectedNode ? (
@@ -940,7 +940,7 @@ export function OutlineEditor({
               </div>
 
               {/* Help tip block */}
-              <div style={{ background: "rgba(232, 184, 75, 0.03)", border: "1px dashed rgba(232, 184, 75, 0.1)", borderRadius: 8, padding: 12, fontSize: 11, color: "#8e8e93", lineHeight: 1.4 }}>
+              <div style={{ background: "rgba(var(--sp-accent-rgb), 0.03)", border: "1px dashed rgba(var(--sp-accent-rgb), 0.1)", borderRadius: 8, padding: 12, fontSize: 11, color: "#8e8e93", lineHeight: 1.4 }}>
                 💡 <strong>Outline Tips:</strong> Use Acts for main structural pillars, Sequences for narrative segments (e.g. Inciting Incident, Rising Action), Beats for individual plot points/actions, and Notes for drafting reference pointers. Sibling elements can be reordered using the arrow markers.
               </div>
             </div>

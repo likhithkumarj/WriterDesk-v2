@@ -112,10 +112,10 @@ export function NewProjectModal({
                     type="button"
                     onClick={() => toggleGenre(g)}
                     style={{
-                      background: isSelected ? "rgba(232, 184, 75, 0.08)" : "rgba(255, 255, 255, 0.02)",
-                      border: isSelected ? "1px solid #E8B84B" : "1px solid #232329",
+                      background: isSelected ? "rgba(var(--sp-accent-rgb), 0.08)" : "rgba(255, 255, 255, 0.02)",
+                      border: isSelected ? "1px solid var(--sp-accent)" : "1px solid #232329",
                       borderRadius: 20,
-                      color: isSelected ? "#E8B84B" : "#8e8e93",
+                      color: isSelected ? "var(--sp-accent)" : "#8e8e93",
                       padding: "4px 10px",
                       fontSize: 12,
                       fontWeight: 600,
@@ -139,10 +139,10 @@ export function NewProjectModal({
                   type="button"
                   onClick={() => toggleGenre(g)}
                   style={{
-                    background: "rgba(232, 184, 75, 0.08)",
-                    border: "1px solid #E8B84B",
+                    background: "rgba(var(--sp-accent-rgb), 0.08)",
+                    border: "1px solid var(--sp-accent)",
                     borderRadius: 20,
-                    color: "#E8B84B",
+                    color: "var(--sp-accent)",
                     padding: "4px 10px",
                     fontSize: 12,
                     fontWeight: 600,

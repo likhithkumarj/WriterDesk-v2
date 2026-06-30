@@ -61,7 +61,7 @@ export function ProfilePage({
 
           .sp-prof-banner {
             height: 120px;
-            background: linear-gradient(90deg, #E8B84B 0%, #a58029 100%);
+            background: linear-gradient(90deg, var(--sp-accent) 0%, #1D4ED8 100%);
             opacity: 0.85;
           }
 
@@ -193,7 +193,7 @@ export function ProfilePage({
           }
 
           .sp-prof-project-card:hover {
-            border-color: rgba(232, 184, 75, 0.25);
+            border-color: rgba(var(--sp-accent-rgb), 0.25);
             background-color: #16161a;
           }
 
@@ -217,7 +217,7 @@ export function ProfilePage({
 
           .sp-prof-badge-card.unlocked {
             opacity: 1;
-            border-color: rgba(232, 184, 75, 0.15);
+            border-color: rgba(var(--sp-accent-rgb), 0.15);
           }
 
           .sp-prof-badge-icon-box {
@@ -233,9 +233,9 @@ export function ProfilePage({
           }
 
           .sp-prof-badge-card.unlocked .sp-prof-badge-icon-box {
-            background-color: rgba(232, 184, 75, 0.08);
-            color: #E8B84B;
-            border: 1px solid rgba(232, 184, 75, 0.1);
+            background-color: rgba(var(--sp-accent-rgb), 0.08);
+            color: var(--sp-accent);
+            border: 1px solid rgba(var(--sp-accent-rgb), 0.1);
           }
 
           .sp-prof-badge-details {

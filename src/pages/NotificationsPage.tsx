@@ -167,7 +167,7 @@ export function NotificationsPage({
   const getIcon = (type: string) => {
     if (type === "like") return <Heart size={14} fill="#ef4444" color="#ef4444" />;
     if (type === "comment") return <MessageSquare size={14} color="#60a5fa" />;
-    if (type === "invite") return <UserPlus size={14} color="#E8B84B" />;
+    if (type === "invite") return <UserPlus size={14} color="var(--sp-accent)" />;
     return <Cloud size={14} color="#34d399" />;
   };
 
@@ -208,7 +208,7 @@ export function NotificationsPage({
 
           .sp-notif-action-link {
             font-size: 12px;
-            color: #E8B84B;
+            color: var(--sp-accent);
             font-weight: 600;
             background: none;
             border: none;
@@ -234,7 +234,7 @@ export function NotificationsPage({
           }
 
           .sp-notif-card:hover {
-            border-color: rgba(232, 184, 75, 0.15);
+            border-color: rgba(var(--sp-accent-rgb), 0.15);
             background-color: #16161a;
           }
 
@@ -245,7 +245,7 @@ export function NotificationsPage({
             top: 20px;
             bottom: 20px;
             width: 3px;
-            background-color: #E8B84B;
+            background-color: var(--sp-accent);
             border-radius: 0 4px 4px 0;
           }
 
@@ -292,9 +292,9 @@ export function NotificationsPage({
           }
 
           .sp-notif-btn-accept {
-            background-color: #E8B84B;
+            background-color: var(--sp-accent);
             color: #0f0f11;
-            border: 1px solid #E8B84B;
+            border: 1px solid var(--sp-accent);
             border-radius: 8px;
             padding: 6px 12px;
             font-size: 12px;
@@ -307,7 +307,7 @@ export function NotificationsPage({
           }
 
           .sp-notif-btn-accept:hover {
-            background-color: rgba(232, 184, 75, 0.85);
+            background-color: rgba(var(--sp-accent-rgb), 0.85);
           }
 
           .sp-notif-btn-decline {

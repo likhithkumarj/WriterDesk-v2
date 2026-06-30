@@ -267,7 +267,7 @@ export function MessagesPage({
           .sp-msg-thread-unread-dot {
             width: 6px;
             height: 6px;
-            background-color: #E8B84B;
+            background-color: var(--sp-accent);
             border-radius: 50%;
             flex-shrink: 0;
           }
@@ -356,7 +356,7 @@ export function MessagesPage({
           }
 
           .sp-msg-bubble-row.me .sp-msg-bubble {
-            background-color: #E8B84B;
+            background-color: var(--sp-accent);
             color: #0f0f11;
             font-weight: 600;
             border-top-right-radius: 2px;

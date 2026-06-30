@@ -1,4 +1,4 @@
-@import "tailwindcss" source(none);
+@import "tailwindcss";
 @source "../src";
 @import "tw-animate-css";
 
@@ -95,6 +95,17 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+
+  /* WriterDesk Theme Variables - Customize colors here! */
+  --sp-bg: #0f0f11;
+  --sp-toolbar: #18181c;
+  --sp-sidebar: #131316;
+  --sp-text: #efeff1;
+  --sp-border: #232329;
+  --sp-accent: #E8B84B;
+  --sp-accent-rgb: 232, 184, 75;
+  --sp-accent-hover: #e8a830;
+  --sp-muted: #8e8e93;
 }
 
 .dark {

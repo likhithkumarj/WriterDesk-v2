@@ -146,28 +146,28 @@ export function ProjectsScreen({
 
   // Helper values to map data exactly to mockup visual design
   const getProjectAccentColor = (title: string, index: number) => {
-    if (title === "Noir City") return "#E8B84B"; // Gold
+    if (title === "Noir City") return "var(--sp-accent)"; // Gold
     if (title === "Pilot EP1") return "#60A5FA"; // Blue
     if (title === "hiew") return "#34D399"; // Green
     if (title === "check 2") return "#8B5CF6"; // Purple
-    const colors = ["#E8B84B", "#60A5FA", "#34D399", "#8B5CF6"];
+    const colors = ["var(--sp-accent)", "#60A5FA", "#34D399", "#8B5CF6"];
     return colors[index % colors.length];
   };
 
   const getProjectStatusBadge = (p: Project) => {
     const s = (p.status || "").toLowerCase();
-    if (s === "active") return { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" };
+    if (s === "active") return { text: "Active", color: "var(--sp-accent)", bg: "rgba(var(--sp-accent-rgb), 0.08)" };
     if (s === "draft") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
     if (s === "new") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
     if (s === "empty") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
 
     // Fallback based on name/mock
-    if (p.title === "Noir City") return { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" };
+    if (p.title === "Noir City") return { text: "Active", color: "var(--sp-accent)", bg: "rgba(var(--sp-accent-rgb), 0.08)" };
     if (p.title === "Pilot EP1") return { text: "Draft", color: "#60A5FA", bg: "rgba(96, 165, 250, 0.08)" };
     if (p.title === "hiew") return { text: "New", color: "#34D399", bg: "rgba(52, 211, 153, 0.08)" };
     if (p.title === "check 2") return { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
     return p.files.length > 0
-      ? { text: "Active", color: "#E8B84B", bg: "rgba(232, 184, 75, 0.08)" }
+      ? { text: "Active", color: "var(--sp-accent)", bg: "rgba(var(--sp-accent-rgb), 0.08)" }
       : { text: "Empty", color: "#8e8e93", bg: "rgba(142, 142, 147, 0.08)" };
   };
 
@@ -320,14 +320,14 @@ export function ProjectsScreen({
           transition: all 0.15s ease;
         }
         .sp-db-icon-btn:hover {
-          border-color: #E8B84B;
+          border-color: var(--sp-accent);
           color: #efeff1;
           background: rgba(255, 255, 255, 0.02);
         }
 
         /* Banner Card */
         .sp-db-banner {
-          background: #E8B84B;
+          background: var(--sp-accent);
           border-radius: 16px;
           padding: 28px 36px;
           display: flex;
@@ -367,7 +367,7 @@ export function ProjectsScreen({
         .sp-db-btn-black {
           background: #0f0f11;
           border: 1px solid #0f0f11;
-          color: #E8B84B;
+          color: var(--sp-accent);
           padding: 10px 20px;
           border-radius: 10px;
           font-size: 13px;
@@ -418,18 +418,18 @@ export function ProjectsScreen({
           transition: all 0.15s ease;
         }
         .sp-db-action-card:hover {
-          border-color: rgba(232, 184, 75, 0.25);
+          border-color: rgba(var(--sp-accent-rgb), 0.25);
           background-color: #16161a;
         }
         .sp-db-action-icon-box {
           width: 36px;
           height: 36px;
-          background: rgba(232, 184, 75, 0.08);
+          background: rgba(var(--sp-accent-rgb), 0.08);
           border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #E8B84B;
+          color: var(--sp-accent);
         }
         .sp-db-action-details {
           display: flex;
@@ -520,7 +520,7 @@ export function ProjectsScreen({
         }
         .sp-db-section-link {
           font-size: 12px;
-          color: #E8B84B;
+          color: var(--sp-accent);
           font-weight: 600;
           text-decoration: none;
           cursor: pointer;
@@ -541,7 +541,7 @@ export function ProjectsScreen({
           margin-bottom: 8px;
         }
         .sp-db-project-row:hover {
-          border-color: rgba(232, 184, 75, 0.25);
+          border-color: rgba(var(--sp-accent-rgb), 0.25);
           background-color: #16161a;
         }
         .sp-db-project-accent {
@@ -626,7 +626,7 @@ export function ProjectsScreen({
           margin-bottom: 8px;
         }
         .sp-db-recent-card:hover {
-          border-color: rgba(232, 184, 75, 0.25);
+          border-color: rgba(var(--sp-accent-rgb), 0.25);
           background-color: #16161a;
         }
         .sp-db-recent-left {
@@ -643,7 +643,7 @@ export function ProjectsScreen({
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #E8B84B;
+          color: var(--sp-accent);
           flex-shrink: 0;
         }
         .sp-db-recent-details {
@@ -801,20 +801,20 @@ export function ProjectsScreen({
             width: 60px;
           }
           .sp-ws-mobile-nav-item.active {
-            color: #E8B84B;
+            color: var(--sp-accent);
           }
           .sp-ws-mobile-nav-fab {
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background-color: #E8B84B;
+            background-color: var(--sp-accent);
             border: none;
             color: #0f0f11;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(232, 184, 75, 0.3);
+            box-shadow: 0 4px 10px rgba(var(--sp-accent-rgb), 0.3);
             margin-top: -20px;
             transition: all 0.15s ease;
           }
@@ -830,7 +830,7 @@ export function ProjectsScreen({
 
               {/* Pending Invites Alert List */}
               {pendingInvites.length > 0 && (
-                <div style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid var(--sp-accent)", background: "rgba(232, 184, 75, 0.1)" }}>
+                <div style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid var(--sp-accent)", background: "rgba(var(--sp-accent-rgb), 0.1)" }}>
                   <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, color: "#fff" }}>Pending Collaborations</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {pendingInvites.map((invite) => (
@@ -939,7 +939,7 @@ export function ProjectsScreen({
                   {/* Compact stats mini-cards */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                     {[
-                      { label: "Projects", value: store.projects.length, color: "#E8B84B" },
+                      { label: "Projects", value: store.projects.length, color: "var(--sp-accent)" },
                       { label: "Total Files", value: store.projects.reduce((s, p) => s + p.files.length, 0), color: "#60A5FA" },
                     ].map(s => (
                       <div key={s.label} style={{
@@ -1048,11 +1048,11 @@ export function ProjectsScreen({
               onClick={() => setActiveMobileTab("projects")} 
               style={{
                 flex: 1,
-                background: activeMobileTab === "projects" ? "rgba(232, 184, 75, 0.08)" : "transparent",
+                background: activeMobileTab === "projects" ? "rgba(var(--sp-accent-rgb), 0.08)" : "transparent",
                 border: "none",
                 borderRadius: 8,
                 padding: "10px",
-                color: activeMobileTab === "projects" ? "#E8B84B" : "#8e8e93",
+                color: activeMobileTab === "projects" ? "var(--sp-accent)" : "#8e8e93",
                 fontSize: 14,
                 fontWeight: 700,
                 cursor: "pointer"
@@ -1064,11 +1064,11 @@ export function ProjectsScreen({
               onClick={() => setActiveMobileTab("recent")} 
               style={{
                 flex: 1,
-                background: activeMobileTab === "recent" ? "rgba(232, 184, 75, 0.08)" : "transparent",
+                background: activeMobileTab === "recent" ? "rgba(var(--sp-accent-rgb), 0.08)" : "transparent",
                 border: "none",
                 borderRadius: 8,
                 padding: "10px",
-                color: activeMobileTab === "recent" ? "#E8B84B" : "#8e8e93",
+                color: activeMobileTab === "recent" ? "var(--sp-accent)" : "#8e8e93",
                 fontSize: 14,
                 fontWeight: 700,
                 cursor: "pointer"

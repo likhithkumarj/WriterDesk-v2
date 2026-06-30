@@ -100,7 +100,7 @@ export function SettingsPage({
           }
 
           .sp-set-tab-btn.active {
-            color: #E8B84B;
+            color: var(--sp-accent);
           }
 
           .sp-set-tab-btn.active::after {
@@ -110,7 +110,7 @@ export function SettingsPage({
             left: 0;
             right: 0;
             height: 2px;
-            background-color: #E8B84B;
+            background-color: var(--sp-accent);
           }
 
           .sp-set-card {
@@ -162,11 +162,11 @@ export function SettingsPage({
           }
 
           .sp-set-avatar-option:hover {
-            border-color: rgba(232, 184, 75, 0.4);
+            border-color: rgba(var(--sp-accent-rgb), 0.4);
           }
 
           .sp-set-avatar-option.selected {
-            border-color: #E8B84B;
+            border-color: var(--sp-accent);
           }
 
           .sp-set-theme-grid {
@@ -189,14 +189,14 @@ export function SettingsPage({
           }
 
           .sp-set-theme-card:hover {
-            border-color: rgba(232, 184, 75, 0.25);
+            border-color: rgba(var(--sp-accent-rgb), 0.25);
             color: #efeff1;
           }
 
           .sp-set-theme-card.active {
-            border-color: #E8B84B;
-            color: #E8B84B;
-            background-color: rgba(232, 184, 75, 0.04);
+            border-color: var(--sp-accent);
+            color: var(--sp-accent);
+            background-color: rgba(var(--sp-accent-rgb), 0.04);
           }
         ` }} />
 

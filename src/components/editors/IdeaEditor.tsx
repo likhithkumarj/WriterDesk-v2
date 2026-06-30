@@ -116,7 +116,7 @@ export function IdeaEditor({
   const insertChecklist = () => {
     const checkboxHtml = `
       <div style="display: flex; align-items: center; gap: 8px; margin: 6px 0;" class="sp-editor-checkbox-row">
-        <input type="checkbox" style="width: 14px; height: 14px; cursor: pointer; accent-color: #E8B84B;" />
+        <input type="checkbox" style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--sp-accent);" />
         <span style="font-size: 14px; outline: none;" contenteditable="true">Checklist item</span>
       </div>
     `;
@@ -241,9 +241,9 @@ export function IdeaEditor({
         }
 
         .sp-idea-tag-badge {
-          background: rgba(232, 184, 75, 0.08);
-          border: 1px solid rgba(232, 184, 75, 0.15);
-          color: #E8B84B;
+          background: rgba(var(--sp-accent-rgb), 0.08);
+          border: 1px solid rgba(var(--sp-accent-rgb), 0.15);
+          color: var(--sp-accent);
           font-size: 11px;
           font-weight: 700;
           padding: 2px 8px;
@@ -256,7 +256,7 @@ export function IdeaEditor({
         .sp-idea-tag-remove {
           cursor: pointer;
           font-size: 10px;
-          color: rgba(232, 184, 75, 0.6);
+          color: rgba(var(--sp-accent-rgb), 0.6);
         }
         .sp-idea-tag-remove:hover {
           color: #fff;
@@ -328,7 +328,7 @@ export function IdeaEditor({
         }
 
         .sp-idea-richtext-editor a {
-          color: #E8B84B;
+          color: var(--sp-accent);
           text-decoration: underline;
         }
         ` }} />
@@ -346,11 +346,11 @@ export function IdeaEditor({
         <div className="sp-idea-navbar-right">
           {saveStatus === "saving" && (
             <span style={{ fontSize: 12, color: "#8e8e93", display: "flex", alignItems: "center", gap: 4 }}>
-              <span className="animate-pulse" style={{ width: 6, height: 6, background: "#E8B84B", borderRadius: "50%" }} /> Saving changes...
+              <span className="animate-pulse" style={{ width: 6, height: 6, background: "var(--sp-accent)", borderRadius: "50%" }} /> Saving changes...
             </span>
           )}
           {saveStatus === "saved" && (
-            <span style={{ fontSize: 12, color: "#E8B84B", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "var(--sp-accent)", display: "flex", alignItems: "center", gap: 4 }}>
               <Check size={12} /> Changes Saved
             </span>
           )}

@@ -215,8 +215,8 @@ const mockCollaboratorsList = [
     email: "ben@screenplay.app",
     avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Ben",
     role: "Owner",
-    roleColor: "#E8B84B",
-    roleBg: "rgba(232, 184, 75, 0.08)",
+    roleColor: "var(--sp-accent)",
+    roleBg: "rgba(var(--sp-accent-rgb), 0.08)",
     joined: "Jan 2026"
   },
   {
@@ -370,8 +370,8 @@ export function FilesScreen({
             email: ownerProf.email || "",
             avatar: ownerProf.avatar_url || `https://api.dicebear.com/9.x/avataaars/svg?seed=${ownerProf.email || "Owner"}`,
             role: "Owner",
-            roleColor: "#E8B84B",
-            roleBg: "rgba(232, 184, 75, 0.08)",
+            roleColor: "var(--sp-accent)",
+            roleBg: "rgba(var(--sp-accent-rgb), 0.08)",
             joined: "Creator"
           };
         }
@@ -388,8 +388,8 @@ export function FilesScreen({
         email: "",
         avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Owner",
         role: "Owner",
-        roleColor: "#E8B84B",
-        roleBg: "rgba(232, 184, 75, 0.08)",
+        roleColor: "var(--sp-accent)",
+        roleBg: "rgba(var(--sp-accent-rgb), 0.08)",
         joined: "Creator"
       };
     }
@@ -573,7 +573,7 @@ export function FilesScreen({
     if (type === "idea") return "#fde047"; // Yellow
     if (type === "character") return "#93c5fd"; // Blue
     if (type === "outline") return "#86efac"; // Green
-    return "#E8B84B";
+    return "var(--sp-accent)";
   };
 
   const getFileDate = (dateModified?: number) => {
@@ -867,7 +867,7 @@ export function FilesScreen({
         .sp-ws-logo-box {
           width: 28px;
           height: 28px;
-          background-color: #E8B84B;
+          background-color: var(--sp-accent);
           border-radius: 6px;
           display: flex;
           align-items: center;
@@ -913,13 +913,13 @@ export function FilesScreen({
           transition: all 0.15s ease;
         }
         .sp-ws-btn-share:hover {
-          border-color: rgba(232, 184, 75, 0.4);
+          border-color: rgba(var(--sp-accent-rgb), 0.4);
           color: #fff;
           background: #1d1d22;
         }
         .sp-ws-btn-gold {
-          background: #E8B84B;
-          border: 1px solid #E8B84B;
+          background: var(--sp-accent);
+          border: 1px solid var(--sp-accent);
           color: #0f0f11;
           padding: 6px 14px;
           border-radius: 8px;
@@ -949,7 +949,7 @@ export function FilesScreen({
           transition: all 0.15s ease;
         }
         .sp-ws-icon-btn:hover {
-          border-color: #E8B84B;
+          border-color: var(--sp-accent);
           color: #efeff1;
           background: rgba(255, 255, 255, 0.02);
         }
@@ -1003,8 +1003,8 @@ export function FilesScreen({
           color: #efeff1;
         }
         .sp-ws-sidebar-item.active {
-          background: rgba(232, 184, 75, 0.05);
-          color: #E8B84B;
+          background: rgba(var(--sp-accent-rgb), 0.05);
+          color: var(--sp-accent);
           font-weight: 700;
         }
         .sp-ws-sidebar-item-badge {
@@ -1017,8 +1017,8 @@ export function FilesScreen({
           border-radius: 4px;
         }
         .sp-ws-sidebar-item.active .sp-ws-sidebar-item-badge {
-          background: rgba(232, 184, 75, 0.12);
-          color: #E8B84B;
+          background: rgba(var(--sp-accent-rgb), 0.12);
+          color: var(--sp-accent);
         }
         .sp-ws-main-scroll {
           flex: 1;
@@ -1050,12 +1050,12 @@ export function FilesScreen({
           width: 52px;
           height: 52px;
           border-radius: 12px;
-          background-color: rgba(232, 184, 75, 0.08);
-          border: 1px solid rgba(232, 184, 75, 0.15);
+          background-color: rgba(var(--sp-accent-rgb), 0.08);
+          border: 1px solid rgba(var(--sp-accent-rgb), 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #E8B84B;
+          color: var(--sp-accent);
           flex-shrink: 0;
         }
         .sp-ws-banner-info-wrap {
@@ -1092,9 +1092,9 @@ export function FilesScreen({
           border-radius: 6px;
         }
         .sp-ws-tag-pill.gold {
-          background: rgba(232, 184, 75, 0.08);
-          border-color: rgba(232, 184, 75, 0.2);
-          color: #E8B84B;
+          background: rgba(var(--sp-accent-rgb), 0.08);
+          border-color: rgba(var(--sp-accent-rgb), 0.2);
+          color: var(--sp-accent);
         }
         .sp-ws-tag-pill.purple {
           background: rgba(168, 85, 247, 0.08);
@@ -1165,7 +1165,7 @@ export function FilesScreen({
           transition: all 0.15s ease;
         }
         .sp-ws-summary-card:hover {
-          border-color: rgba(232, 184, 75, 0.2);
+          border-color: rgba(var(--sp-accent-rgb), 0.2);
           background-color: #16161a;
         }
         .sp-ws-summary-card-header {
@@ -1313,12 +1313,12 @@ export function FilesScreen({
           transition: all 0.15s ease;
         }
         .sp-ws-td-row:hover {
-          border-color: rgba(232, 184, 75, 0.25);
+          border-color: rgba(var(--sp-accent-rgb), 0.25);
           background-color: #16161a;
         }
         .sp-ws-td-row-selected {
-          border-color: #E8B84B;
-          background-color: rgba(232, 184, 75, 0.01);
+          border-color: var(--sp-accent);
+          background-color: rgba(var(--sp-accent-rgb), 0.01);
         }
         .sp-ws-file-title {
           font-size: 13.5px;
@@ -1374,7 +1374,7 @@ export function FilesScreen({
         }
         .sp-ws-meter-bar-inner {
           height: 100%;
-          background-color: #E8B84B;
+          background-color: var(--sp-accent);
         }
         .sp-ws-meter-lbl {
           font-size: 10px;
@@ -1438,12 +1438,12 @@ export function FilesScreen({
           position: relative;
         }
         .sp-newfile-type-card:hover {
-          border-color: rgba(232, 184, 75, 0.3);
+          border-color: rgba(var(--sp-accent-rgb), 0.3);
           background: #1d1d22;
         }
         .sp-newfile-type-card.selected {
-          border-color: #E8B84B;
-          background: rgba(232, 184, 75, 0.02);
+          border-color: var(--sp-accent);
+          background: rgba(var(--sp-accent-rgb), 0.02);
         }
         .sp-newfile-card-header {
           display: flex;
@@ -1474,7 +1474,7 @@ export function FilesScreen({
           width: 14px;
           height: 14px;
           border-radius: 50%;
-          background: #E8B84B;
+          background: var(--sp-accent);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1515,7 +1515,7 @@ export function FilesScreen({
           .sp-ws-mobile-back-btn {
             background: transparent;
             border: none;
-            color: #E8B84B;
+            color: var(--sp-accent);
             display: inline-flex;
             align-items: center;
             gap: 4px;
@@ -1597,7 +1597,7 @@ export function FilesScreen({
           }
           .sp-ws-mobile-tab-btn.active {
             background: #1c1c20;
-            color: #E8B84B;
+            color: var(--sp-accent);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
           }
           .sp-ws-mobile-file-card {
@@ -1617,7 +1617,7 @@ export function FilesScreen({
             background: #151518;
           }
           .sp-ws-mobile-file-card:hover {
-            border-color: rgba(232, 184, 75, 0.2);
+            border-color: rgba(var(--sp-accent-rgb), 0.2);
             background: #151518;
           }
           .sp-ws-mobile-file-title {
@@ -1681,19 +1681,19 @@ export function FilesScreen({
             width: 60px;
           }
           .sp-ws-mobile-nav-item.active {
-            color: #E8B84B;
+            color: var(--sp-accent);
           }
           .sp-ws-mobile-nav-fab {
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            background: #E8B84B;
+            background: var(--sp-accent);
             border: none;
             color: #0f0f11;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(232, 184, 75, 0.3);
+            box-shadow: 0 4px 12px rgba(var(--sp-accent-rgb), 0.3);
             transform: translateY(-14px);
             cursor: pointer;
             transition: all 0.15s ease;
@@ -1801,7 +1801,7 @@ export function FilesScreen({
                         if (!isActive) navigate(`/project/${p.id}`);
                       }}
                     >
-                      <Folder size={15} style={{ color: isActive ? "#E8B84B" : "#8e8e93" }} />
+                      <Folder size={15} style={{ color: isActive ? "var(--sp-accent)" : "#8e8e93" }} />
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{p.title}</span>
                       <span className="sp-ws-sidebar-item-badge">{p.files.length}</span>
                     </button>
@@ -1899,7 +1899,7 @@ export function FilesScreen({
                   style={{
                     background: "none",
                     border: "none",
-                    color: activeTab === "files" ? "#E8B84B" : "#8e8e93",
+                    color: activeTab === "files" ? "var(--sp-accent)" : "#8e8e93",
                     fontSize: 14,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -1910,7 +1910,7 @@ export function FilesScreen({
                 >
                   Files
                   {activeTab === "files" && (
-                    <div style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "#E8B84B" }} />
+                    <div style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "var(--sp-accent)" }} />
                   )}
                 </button>
                 <button
@@ -1919,7 +1919,7 @@ export function FilesScreen({
                   style={{
                     background: "none",
                     border: "none",
-                    color: activeTab === "collaborators" ? "#E8B84B" : "#8e8e93",
+                    color: activeTab === "collaborators" ? "var(--sp-accent)" : "#8e8e93",
                     fontSize: 14,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -1930,7 +1930,7 @@ export function FilesScreen({
                 >
                   Collaborators
                   {activeTab === "collaborators" && (
-                    <div style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "#E8B84B" }} />
+                    <div style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "var(--sp-accent)" }} />
                   )}
                 </button>
               </div>
@@ -2065,7 +2065,7 @@ export function FilesScreen({
                               <span
                                 className="sp-ws-badge-type"
                                 style={{
-                                  background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(59, 130, 246, 0.12)" : "rgba(34, 197, 94, 0.12)",
+                                  background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(var(--sp-accent-rgb), 0.12)" : "rgba(34, 197, 94, 0.12)",
                                   color: fileIconColor
                                 }}
                               >
@@ -2164,8 +2164,8 @@ export function FilesScreen({
                                 className="sp-ws-badge-status"
                                 style={{
                                   fontSize: 10,
-                                  background: c.joined === "Creator" ? "rgba(232, 184, 75, 0.08)" : c.status === "accepted" || c.joined === "Joined" ? "rgba(16, 185, 129, 0.08)" : "rgba(245, 158, 11, 0.08)",
-                                  color: c.joined === "Creator" ? "#E8B84B" : c.status === "accepted" || c.joined === "Joined" ? "#10b981" : "#f59e0b",
+                                  background: c.joined === "Creator" ? "rgba(var(--sp-accent-rgb), 0.08)" : c.status === "accepted" || c.joined === "Joined" ? "rgba(16, 185, 129, 0.08)" : "rgba(245, 158, 11, 0.08)",
+                                  color: c.joined === "Creator" ? "var(--sp-accent)" : c.status === "accepted" || c.joined === "Joined" ? "#10b981" : "#f59e0b",
                                   borderColor: "transparent",
                                   padding: "2px 8px",
                                   borderRadius: 4,
@@ -2206,8 +2206,8 @@ export function FilesScreen({
                                 <span
                                   style={{
                                     fontSize: 11,
-                                    color: c.role === "Owner" ? "#E8B84B" : c.role === "Editor" ? "#60A5FA" : "#8e8e93",
-                                    background: c.role === "Owner" ? "rgba(232, 184, 75, 0.08)" : c.role === "Editor" ? "rgba(96, 165, 250, 0.08)" : "rgba(142, 142, 147, 0.08)",
+                                    color: c.role === "Owner" ? "var(--sp-accent)" : c.role === "Editor" ? "#60A5FA" : "#8e8e93",
+                                    background: c.role === "Owner" ? "rgba(var(--sp-accent-rgb), 0.08)" : c.role === "Editor" ? "rgba(96, 165, 250, 0.08)" : "rgba(142, 142, 147, 0.08)",
                                     padding: "2px 8px",
                                     borderRadius: 4,
                                     fontWeight: 600
@@ -2278,9 +2278,9 @@ export function FilesScreen({
                 <span
                   className="sp-ws-badge-active"
                   style={{
-                    color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "#E8B84B",
+                    color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "var(--sp-accent)",
                     borderColor: localProject.status === "Draft" ? "rgba(96, 165, 250, 0.2)" : localProject.status === "New" ? "rgba(52, 211, 153, 0.2)" : "rgba(142, 142, 147, 0.2)",
-                    background: localProject.status === "Draft" ? "rgba(96, 165, 250, 0.08)" : localProject.status === "New" ? "rgba(52, 211, 153, 0.08)" : localProject.status === "Empty" ? "rgba(142, 142, 147, 0.08)" : "rgba(232, 184, 75, 0.08)"
+                    background: localProject.status === "Draft" ? "rgba(96, 165, 250, 0.08)" : localProject.status === "New" ? "rgba(52, 211, 153, 0.08)" : localProject.status === "Empty" ? "rgba(142, 142, 147, 0.08)" : "rgba(var(--sp-accent-rgb), 0.08)"
                   }}
                 >
                   {localProject.status || "Active"}
@@ -2632,7 +2632,7 @@ export function FilesScreen({
                 onClick={() => setNewFileType("character")}
               >
                 <div className="sp-newfile-card-header">
-                  <div className="sp-newfile-card-icon" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#93c5fd" }}>
+                  <div className="sp-newfile-card-icon" style={{ background: "rgba(var(--sp-accent-rgb), 0.12)", color: "#93c5fd" }}>
                     <User size={16} />
                   </div>
                   {newFileType === "character" ? (

@@ -117,7 +117,7 @@ export function DashboardLayout({
         .sp-layout-logo-box {
           width: 32px;
           height: 32px;
-          background-color: #E8B84B;
+          background-color: var(--sp-accent);
           border-radius: 8px;
           display: flex;
           align-items: center;
@@ -172,9 +172,9 @@ export function DashboardLayout({
         }
 
         .sp-layout-sidebar-item.active {
-          background: rgba(232, 184, 75, 0.06);
-          color: #E8B84B;
-          border-right: 3px solid #E8B84B;
+          background: rgba(var(--sp-accent-rgb), 0.06);
+          color: var(--sp-accent);
+          border-right: 3px solid var(--sp-accent);
           border-top-right-radius: 2px;
           border-bottom-right-radius: 2px;
           border-top-left-radius: 0;
@@ -183,7 +183,7 @@ export function DashboardLayout({
 
         .sp-layout-sidebar-badge {
           font-size: 10px;
-          background: #E8B84B;
+          background: var(--sp-accent);
           color: #0f0f11;
           padding: 1px 6px;
           border-radius: 10px;
@@ -289,7 +289,7 @@ export function DashboardLayout({
         }
 
         .sp-layout-header-btn:hover {
-          border-color: #E8B84B;
+          border-color: var(--sp-accent);
           color: #efeff1;
           background: rgba(255, 255, 255, 0.02);
         }
@@ -391,7 +391,7 @@ export function DashboardLayout({
           }
 
           .sp-layout-mobile-nav-item.active {
-            color: #E8B84B;
+            color: var(--sp-accent);
           }
 
           .sp-layout-mobile-nav-badge {

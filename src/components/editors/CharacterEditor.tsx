@@ -203,12 +203,12 @@ export function CharacterEditor({
         }
 
         .sp-char-metric-value {
-          color: #E8B84B;
+          color: var(--sp-accent);
           font-weight: 700;
-          background: rgba(232, 184, 75, 0.08);
+          background: rgba(var(--sp-accent-rgb), 0.08);
           padding: 2px 8px;
           border-radius: 6px;
-          border: 1px solid rgba(232, 184, 75, 0.15);
+          border: 1px solid rgba(var(--sp-accent-rgb), 0.15);
         }
 
         /* Workspace Grid */
@@ -255,8 +255,8 @@ export function CharacterEditor({
         }
 
         .sp-char-search-box input:focus {
-          border-color: #E8B84B;
-          box-shadow: 0 0 0 2px rgba(232, 184, 75, 0.1);
+          border-color: var(--sp-accent);
+          box-shadow: 0 0 0 2px rgba(var(--sp-accent-rgb), 0.1);
         }
 
         .sp-char-search-box svg {
@@ -292,9 +292,9 @@ export function CharacterEditor({
         }
 
         .sp-char-item.active {
-          background: rgba(232, 184, 75, 0.06);
-          border-color: rgba(232, 184, 75, 0.2);
-          border-left: 3px solid #E8B84B;
+          background: rgba(var(--sp-accent-rgb), 0.06);
+          border-color: rgba(var(--sp-accent-rgb), 0.2);
+          border-left: 3px solid var(--sp-accent);
           border-top-left-radius: 3px;
           border-bottom-left-radius: 3px;
         }
@@ -324,7 +324,7 @@ export function CharacterEditor({
         }
 
         .sp-char-item.active .sp-char-item-role {
-          color: #E8B84B;
+          color: var(--sp-accent);
         }
 
         .sp-char-delete-btn {
@@ -425,12 +425,12 @@ export function CharacterEditor({
           width: 64px;
           height: 64px;
           border-radius: 12px;
-          background: rgba(232, 184, 75, 0.06);
-          border: 1px dashed rgba(232, 184, 75, 0.2);
+          background: rgba(var(--sp-accent-rgb), 0.06);
+          border: 1px dashed rgba(var(--sp-accent-rgb), 0.2);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #E8B84B;
+          color: var(--sp-accent);
           flex-shrink: 0;
         }
 
@@ -468,7 +468,7 @@ export function CharacterEditor({
         }
 
         .sp-char-header-inputs input:focus {
-          border-color: #E8B84B;
+          border-color: var(--sp-accent);
         }
 
         .sp-char-worksheet-grid {
@@ -499,7 +499,7 @@ export function CharacterEditor({
           font-weight: 700;
           font-size: 13px;
           text-transform: uppercase;
-          color: #E8B84B;
+          color: var(--sp-accent);
           letter-spacing: 0.05em;
           border-bottom: 1px solid #1c1c20;
           padding-bottom: 8px;
@@ -606,13 +606,13 @@ export function CharacterEditor({
         .sp-char-matrix-name-row {
           font-size: 15px;
           font-weight: 800;
-          color: #E8B84B;
+          color: var(--sp-accent);
         }
 
         .sp-char-matrix-tag {
           font-size: 10px;
-          background: rgba(232, 184, 75, 0.08);
-          color: #E8B84B;
+          background: rgba(var(--sp-accent-rgb), 0.08);
+          color: var(--sp-accent);
           padding: 2px 6px;
           border-radius: 4px;
           font-weight: 700;
@@ -695,11 +695,11 @@ export function CharacterEditor({
         <div className="sp-char-navbar-right">
           {saveStatus === "saving" && (
             <span style={{ fontSize: 12, color: "#8e8e93", display: "flex", alignItems: "center", gap: 4 }}>
-              <span className="animate-pulse" style={{ width: 6, height: 6, background: "#E8B84B", borderRadius: "50%" }} /> Saving changes...
+              <span className="animate-pulse" style={{ width: 6, height: 6, background: "var(--sp-accent)", borderRadius: "50%" }} /> Saving changes...
             </span>
           )}
           {saveStatus === "saved" && (
-            <span style={{ fontSize: 12, color: "#E8B84B", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontSize: 12, color: "var(--sp-accent)", display: "flex", alignItems: "center", gap: 4 }}>
               <Check size={12} /> Changes Saved
             </span>
           )}
@@ -738,7 +738,7 @@ export function CharacterEditor({
       {/* Workspace */}
       {characters.length === 0 ? (
         <div className="sp-char-empty">
-          <User size={48} className="animate-pulse" style={{ color: "#E8B84B" }} />
+          <User size={48} className="animate-pulse" style={{ color: "var(--sp-accent)" }} />
           <div className="sp-char-empty-title">No characters added yet</div>
           <p style={{ fontSize: 13, margin: "0 0 10px 0" }}>Start building your cast profile and design worksheets for comparisons.</p>
           {!readOnly && (

@@ -18,7 +18,7 @@ export function Avatar({
   const colors = [
     "#f59e0b", // Amber
     "#10b981", // Emerald
-    "#3b82f6", // Blue
+    "var(--sp-accent)", // Blue
     "#8b5cf6", // Violet
     "#ec4899", // Pink
     "#ef4444", // Red

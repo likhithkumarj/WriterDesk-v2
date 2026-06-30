@@ -255,7 +255,7 @@ export function CommunityPage({
 
           .sp-comm-post-snippet {
             background-color: #0c0c0e;
-            border-left: 3px solid #E8B84B;
+            border-left: 3px solid var(--sp-accent);
             border-radius: 6px;
             padding: 16px;
             font-family: 'Courier New', Courier, monospace;
@@ -290,7 +290,7 @@ export function CommunityPage({
           }
 
           .sp-comm-post-action-btn:hover {
-            color: #E8B84B;
+            color: var(--sp-accent);
           }
 
           .sp-comm-post-action-btn.liked {
