@@ -85,6 +85,15 @@ export function ShotListEditor({
     }
   }, [shots, history]);
 
+  // Re-initialize state when active file changes externally
+  useEffect(() => {
+    setTitle(file.title);
+    setShots(file.shotList || []);
+    setCreationMode(file.shotListCreationMode || "empty");
+    setHistory(file.shotList ? [file.shotList] : []);
+    setHistoryIndex(file.shotList ? 0 : -1);
+  }, [file.id]);
+
   // Handle Ctrl+Z and Ctrl+Y Undo/Redo keyboard triggers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -482,7 +491,7 @@ export function ShotListEditor({
           height: 100vh;
           background: #09090b;
           color: #e4e4e7;
-          font-family: 'Inter', sans-serif;
+          font-family: var(--sp-font-ui);
           overflow: hidden;
         }
 
@@ -606,15 +615,7 @@ export function ShotListEditor({
           margin-bottom: 24px;
         }
 
-        .sp-sidebar-header {
-          font-size: 10px;
-          font-weight: 700;
-          color: #71717a;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          margin-bottom: 12px;
-          padding-left: 8px;
-        }
+
 
         /* Scenes shortcut list */
         .sp-sidebar-scene-row {
@@ -1033,9 +1034,6 @@ export function ShotListEditor({
         <header className="sp-desktop-only sp-no-print sp-shotlist-navbar">
           <div className="sp-shotlist-nav-left">
             <span className="sp-brand-logo">WriterDute</span>
-            <button className="sp-sidebar-toggle-btn" onClick={() => setShowSidebar(!showSidebar)} title="Toggle sidebar">
-              <Menu size={16} />
-            </button>
             <button className="sp-shotlist-back-btn" onClick={back} title="Back to projects">
               <ChevronLeft size={16} />
             </button>
@@ -1107,9 +1105,6 @@ export function ShotListEditor({
         <header className="sp-desktop-only sp-no-print sp-shotlist-navbar">
           <div className="sp-shotlist-nav-left">
             <span className="sp-brand-logo">WriterDute</span>
-            <button className="sp-sidebar-toggle-btn" onClick={() => setShowSidebar(!showSidebar)} title="Toggle sidebar">
-              <Menu size={16} />
-            </button>
             <button className="sp-shotlist-back-btn" onClick={back} title="Back to projects">
               <ChevronLeft size={16} />
             </button>
@@ -1279,24 +1274,13 @@ export function ShotListEditor({
           {/* Toolbar */}
           <div className="sp-shotlist-toolbar">
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              {/* Only show Add Scene & Remove Scene if NOT generated from script */}
-              {creationMode !== "generated" && (
-                <>
-                  <button className="sp-shotlist-tool-btn" onClick={addScene} disabled={readOnly}>
-                    <Plus size={14} /> Add Scene
-                  </button>
-                  <button className="sp-shotlist-tool-btn" onClick={removeLastScene} disabled={readOnly} style={{ color: "#f87171" }}>
-                    <Trash2 size={14} /> Remove Scene
-                  </button>
-                </>
-              )}
-
-              {/* Only show Generate from Script if shots are empty */}
-              {shots.length === 0 && (
-                <button className="sp-shotlist-tool-btn" onClick={generateFromScript} disabled={readOnly} style={{ color: "var(--sp-accent)", borderColor: "rgba(232, 184, 75, 0.2)" }}>
-                  <Sparkles size={13} /> Generate from Script
-                </button>
-              )}
+              <button 
+                className="sp-shotlist-tool-btn" 
+                onClick={() => setShowSidebar(!showSidebar)}
+                title="Toggle sidebar outline"
+              >
+                <Menu size={14} />
+              </button>
 
               <div style={{ width: 1, height: 16, backgroundColor: "#272730", margin: "0 4px" }} />
 
@@ -1316,6 +1300,20 @@ export function ShotListEditor({
               >
                 <Redo size={14} />
               </button>
+
+              {!readOnly && shots.length > 0 && (
+                <>
+                  <div style={{ width: 1, height: 16, backgroundColor: "#272730", margin: "0 4px" }} />
+                  <button 
+                    className="sp-shotlist-tool-btn" 
+                    onClick={() => updateShotsWithHistory([])}
+                    style={{ color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.15)", background: "rgba(248, 113, 113, 0.02)" }}
+                    title="Clear the entire list"
+                  >
+                    Clear List
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Metrics stats section in toolbar */}
@@ -1333,17 +1331,49 @@ export function ShotListEditor({
           {/* Table Grid (Spreadsheet Scrollable) */}
           <div className="sp-shotlist-table-wrapper" onMouseLeave={() => setHoveredSceneNumber(null)}>
             {shots.length === 0 ? (
-              <div className="sp-empty-state">
-                <h3 style={{ color: "#fff", marginBottom: 8 }}>No shots created yet</h3>
-                <p style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 20 }}>
-                  Add a shot manually to start planning, or generate a shot list from your script file scenes automatically.
+              <div className="sp-empty-state" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 180px)", textAlign: "center", padding: "0 24px" }}>
+                <div style={{ fontSize: "28px", fontWeight: 700, color: "#fff", marginBottom: "8px", letterSpacing: "-0.02em" }}>Shot List</div>
+                <p style={{ fontSize: "14px", color: "var(--sp-muted)", maxWidth: "380px", lineHeight: "1.6", marginBottom: "28px" }}>
+                  Plan camera setups, lens choices, and shoot order. Start fresh or generate from your screenplay.
                 </p>
-                <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-                  <button className="sp-shotlist-tool-btn" onClick={addShotAtEnd} disabled={readOnly}>
-                    Add Shot
+                <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+                  <button 
+                    onClick={addShotAtEnd} 
+                    disabled={readOnly}
+                    style={{
+                      background: "var(--sp-accent)",
+                      border: "none",
+                      borderRadius: "8px",
+                      color: "#000",
+                      fontWeight: 600,
+                      fontSize: "13px",
+                      padding: "10px 20px",
+                      cursor: "pointer",
+                      transition: "all 0.15s"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+                  >
+                    Start a Manual List
                   </button>
-                  <button className="sp-shotlist-tool-btn" onClick={generateFromScript} disabled={readOnly} style={{ color: "var(--sp-accent)" }}>
-                    Generate from Script
+                  <button 
+                    onClick={generateFromScript} 
+                    disabled={readOnly}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.04)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: "8px",
+                      color: "#fff",
+                      fontWeight: 600,
+                      fontSize: "13px",
+                      padding: "10px 20px",
+                      cursor: "pointer",
+                      transition: "all 0.15s"
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)"}
+                  >
+                    ⚡ Generate from Script
                   </button>
                 </div>
               </div>
@@ -1591,27 +1621,23 @@ export function ShotListEditor({
                             >
                               <Plus size={12} /> Add Scene
                             </button>
-                            {creationMode !== "generated" && (
-                              <>
-                                <div style={{ width: 1, height: 12, backgroundColor: "#2e2e3a" }} />
-                                <button 
-                                  onClick={() => deleteScene(shot.sceneNumber)}
-                                  style={{
-                                    background: "transparent",
-                                    border: "none",
-                                    color: "#f87171",
-                                    fontSize: "11px",
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 4
-                                  }}
-                                >
-                                  <Trash2 size={12} /> Remove Scene
-                                </button>
-                              </>
-                            )}
+                            <div style={{ width: 1, height: 12, backgroundColor: "#2e2e3a" }} />
+                            <button 
+                              onClick={() => deleteScene(shot.sceneNumber)}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "#f87171",
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4
+                              }}
+                            >
+                              <Trash2 size={12} /> Remove Scene
+                            </button>
                           </div>
                         )}
                       </tr>
