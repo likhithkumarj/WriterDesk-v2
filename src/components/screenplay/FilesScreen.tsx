@@ -1720,9 +1720,9 @@ export function FilesScreen({
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: #121214;
-            border: 1px solid #1c1c20;
-            border-radius: 12px;
+            background: #121215;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
             padding: 14px 16px;
             margin-bottom: 10px;
           }
@@ -1730,7 +1730,7 @@ export function FilesScreen({
             font-size: 9px;
             font-weight: 700;
             padding: 2px 8px;
-            border-radius: 4px;
+            border-radius: 6px;
             text-transform: uppercase;
           }
         }
@@ -2283,11 +2283,6 @@ export function FilesScreen({
             <button className="sp-ws-mobile-file-more-btn" onClick={() => setShowExport(true)} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid #1c1c20", color: "#efeff1", padding: "6px 12px", borderRadius: 8, fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", height: 32, boxSizing: "border-box" }}>
               <Download size={14} /> Export
             </button>
-            {isOwner && (
-              <button className="sp-ws-mobile-file-more-btn" onClick={() => setShowInviteModal(true)} style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid #1c1c20", color: "#efeff1", padding: "6px 12px", borderRadius: 8, fontSize: 12, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", height: 32, boxSizing: "border-box" }}>
-                <Share2 size={14} /> Share
-              </button>
-            )}
           </div>
         </div>
               {/* Mobile Project stats card */}
@@ -2296,11 +2291,11 @@ export function FilesScreen({
             <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.02em" }}>{localProject.title}</h1>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                <span style={{ fontSize: 11, background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "4px 10px", borderRadius: "6px", color: "#94a3b8", fontWeight: 600 }}>
+                <span style={{ fontSize: 11, background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.18)", padding: "4px 10px", borderRadius: "6px", color: "var(--sp-accent)", fontWeight: 700 }}>
                   {localProject.type || "Feature Film"}
                 </span>
                 {localProject.genre && (
-                  <span style={{ fontSize: 11, background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "4px 10px", borderRadius: "6px", color: "#94a3b8", fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, background: "rgba(96, 165, 250, 0.08)", border: "1px solid rgba(96, 165, 250, 0.18)", padding: "4px 10px", borderRadius: "6px", color: "#60A5FA", fontWeight: 700 }}>
                     {localProject.genre}
                   </span>
                 )}
@@ -2348,12 +2343,6 @@ export function FilesScreen({
           >
             Collaborators
           </button>
-          <button
-            className={`sp-ws-mobile-tab-btn ${activeTab === "settings" ? "active" : ""}`}
-            onClick={() => setActiveTab("settings")}
-          >
-            Settings
-          </button>
         </div>
 
         {/* Mobile Scroll Content List */}
@@ -2361,16 +2350,77 @@ export function FilesScreen({
           {/* Files List block */}
           {activeTab === "files" && (
             <>
-              <div className="sp-ws-section-header" style={{ marginBottom: 12 }}>
-                <h2 className="sp-ws-section-title">ALL FILES</h2>
+              {/* Search input bar on mobile */}
+              <div style={{ position: "relative", marginBottom: 12 }}>
+                <Search size={16} color="#8e8e93" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+                <input 
+                  type="text" 
+                  placeholder="Search files..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ 
+                    width: "100%", 
+                    boxSizing: "border-box", 
+                    padding: "10px 12px 10px 38px", 
+                    borderRadius: "10px", 
+                    background: "#121215", 
+                    border: "1px solid rgba(255, 255, 255, 0.04)", 
+                    color: "#efeff1", 
+                    fontSize: "13px",
+                    outline: "none"
+                  }} 
+                />
+              </div>
+
+              {/* Action CTAs row on mobile */}
+              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
                 {hasWriteAccess && (
-                  <button className="sp-ws-btn-share" style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12 }} onClick={() => {
-                    setNewFileType("script");
-                    setNewFileTitle("");
-                    setShowAddFileModal(true);
-                  }}>
-                    <Plus size={12} /> Add File
-                  </button>
+                  <>
+                    <button 
+                      className="sp-ws-btn-gold" 
+                      style={{ 
+                        flex: 1, 
+                        justifyContent: "center", 
+                        padding: "10px 16px", 
+                        borderRadius: "10px", 
+                        fontSize: "13px", 
+                        fontWeight: 700 
+                      }} 
+                      onClick={() => {
+                        setNewFileType("script");
+                        setNewFileTitle("");
+                        setShowAddFileModal(true);
+                      }}
+                    >
+                      <Plus size={15} /> Add File
+                    </button>
+                    
+                    <button 
+                      className="sp-ws-btn-share" 
+                      style={{ 
+                        flex: 1, 
+                        justifyContent: "center", 
+                        padding: "10px 16px", 
+                        borderRadius: "10px", 
+                        fontSize: "13px", 
+                        fontWeight: 600,
+                        background: "#121215" 
+                      }} 
+                      onClick={() => document.getElementById("mobile-script-import-input")?.click()}
+                    >
+                      <Download size={14} style={{ transform: "rotate(180deg)" }} /> Import Script
+                    </button>
+                    <input 
+                      id="mobile-script-import-input" 
+                      type="file" 
+                      accept=".fountain,.txt,.md" 
+                      style={{ display: "none" }} 
+                      onChange={(e) => {
+                        importFiles(e.target.files);
+                        e.target.value = "";
+                      }} 
+                    />
+                  </>
                 )}
               </div>
 
@@ -2450,7 +2500,7 @@ export function FilesScreen({
                         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                           <h3 className="sp-ws-mobile-file-title" style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.title}</h3>
                           <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 11, color: "#8e8e93", margin: 0 }}>
-                            {displayType} · {displayStatus} · {fileAuthor}
+                            {displayType.charAt(0).toUpperCase() + displayType.slice(1)} &bull; {fileAuthor}
                           </p>
                         </div>
                       </div>
@@ -2543,41 +2593,6 @@ export function FilesScreen({
                 </div>
               ))}
             </>
-          )}
-
-          {/* Settings Tab block */}
-          {activeTab === "settings" && (
-            <div style={{ background: "#121214", borderRadius: 16, border: "1px solid #1c1c20", padding: 20 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Project Settings</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>PROJECT TITLE</label>
-                  <input
-                    type="text"
-                    defaultValue={localProject.title}
-                    className="sp-input"
-                    style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box" }}
-                    readOnly={!isOwner}
-                    onBlur={(e) => {
-                      if (isOwner && e.target.value.trim()) persist({ ...localProject, title: e.target.value.trim() });
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#8e8e93", marginBottom: 6 }}>DESCRIPTION</label>
-                  <textarea
-                    defaultValue={localProject.description || "Feature Film"}
-                    className="sp-input"
-                    rows={3}
-                    style={{ background: "#0c0c0e", border: "1px solid #1c1c20", width: "100%", boxSizing: "border-box", resize: "none" }}
-                    readOnly={!isOwner}
-                    onBlur={(e) => {
-                      if (isOwner) persist({ ...localProject, description: e.target.value.trim() });
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
           )}
         </div>
 

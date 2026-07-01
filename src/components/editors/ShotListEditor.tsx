@@ -62,6 +62,7 @@ export function ShotListEditor({
   // Sidebar visibility states
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
   const [showSidebar, setShowSidebar] = useState(typeof window !== "undefined" ? window.innerWidth >= 768 : true);
+  const [zoomScale, setZoomScale] = useState(1.0);
   
   // Highlights
   const [highlightedScene, setHighlightedScene] = useState<number | null>(null);
@@ -1378,7 +1379,7 @@ export function ShotListEditor({
                 </div>
               </div>
             ) : (
-              <table className="sp-sheet-table">
+              <table className="sp-sheet-table" style={{ zoom: zoomScale }}>
                 <colgroup>
                   <col style={{ width: "60px" }} />  {/* SCENE */}
                   <col style={{ width: "60px" }} />  {/* SHOT */}
@@ -1713,6 +1714,23 @@ export function ShotListEditor({
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {isMobile && (
+        <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 1000, display: "flex", flexDirection: "column", gap: 8, background: "rgba(18, 18, 21, 0.9)", border: "1px solid var(--sp-border)", borderRadius: "20px", padding: "4px", backdropFilter: "blur(10px)", boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5)" }}>
+          <button 
+            onClick={() => setZoomScale(z => Math.min(2.0, z + 0.1))} 
+            style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "transparent", color: "#fff", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            +
+          </button>
+          <div style={{ height: 1, background: "var(--sp-border)", margin: "0 4px" }} />
+          <button 
+            onClick={() => setZoomScale(z => Math.max(0.5, z - 0.1))} 
+            style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "transparent", color: "#fff", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            −
+          </button>
         </div>
       )}
     </div>
