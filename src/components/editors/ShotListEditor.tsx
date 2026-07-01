@@ -431,6 +431,14 @@ export function ShotListEditor({
     addSceneAfter(maxSceneNum);
   };
 
+  const removeLastScene = () => {
+    if (readOnly) return;
+    const maxSceneNum = shots.reduce((max, s) => Math.max(max, s.sceneNumber), 0);
+    if (maxSceneNum > 0) {
+      deleteScene(maxSceneNum);
+    }
+  };
+
   // Delete entire scene (and all its shots) without confirm alerts
   const deleteScene = (sceneNumber: number) => {
     if (readOnly) return;
@@ -1221,8 +1229,8 @@ export function ShotListEditor({
                             handleSceneClick(num);
                             if (isMobile) setShowSidebar(false);
                           }}
-                          className="sp-sidebar-scene-item"
-                          style={{ flex: 1, paddingRight: 4 }}
+                          className="sp-scene-item"
+                          style={{ flex: 1, paddingRight: 4, border: "none", background: "transparent" }}
                         >
                           <span className="sp-sidebar-scene-num-badge">{num}</span>
                           <span className="sp-sidebar-scene-text" title={heading}>{heading}</span>
@@ -1271,15 +1279,16 @@ export function ShotListEditor({
           {/* Toolbar */}
           <div className="sp-shotlist-toolbar">
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <button className="sp-shotlist-tool-btn" onClick={addShotAtEnd} disabled={readOnly}>
-                <Plus size={14} /> Add Shot
-              </button>
-
-              {/* Only show + Add Scene if NOT generated from script */}
+              {/* Only show Add Scene & Remove Scene if NOT generated from script */}
               {creationMode !== "generated" && (
-                <button className="sp-shotlist-tool-btn" onClick={addScene} disabled={readOnly}>
-                  <Plus size={14} /> Add Scene
-                </button>
+                <>
+                  <button className="sp-shotlist-tool-btn" onClick={addScene} disabled={readOnly}>
+                    <Plus size={14} /> Add Scene
+                  </button>
+                  <button className="sp-shotlist-tool-btn" onClick={removeLastScene} disabled={readOnly} style={{ color: "#f87171" }}>
+                    <Trash2 size={14} /> Remove Scene
+                  </button>
+                </>
               )}
 
               {/* Only show Generate from Script if shots are empty */}
