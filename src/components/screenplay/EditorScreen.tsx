@@ -17,9 +17,26 @@ import { supabaseService } from "../../utils/supabaseService";
 import { 
   ChevronLeft, Undo2, Redo2, Search, Maximize2, Minimize2, Eye, EyeOff, 
   Film, FileText, User, MessageSquare, AlertCircle, Trash2, Mail, CheckCircle, Clock, 
-  Share2, Download, MoreHorizontal, Save, Check, Loader2, Bold, Italic, Underline, MessageCircle, Users, Menu, Settings, List, X, Send
+  Share2, Download, MoreHorizontal, Save, Check, Loader2, Bold, Italic, Underline, MessageCircle, Users, Menu, Settings, List, X, Send, Lightbulb
 } from "lucide-react";
 import { Avatar } from "./Avatar";
+
+const getFileIcon = (type: string) => {
+  switch (type) {
+    case "script":
+      return <FileText size={14} style={{ color: "#38bdf8" }} />; // blue/sky
+    case "idea":
+      return <Lightbulb size={14} style={{ color: "#f59e0b" }} />; // amber/orange
+    case "character":
+      return <User size={14} style={{ color: "#ec4899" }} />; // pink
+    case "outline":
+      return <List size={14} style={{ color: "#10b981" }} />; // green
+    case "shotlist":
+      return <Film size={14} style={{ color: "#a855f7" }} />; // violet/purple
+    default:
+      return <FileText size={14} />;
+  }
+};
 
 const stripHtml = (text: string) => {
   if (!text) return "";
@@ -1072,7 +1089,7 @@ export function EditorScreen({
                       className={`sp-file-item ${f.id === activeFileId ? "active" : ""}`}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <FileText size={14} style={{ opacity: f.id === activeFileId ? 1 : 0.6 }} />
+                        {getFileIcon(f.type || "script")}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>{f.title}</span>
                       </div>
                       <span className="sp-file-page-badge">{f.blocks ? Math.max(1, Math.ceil(f.blocks.length / 22)) : 1} pp</span>

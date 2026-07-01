@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronLeft, Plus, Trash2, Sparkles, Download, Check, Menu, X } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Sparkles, Check, Menu, X, Undo, Redo, FileText, Lightbulb, User, List, Film } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Project, FileDoc, Shot } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { exportShotListCSV, exportShotListPDF } from "../../utils/export";
@@ -23,6 +24,24 @@ const EQUIPMENTS = ["Tripod", "Handheld", "Steadicam", "Gimbal", "Dolly", "Slide
 const LENSES = ["Wide Angle", "Normal", "Telephoto", "Mobile", "18mm", "24mm", "35mm", "50mm", "85mm", "100mm"];
 const INT_EXT_OPTIONS = ["INT", "EXT", "I/E"];
 
+// Differentiated icons for sidebar files list
+const getFileIcon = (type: string) => {
+  switch (type) {
+    case "script":
+      return <FileText size={14} style={{ color: "#38bdf8" }} />; // blue/sky
+    case "idea":
+      return <Lightbulb size={14} style={{ color: "#f59e0b" }} />; // amber/orange
+    case "character":
+      return <User size={14} style={{ color: "#ec4899" }} />; // pink
+    case "outline":
+      return <List size={14} style={{ color: "#10b981" }} />; // green
+    case "shotlist":
+      return <Film size={14} style={{ color: "#a855f7" }} />; // violet/purple
+    default:
+      return <FileText size={14} />;
+  }
+};
+
 export function ShotListEditor({
   project,
   file,
@@ -31,6 +50,7 @@ export function ShotListEditor({
   persistFile,
   readOnly = false,
 }: ShotListEditorProps) {
+  const navigate = useNavigate();
   const [title, setTitle] = useState(file.title);
   const [shots, setShots] = useState<Shot[]>(file.shotList || []);
   const [creationMode, setCreationMode] = useState<"manual" | "generated" | "empty">(file.shotListCreationMode || "empty");
@@ -49,6 +69,66 @@ export function ShotListEditor({
 
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const debounceTimer = useRef<any>(null);
+
+  // Undo / Redo History stack states
+  const [history, setHistory] = useState<Shot[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Initialize history stack
+  useEffect(() => {
+    if (shots.length > 0 && history.length === 0) {
+      setHistory([shots]);
+      setHistoryIndex(0);
+    }
+  }, [shots, history]);
+
+  // Handle Ctrl+Z and Ctrl+Y Undo/Redo keyboard triggers
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [historyIndex, history]);
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      setHistoryIndex(prevIndex);
+      const prevShots = history[prevIndex];
+      setShots(prevShots);
+      triggerSave(title, prevShots, creationMode);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextIndex = historyIndex + 1;
+      setHistoryIndex(nextIndex);
+      const nextShots = history[nextIndex];
+      setShots(nextShots);
+      triggerSave(title, nextShots, creationMode);
+    }
+  };
+
+  const updateShotsWithHistory = (newShots: Shot[]) => {
+    setShots(newShots);
+    
+    // Clear redo history if we make a fresh action
+    const nextHistory = history.slice(0, historyIndex + 1);
+    nextHistory.push(newShots);
+    setHistory(nextHistory);
+    setHistoryIndex(nextHistory.length - 1);
+
+    triggerSave(title, newShots, creationMode);
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -200,8 +280,7 @@ export function ShotListEditor({
       }
       return s;
     });
-    setShots(updated);
-    triggerSave(title, updated, creationMode);
+    updateShotsWithHistory(updated);
   };
 
   // Toggle status
@@ -233,18 +312,17 @@ export function ShotListEditor({
       movement: "Static",
       lens: "Wide Angle",
       status: "Planned",
-      equipment: "Tripod", // Default Tripod
+      equipment: "Tripod",
       intExt: currentShot.intExt || "INT",
       note: ""
     };
 
     const updated = [...shots];
     updated.splice(index + 1, 0, newShot);
-    setShots(updated);
-
+    
     const nextMode = creationMode === "empty" ? "manual" : creationMode;
     setCreationMode(nextMode);
-    triggerSave(title, updated, nextMode);
+    updateShotsWithHistory(updated);
   };
 
   // Add shot at the end
@@ -266,9 +344,8 @@ export function ShotListEditor({
         intExt: "INT",
         note: ""
       };
-      setShots([newShot]);
       setCreationMode("manual");
-      triggerSave(title, [newShot], "manual");
+      updateShotsWithHistory([newShot]);
       return;
     }
     addShotAfter(shots.length - 1);
@@ -308,9 +385,8 @@ export function ShotListEditor({
     });
 
     const updated = [...shots, ...newShots];
-    setShots(updated);
     setCreationMode("generated");
-    triggerSave(title, updated, "generated");
+    updateShotsWithHistory(updated);
   };
 
   // Sync new script scenes
@@ -346,8 +422,7 @@ export function ShotListEditor({
     });
 
     const updated = [...shots, ...syncedShots];
-    setShots(updated);
-    triggerSave(title, updated, creationMode);
+    updateShotsWithHistory(updated);
   };
 
   // Delete shot
@@ -355,8 +430,8 @@ export function ShotListEditor({
     if (readOnly) return;
     if (!window.confirm("Delete this shot?")) return;
     const updated = shots.filter(s => s.id !== shotId);
-    setShots(updated);
-    triggerSave(title, updated, updated.length === 0 ? "empty" : creationMode);
+    setCreationMode(updated.length === 0 ? "empty" : creationMode);
+    updateShotsWithHistory(updated);
   };
 
   const addScene = () => {
@@ -381,19 +456,18 @@ export function ShotListEditor({
     };
 
     const updated = [...shots, newShot];
-    setShots(updated);
     
     const nextMode = creationMode === "empty" ? "manual" : creationMode;
     setCreationMode(nextMode);
-    triggerSave(title, updated, nextMode);
+    updateShotsWithHistory(updated);
   };
 
   const deleteScene = (sceneNumber: number) => {
     if (readOnly) return;
     if (!window.confirm(`Are you sure you want to delete Scene ${sceneNumber} and all its shots?`)) return;
     const updated = shots.filter((s) => s.sceneNumber !== sceneNumber);
-    setShots(updated);
-    triggerSave(title, updated, updated.length === 0 ? "empty" : creationMode);
+    setCreationMode(updated.length === 0 ? "empty" : creationMode);
+    updateShotsWithHistory(updated);
   };
 
   const handleExportCSV = () => {
@@ -577,60 +651,7 @@ export function ShotListEditor({
           padding-left: 8px;
         }
 
-        /* Stats indicators inside sidebar */
-        .sp-sidebar-stat-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          padding: 0 8px;
-        }
-
-        .sp-sidebar-stat-card {
-          background: rgba(255, 255, 255, 0.01);
-          border: 1px solid rgba(255, 255, 255, 0.03);
-          padding: 12px;
-          border-radius: 8px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .sp-sidebar-stat-label {
-          font-size: 10px;
-          color: #71717a;
-          text-transform: uppercase;
-          font-weight: 500;
-        }
-
-        .sp-sidebar-stat-val {
-          font-size: 16px;
-          font-weight: 800;
-          color: #fff;
-        }
-
         /* Scenes shortcut list */
-        .sp-sidebar-scene-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          background: transparent;
-          border: none;
-          color: #d4d4d8;
-          font-size: 12.5px;
-          font-weight: 500;
-          padding: 8px 10px;
-          border-radius: 8px;
-          cursor: pointer;
-          text-align: left;
-          transition: all 0.15s;
-        }
-
-        .sp-sidebar-scene-item:hover {
-          background: rgba(255, 255, 255, 0.03);
-          color: #fff;
-        }
-
         .sp-sidebar-scene-row {
           display: flex;
           align-items: center;
@@ -665,6 +686,28 @@ export function ShotListEditor({
         .sp-sidebar-scene-row:hover .sp-sidebar-scene-delete-btn:hover {
           opacity: 1;
           background: rgba(248, 113, 113, 0.05);
+        }
+
+        .sp-sidebar-scene-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          background: transparent;
+          border: none;
+          color: #d4d4d8;
+          font-size: 12.5px;
+          font-weight: 500;
+          padding: 8px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.15s;
+        }
+
+        .sp-sidebar-scene-item:hover {
+          background: rgba(255, 255, 255, 0.03);
+          color: #fff;
         }
 
         .sp-sidebar-scene-num-badge {
@@ -1157,24 +1200,51 @@ export function ShotListEditor({
                 </div>
               )}
 
-              {/* STATS SECTION */}
+              {/* FILES SECTION */}
               <div>
-                <div className="sp-sidebar-header">Stats</div>
-                <div className="sp-sidebar-stat-grid">
-                  <div className="sp-sidebar-stat-card">
-                    <span className="sp-sidebar-stat-label">Shots</span>
-                    <span className="sp-sidebar-stat-val">{metrics.total}</span>
-                  </div>
-                  <div className="sp-sidebar-stat-card">
-                    <span className="sp-sidebar-stat-label">Scenes</span>
-                    <span className="sp-sidebar-stat-val">{metrics.scenesCovered}</span>
-                  </div>
-                  <div className="sp-sidebar-stat-card" style={{ gridColumn: "span 2" }}>
-                    <span className="sp-sidebar-stat-label">Completed / Planned</span>
-                    <span className="sp-sidebar-stat-val" style={{ color: "#10b981" }}>
-                      {metrics.completed} <span style={{ color: "#71717a", fontWeight: 400, fontSize: 11 }}>/ {metrics.planned} left</span>
-                    </span>
-                  </div>
+                <div className="sp-sidebar-header">Files</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {project.files.map((f) => {
+                    const isActive = f.id === file.id;
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          if (isActive) return;
+                          navigate(`/project/${project.id}/file/${f.id}`);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          background: isActive ? "rgba(255, 255, 255, 0.05)" : "transparent",
+                          border: "none",
+                          color: isActive ? "#fff" : "#a1a1aa",
+                          fontSize: "12.5px",
+                          fontWeight: isActive ? "600" : "500",
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 0.15s"
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                          {getFileIcon(f.type || "script")}
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {f.title}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1198,7 +1268,7 @@ export function ShotListEditor({
                           <span className="sp-sidebar-scene-num-badge">{num}</span>
                           <span className="sp-sidebar-scene-text" title={heading}>{heading}</span>
                         </button>
-                        {!readOnly && (
+                        {!readOnly && creationMode !== "generated" && (
                           <button
                             className="sp-sidebar-scene-delete-btn"
                             onClick={(e) => {
@@ -1241,13 +1311,17 @@ export function ShotListEditor({
           
           {/* Toolbar */}
           <div className="sp-shotlist-toolbar">
-            <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <button className="sp-shotlist-tool-btn" onClick={addShotAtEnd} disabled={readOnly}>
                 <Plus size={14} /> Add Shot
               </button>
-              <button className="sp-shotlist-tool-btn" onClick={addScene} disabled={readOnly}>
-                <Plus size={14} /> Add Scene
-              </button>
+
+              {/* Only show + Add Scene if NOT generated from script */}
+              {creationMode !== "generated" && (
+                <button className="sp-shotlist-tool-btn" onClick={addScene} disabled={readOnly}>
+                  <Plus size={14} /> Add Scene
+                </button>
+              )}
 
               {/* Conditional generate button logic */}
               {creationMode === "empty" && (
@@ -1261,6 +1335,36 @@ export function ShotListEditor({
                   <Sparkles size={13} /> Sync New Scenes from Script
                 </button>
               )}
+
+              <div style={{ width: 1, height: 16, backgroundColor: "#272730", margin: "0 4px" }} />
+
+              <button 
+                className="sp-shotlist-tool-btn" 
+                onClick={undo} 
+                disabled={historyIndex <= 0}
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo size={14} />
+              </button>
+              <button 
+                className="sp-shotlist-tool-btn" 
+                onClick={redo} 
+                disabled={historyIndex >= history.length - 1}
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo size={14} />
+              </button>
+            </div>
+
+            {/* Metrics stats section in toolbar */}
+            <div style={{ display: "flex", gap: 16, alignItems: "center", fontSize: "12px", color: "#71717a", fontWeight: 500 }}>
+              <div>Shots: <strong style={{ color: "#fff" }}>{metrics.total}</strong></div>
+              <div style={{ width: 1, height: 12, backgroundColor: "#1e1e24" }} />
+              <div>Scenes: <strong style={{ color: "#fff" }}>{metrics.scenesCovered}</strong></div>
+              <div style={{ width: 1, height: 12, backgroundColor: "#1e1e24" }} />
+              <div>Completed: <strong style={{ color: "#10b981" }}>{metrics.completed}</strong></div>
+              <div style={{ width: 1, height: 12, backgroundColor: "#1e1e24" }} />
+              <div>Planned: <strong style={{ color: "#6366f1" }}>{metrics.planned}</strong></div>
             </div>
           </div>
 
@@ -1340,7 +1444,7 @@ export function ShotListEditor({
                             style={{ textAlign: "center", fontWeight: "bold" }}
                             value={shot.sceneNumber}
                             onChange={(e) => updateShotField(shot.id, "sceneNumber", parseInt(e.target.value) || 1)}
-                            disabled={readOnly}
+                            disabled={readOnly || creationMode === "generated"}
                           />
                         </td>
 
