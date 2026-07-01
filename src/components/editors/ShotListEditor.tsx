@@ -67,6 +67,9 @@ export function ShotListEditor({
   const [highlightedScene, setHighlightedScene] = useState<number | null>(null);
   const highlightTimeout = useRef<any>(null);
 
+  // Hovered scene for bottom centered add/remove scene action buttons trigger
+  const [hoveredSceneNumber, setHoveredSceneNumber] = useState<number | null>(null);
+
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const debounceTimer = useRef<any>(null);
 
@@ -196,12 +199,6 @@ export function ShotListEditor({
     const mainScript = scriptFiles[0];
     return mainScript.blocks.filter(b => b.type === "scene").map(b => b.text.replace(/<[^>]*>/g, "").trim().toUpperCase());
   }, [project.files]);
-
-  const isSyncAvailable = useMemo(() => {
-    if (creationMode !== "generated") return false;
-    const shotScenes = new Set(shots.map(s => s.sceneHeading.toUpperCase()));
-    return scriptScenes.some(s => s && !shotScenes.has(s));
-  }, [scriptScenes, shots, creationMode]);
 
   // Auto-save logic
   const triggerSave = (updatedTitle: string, updatedShots: Shot[], updatedMode: "manual" | "generated" | "empty") => {
@@ -359,10 +356,6 @@ export function ShotListEditor({
       return;
     }
 
-    if (shots.length > 0 && !window.confirm("Generating will append scenes to your current shot list. Continue?")) {
-      return;
-    }
-
     let startingSceneNum = shots.reduce((max, s) => Math.max(max, s.sceneNumber), 0) + 1;
     const newShots: Shot[] = [];
 
@@ -389,56 +382,29 @@ export function ShotListEditor({
     updateShotsWithHistory(updated);
   };
 
-  // Sync new script scenes
-  const syncNewScenes = () => {
-    if (readOnly) return;
-    const currentSceneHeadings = new Set(shots.map(s => s.sceneHeading.toUpperCase()));
-    const newScenes = scriptScenes.filter(s => s && !currentSceneHeadings.has(s));
-
-    if (newScenes.length === 0) {
-      alert("No new scenes found in script.");
-      return;
-    }
-
-    let startingSceneNum = shots.reduce((max, s) => Math.max(max, s.sceneNumber), 0) + 1;
-    const syncedShots: Shot[] = [];
-
-    newScenes.forEach((headingText, idx) => {
-      syncedShots.push({
-        id: uid(),
-        sceneNumber: startingSceneNum + idx,
-        shotLabel: "1",
-        sceneHeading: headingText || "UNTITLED SCENE",
-        description: "",
-        shotType: "WS",
-        angle: "Deep Focus",
-        movement: "Static",
-        lens: "Wide Angle",
-        status: "Planned",
-        equipment: "Tripod",
-        intExt: headingText.startsWith("EXT") ? "EXT" : "INT",
-        note: ""
-      });
-    });
-
-    const updated = [...shots, ...syncedShots];
-    updateShotsWithHistory(updated);
-  };
-
-  // Delete shot
+  // Delete shot without alert confirm popup distraction
   const deleteShot = (shotId: string) => {
     if (readOnly) return;
-    if (!window.confirm("Delete this shot?")) return;
     const updated = shots.filter(s => s.id !== shotId);
     setCreationMode(updated.length === 0 ? "empty" : creationMode);
     updateShotsWithHistory(updated);
   };
 
-  const addScene = () => {
+  // Add scene after a specific scene number (shifts subsequent ones)
+  const addSceneAfter = (sceneNum: number) => {
     if (readOnly) return;
-    const maxSceneNum = shots.reduce((max, s) => Math.max(max, s.sceneNumber), 0);
-    const newSceneNum = maxSceneNum + 1;
+    const newSceneNum = sceneNum + 1;
+    
+    // Shift subsequent scenes by 1
+    const updated = shots.map((s) => {
+      if (s.sceneNumber >= newSceneNum) {
+        return { ...s, sceneNumber: s.sceneNumber + 1 };
+      }
+      return s;
+    });
 
+    const lastShotIndex = updated.map(s => s.sceneNumber).lastIndexOf(sceneNum);
+    
     const newShot: Shot = {
       id: uid(),
       sceneNumber: newSceneNum,
@@ -455,16 +421,19 @@ export function ShotListEditor({
       note: ""
     };
 
-    const updated = [...shots, newShot];
-    
-    const nextMode = creationMode === "empty" ? "manual" : creationMode;
-    setCreationMode(nextMode);
+    updated.splice(lastShotIndex + 1, 0, newShot);
     updateShotsWithHistory(updated);
   };
 
+  const addScene = () => {
+    if (readOnly) return;
+    const maxSceneNum = shots.reduce((max, s) => Math.max(max, s.sceneNumber), 0);
+    addSceneAfter(maxSceneNum);
+  };
+
+  // Delete entire scene (and all its shots) without confirm alerts
   const deleteScene = (sceneNumber: number) => {
     if (readOnly) return;
-    if (!window.confirm(`Are you sure you want to delete Scene ${sceneNumber} and all its shots?`)) return;
     const updated = shots.filter((s) => s.sceneNumber !== sceneNumber);
     setCreationMode(updated.length === 0 ? "empty" : creationMode);
     updateShotsWithHistory(updated);
@@ -622,18 +591,6 @@ export function ShotListEditor({
         }
 
         /* Sidebar styles matching Script Editor */
-        .sp-shotlist-sidebar {
-          width: 250px;
-          border-right: 1px solid #1a1a22;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          padding: 16px 14px;
-          background: #111115;
-          flex-shrink: 0;
-          overflow-y: auto;
-        }
-
         .sp-sidebar-section {
           display: flex;
           flex-direction: column;
@@ -896,6 +853,13 @@ export function ShotListEditor({
           width: 100%;
         }
 
+        /* Contenteditable description placeholder */
+        .sp-cell-input-clean-textarea:empty:before {
+          content: attr(placeholder);
+          color: #52525b;
+          cursor: text;
+        }
+
         /* Highlight Row Glow keyframe animation */
         @keyframes sp-row-glow {
           0% { background-color: rgba(99, 102, 241, 0.25); }
@@ -1044,9 +1008,14 @@ export function ShotListEditor({
           z-index: 40;
         }
 
+        /* Hover scene overlay controls styling */
+        .sp-scene-hover-bar {
+          animation: sp-fade-in 0.1s ease-out;
+        }
+
         @keyframes sp-fade-in {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translate(-50%, 4px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
         }
         `
       }} />
@@ -1182,27 +1151,37 @@ export function ShotListEditor({
           <div className="sp-sidebar-overlay-backdrop" onClick={() => setShowSidebar(false)} />
         )}
 
-        {/* 5. COLLAPSIBLE SIDEBAR */}
+        {/* 5. COLLAPSIBLE SIDEBAR (Matches Script Editor Sidebar Layout/Styling Exactly) */}
         {showSidebar && (
-          <aside className="sp-shotlist-sidebar sp-no-print">
-            <div style={{ display: "flex", flexDirection: "column", gap: 24, flex: 1 }}>
+          <aside className="sp-sidebar sp-sidebar-left sp-no-print" style={{ 
+            width: 250, 
+            borderRight: "1px solid var(--sp-border)", 
+            display: "flex", 
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "16px 14px",
+            background: "var(--sp-sidebar)"
+          }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24, overflowY: "auto", flex: 1 }}>
               
               {/* Mobile Sidebar Close */}
               {isMobile && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--sp-border)", paddingBottom: 12, marginBottom: 8 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Shot List Menu</span>
-                  <button 
-                    onClick={() => setShowSidebar(false)}
-                    style={{ width: 28, height: 28, borderRadius: 6, background: "#1e1e24", border: "1px solid var(--sp-border)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}
-                  >
-                    <X size={14} />
-                  </button>
+                <div style={{ borderBottom: "1px solid var(--sp-border)", paddingBottom: 12, marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>WriterDesk</span>
+                    <button 
+                      onClick={() => setShowSidebar(false)}
+                      style={{ width: 32, height: 32, borderRadius: 8, background: "#1e1e24", border: "1px solid var(--sp-border)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* FILES SECTION */}
               <div>
-                <div className="sp-sidebar-header">Files</div>
+                <div className="sp-sidebar-header">FILES</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {project.files.map((f) => {
                     const isActive = f.id === file.id;
@@ -1213,35 +1192,15 @@ export function ShotListEditor({
                           if (isActive) return;
                           navigate(`/project/${project.id}/file/${f.id}`);
                         }}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          width: "100%",
-                          background: isActive ? "rgba(255, 255, 255, 0.05)" : "transparent",
-                          border: "none",
-                          color: isActive ? "#fff" : "#a1a1aa",
-                          fontSize: "12.5px",
-                          fontWeight: isActive ? "600" : "500",
-                          padding: "8px 10px",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          transition: "all 0.15s"
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isActive) e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isActive) e.currentTarget.style.background = "transparent";
-                        }}
+                        className={`sp-file-item ${isActive ? "active" : ""}`}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           {getFileIcon(f.type || "script")}
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>
                             {f.title}
                           </span>
                         </div>
+                        <span className="sp-file-page-badge">{f.blocks ? Math.max(1, Math.ceil(f.blocks.length / 22)) : 1} pp</span>
                       </button>
                     );
                   })}
@@ -1323,16 +1282,10 @@ export function ShotListEditor({
                 </button>
               )}
 
-              {/* Conditional generate button logic */}
-              {creationMode === "empty" && (
+              {/* Only show Generate from Script if shots are empty */}
+              {shots.length === 0 && (
                 <button className="sp-shotlist-tool-btn" onClick={generateFromScript} disabled={readOnly} style={{ color: "var(--sp-accent)", borderColor: "rgba(232, 184, 75, 0.2)" }}>
                   <Sparkles size={13} /> Generate from Script
-                </button>
-              )}
-
-              {isSyncAvailable && (
-                <button className="sp-shotlist-tool-btn" onClick={syncNewScenes} disabled={readOnly} style={{ color: "#10b981", borderColor: "rgba(16, 185, 129, 0.2)" }}>
-                  <Sparkles size={13} /> Sync New Scenes from Script
                 </button>
               )}
 
@@ -1369,7 +1322,7 @@ export function ShotListEditor({
           </div>
 
           {/* Table Grid (Spreadsheet Scrollable) */}
-          <div className="sp-shotlist-table-wrapper">
+          <div className="sp-shotlist-table-wrapper" onMouseLeave={() => setHoveredSceneNumber(null)}>
             {shots.length === 0 ? (
               <div className="sp-empty-state">
                 <h3 style={{ color: "#fff", marginBottom: 8 }}>No shots created yet</h3>
@@ -1423,18 +1376,20 @@ export function ShotListEditor({
                     const sceneIndex = uniqueScenesList.indexOf(shot.sceneNumber);
                     const isOddScene = sceneIndex % 2 !== 0;
                     
-                    // Check if this is the last shot of its scene to add divider border
+                    // Check if this is the last shot of its scene to add divider border and centered hover bars
                     const isLastShotInScene = index === shots.length - 1 || shots[index + 1].sceneNumber !== shot.sceneNumber;
 
                     return (
                       <tr 
                         key={shot.id} 
                         id={`shot-row-${shot.id}`}
+                        onMouseEnter={() => setHoveredSceneNumber(shot.sceneNumber)}
                         className={`
                           ${isOddScene ? "odd-scene" : "even-scene"}
                           ${isLastShotInScene ? "last-in-scene" : ""}
                           ${isHighlighted ? "sp-row-highlighted" : ""}
                         `}
+                        style={{ position: "relative" }}
                       >
                         {/* 1. SCENE (Sticky) */}
                         <td className="sp-sheet-td sticky-col sticky-col-1">
@@ -1460,12 +1415,13 @@ export function ShotListEditor({
                           />
                         </td>
 
-                        {/* 3. DESCRIPTION (Wrapped contenteditable) */}
+                        {/* 3. DESCRIPTION (Wrapped contenteditable with placeholder bypass) */}
                         <td className="sp-sheet-td">
                           <div
                             contentEditable={!readOnly}
                             suppressContentEditableWarning
                             className="sp-cell-input-clean-textarea"
+                            {...{ placeholder: "Click to add description..." }}
                             onBlur={(e) => updateShotField(shot.id, "description", e.currentTarget.textContent || "")}
                             style={{
                               whiteSpace: "pre-wrap",
@@ -1588,6 +1544,66 @@ export function ShotListEditor({
                               </button>
                             </div>
                           </td>
+                        )}
+
+                        {/* Centered Scene Hover controls overlay at the bottom center of each scene group */}
+                        {hoveredSceneNumber === shot.sceneNumber && isLastShotInScene && !readOnly && (
+                          <div 
+                            className="sp-scene-hover-bar sp-no-print"
+                            style={{
+                              position: "absolute",
+                              bottom: "-14px",
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              zIndex: 100,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              backgroundColor: "#18181c",
+                              border: "1px solid #2e2e3a",
+                              borderRadius: "20px",
+                              padding: "4px 14px",
+                              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)"
+                            }}
+                          >
+                            <button 
+                              onClick={() => addSceneAfter(shot.sceneNumber)}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "var(--sp-accent)",
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4
+                              }}
+                            >
+                              <Plus size={12} /> Add Scene
+                            </button>
+                            {creationMode !== "generated" && (
+                              <>
+                                <div style={{ width: 1, height: 12, backgroundColor: "#2e2e3a" }} />
+                                <button 
+                                  onClick={() => deleteScene(shot.sceneNumber)}
+                                  style={{
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "#f87171",
+                                    fontSize: "11px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4
+                                  }}
+                                >
+                                  <Trash2 size={12} /> Remove Scene
+                                </button>
+                              </>
+                            )}
+                          </div>
                         )}
                       </tr>
                     );
