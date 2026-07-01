@@ -915,7 +915,16 @@ export function EditorScreen({
       {/* Mobile-only Header */}
       {isMobile && (
         <header className="sp-mobile-only sp-header sp-no-print">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button 
+              onClick={back} 
+              className="sp-mobile-bar-icon-btn"
+              style={{ width: 32, height: 32, borderRadius: 8, background: "#1e1e24", border: "1px solid var(--sp-border)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", cursor: "pointer" }}
+              title="Back"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
             <button 
               onClick={() => setShowScenes(v => !v)} 
               className="sp-mobile-bar-icon-btn"
@@ -1020,25 +1029,35 @@ export function EditorScreen({
             <div style={{ display: "flex", flexDirection: "column", gap: 24, overflowY: "auto", flex: 1 }}>
               
               {isMobile && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--sp-border)", paddingBottom: 12, marginBottom: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>WriterDesk</span>
-                  <button 
-                    onClick={() => setShowScenes(false)}
-                    style={{ 
-                      width: 32, 
-                      height: 32, 
-                      borderRadius: 8, 
-                      background: "#1e1e24", 
-                      border: "1px solid var(--sp-border)", 
-                      display: "flex", 
-                      alignItems: "center", 
-                      justifyContent: "center", 
-                      color: "#fff", 
-                      cursor: "pointer" 
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
+                <div style={{ borderBottom: "1px solid var(--sp-border)", paddingBottom: 12, marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>WriterDesk</span>
+                    <button 
+                      onClick={() => setShowScenes(false)}
+                      style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 8, 
+                        background: "#1e1e24", 
+                        border: "1px solid var(--sp-border)", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center", 
+                        color: "#fff", 
+                        cursor: "pointer" 
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <button onClick={back} style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", color: "var(--sp-text)", fontSize: 13, cursor: "pointer", padding: "6px 0", textAlign: "left" }}>
+                      <ChevronLeft size={14} /> Back to Files
+                    </button>
+                    <button onClick={() => navigate("/projects")} style={{ display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", color: "var(--sp-text)", fontSize: 13, cursor: "pointer", padding: "6px 0", textAlign: "left" }}>
+                      <span style={{ fontSize: 14, marginRight: 2 }}>⌂</span> Projects Dashboard
+                    </button>
+                  </div>
                 </div>
               )}
 

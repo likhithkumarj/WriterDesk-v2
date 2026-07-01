@@ -8,7 +8,7 @@ import { ExportModal } from "../modals/ExportModal";
 import {
   Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search,
   Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
-  ChevronLeft, MoreHorizontal, Lightbulb, User, ListCollapse, BookOpen, Bookmark, Trash2, Gauge, CheckSquare
+  ChevronLeft, MoreHorizontal, Lightbulb, User, ListCollapse, BookOpen, Bookmark, Trash2, Gauge, CheckSquare, Clapperboard
 } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { supabase } from "../../utils/supabaseClient";
@@ -262,9 +262,9 @@ export function FilesScreen({
   const [collaborators, setCollaborators] = useState<any[]>(() => supabaseService.isConfigured() ? [] : mockCollaboratorsList);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "script" | "idea" | "character" | "outline">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "script" | "idea" | "character" | "outline" | "shotlist">("all");
   const [showAddFileModal, setShowAddFileModal] = useState(false);
-  const [newFileType, setNewFileType] = useState<"script" | "idea" | "character" | "outline">("script");
+  const [newFileType, setNewFileType] = useState<"script" | "idea" | "character" | "outline" | "shotlist">("script");
   const [newFileTitle, setNewFileTitle] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "date" | "words">("date");
@@ -531,6 +531,9 @@ export function FilesScreen({
     if (f.type === "outline") {
       return Math.max(1, Math.ceil((f.outlineTree || []).length / 3));
     }
+    if (f.type === "shotlist") {
+      return Math.max(1, Math.ceil((f.shotList || []).length / 10));
+    }
     return 1;
   };
 
@@ -558,6 +561,11 @@ export function FilesScreen({
       };
       return (f.outlineTree || []).reduce((sum, n) => sum + sumNodeWords(n), 0);
     }
+    if (f.type === "shotlist") {
+      return (f.shotList || []).reduce((sum, s) => {
+        return sum + (s.description || "").split(/\s+/).filter(Boolean).length + (s.shotLabel || "").split(/\s+/).filter(Boolean).length + (s.sceneHeading || "").split(/\s+/).filter(Boolean).length;
+      }, 0);
+    }
     return 0;
   };
 
@@ -573,6 +581,7 @@ export function FilesScreen({
     if (type === "idea") return "#fde047"; // Yellow
     if (type === "character") return "#93c5fd"; // Blue
     if (type === "outline") return "#86efac"; // Green
+    if (type === "shotlist") return "#fb923c"; // Orange
     return "var(--sp-accent)";
   };
 
@@ -597,6 +606,7 @@ export function FilesScreen({
   const ideaCount = localProject.files.filter(f => f.type === "idea").length;
   const characterCount = localProject.files.filter(f => f.type === "character").length;
   const outlineCount = localProject.files.filter(f => f.type === "outline").length;
+  const shotlistCount = localProject.files.filter(f => f.type === "shotlist").length;
   const totalFilesCount = localProject.files.length;
 
   const getLastEditedDate = () => {
@@ -661,6 +671,17 @@ export function FilesScreen({
           }
         ]
       };
+    } else if (newFileType === "shotlist") {
+      newFile = {
+        id: uid(),
+        title,
+        type: "shotlist",
+        dateModified: Date.now(),
+        status: "Draft",
+        wordCount: 0,
+        blocks: [],
+        shotList: [],
+      };
     } else { // outline
       newFile = {
         id: uid(),
@@ -721,7 +742,7 @@ export function FilesScreen({
 
   const duplicateFile = (id: string) => {
     const f = localProject.files.find((x) => x.id === id); if (!f) return;
-    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks ? f.blocks.map(b => ({ ...b, id: uid() })) : [], characters: f.characters ? f.characters.map(c => ({ ...c, id: uid() })) : undefined, outlineTree: f.outlineTree ? JSON.parse(JSON.stringify(f.outlineTree)) : undefined }] });
+    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks ? f.blocks.map(b => ({ ...b, id: uid() })) : [], characters: f.characters ? f.characters.map(c => ({ ...c, id: uid() })) : undefined, outlineTree: f.outlineTree ? JSON.parse(JSON.stringify(f.outlineTree)) : undefined, shotList: f.shotList ? JSON.parse(JSON.stringify(f.shotList)) : undefined }] });
   };
 
   const deleteFile = async (id: string) => {
@@ -1971,6 +1992,12 @@ export function FilesScreen({
                       >
                         Outlines
                       </button>
+                      <button
+                        className={`sp-ws-filter-tab ${selectedFilter === "shotlist" ? "active" : ""}`}
+                        onClick={() => setSelectedFilter("shotlist")}
+                      >
+                        Shot Lists
+                      </button>
                     </div>
 
                     <div className="sp-ws-right-controls">
@@ -2054,6 +2081,7 @@ export function FilesScreen({
                                 {displayType === "idea" && <Lightbulb size={15} color={fileIconColor} />}
                                 {displayType === "character" && <User size={15} color={fileIconColor} />}
                                 {displayType === "outline" && <ListCollapse size={15} color={fileIconColor} />}
+                                {displayType === "shotlist" && <Clapperboard size={15} color={fileIconColor} />}
                               </div>
                               <div style={{ minWidth: 0 }}>
                                 <h3 className="sp-ws-file-title">{f.title}</h3>
@@ -2065,7 +2093,7 @@ export function FilesScreen({
                               <span
                                 className="sp-ws-badge-type"
                                 style={{
-                                  background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(var(--sp-accent-rgb), 0.12)" : "rgba(34, 197, 94, 0.12)",
+                                  background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(var(--sp-accent-rgb), 0.12)" : displayType === "outline" ? "rgba(34, 197, 94, 0.12)" : "rgba(249, 115, 22, 0.12)",
                                   color: fileIconColor
                                 }}
                               >
@@ -2623,6 +2651,27 @@ export function FilesScreen({
                 <div>
                   <h4 className="sp-newfile-card-title">Outline</h4>
                   <p className="sp-newfile-card-desc">Beat sheet, hierarchical acts planning, and collapsible tree.</p>
+                </div>
+              </div>
+
+              {/* Shot List selector */}
+              <div
+                className={`sp-newfile-type-card ${newFileType === "shotlist" ? "selected" : ""}`}
+                onClick={() => setNewFileType("shotlist")}
+              >
+                <div className="sp-newfile-card-header">
+                  <div className="sp-newfile-card-icon" style={{ background: "rgba(249, 115, 22, 0.12)", color: "#fb923c" }}>
+                    <Clapperboard size={16} />
+                  </div>
+                  {newFileType === "shotlist" ? (
+                    <div className="sp-newfile-checkmark-badge">✓</div>
+                  ) : (
+                    <div className="sp-newfile-checkmark-placeholder" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="sp-newfile-card-title">Shot List</h4>
+                  <p className="sp-newfile-card-desc">Excel-style camera shots breakdown list grouped by scene.</p>
                 </div>
               </div>
 

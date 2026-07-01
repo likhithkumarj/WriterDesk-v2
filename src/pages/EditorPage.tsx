@@ -3,6 +3,7 @@ import { EditorScreen } from "../components/screenplay/EditorScreen";
 import { IdeaEditor } from "../components/editors/IdeaEditor";
 import { CharacterEditor } from "../components/editors/CharacterEditor";
 import { OutlineEditor } from "../components/editors/OutlineEditor";
+import { ShotListEditor } from "../components/editors/ShotListEditor";
 import { Project, FileDoc } from "../types/screenplay";
 import { supabaseService } from "../utils/supabaseService";
 import { supabase } from "../utils/supabaseClient";
@@ -121,6 +122,19 @@ export function EditorPage({
   if (type === "outline") {
     return (
       <OutlineEditor
+        project={project}
+        file={file}
+        user={user}
+        back={back}
+        persistFile={persistFile}
+        readOnly={readOnly}
+      />
+    );
+  }
+
+  if (type === "shotlist") {
+    return (
+      <ShotListEditor
         project={project}
         file={file}
         user={user}

@@ -142,6 +142,8 @@ export const supabaseService = {
           content: f.content || "",
           characters: f.characters || [],
           outlineTree: f.outline_tree || [],
+          shotList: f.shot_list ? (Array.isArray(f.shot_list) ? f.shot_list : (f.shot_list.shots || [])) : [],
+          shotListCreationMode: f.shot_list ? (Array.isArray(f.shot_list) ? "empty" : (f.shot_list.creationMode || "empty")) : "empty",
         })),
       }));
     } catch (err: any) {
@@ -187,6 +189,7 @@ export const supabaseService = {
             content: f.content || null,
             characters: f.characters || null,
             outline_tree: f.outlineTree || null,
+            shot_list: f.shotList ? { creationMode: f.shotListCreationMode || "empty", shots: f.shotList } : null,
           });
           if (fileErr) {
             console.error("Migration error: Failed to insert file:", f.id, fileErr);
@@ -248,6 +251,7 @@ export const supabaseService = {
             content: f.content || null,
             characters: f.characters || null,
             outline_tree: f.outlineTree || null,
+            shot_list: f.shotList ? { creationMode: f.shotListCreationMode || "empty", shots: f.shotList } : null,
           });
           if (fileErr) {
             console.error("Sync error upserting file:", f.id, fileErr);

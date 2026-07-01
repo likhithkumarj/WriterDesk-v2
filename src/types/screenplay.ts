@@ -20,7 +20,7 @@ export interface TitlePage {
   contact: string;
 }
 
-export type FileType = "script" | "idea" | "character" | "outline";
+export type FileType = "script" | "idea" | "character" | "outline" | "shotlist";
 
 export interface CharacterRecord {
   id: string;
@@ -45,6 +45,23 @@ export interface OutlineNode {
   children?: OutlineNode[];
 }
 
+export interface Shot {
+  id: string;
+  sceneNumber: number;       // Auto from scene group (1, 2, 3...)
+  shotLabel: string;         // Editable: "A", "B", "OTS-1", etc.
+  sceneHeading: string;      // "INT. COFFEE SHOP - DAY"
+  description: string;       // Free text notes
+  shotType: string;          // Wide | Medium | CU | ECU | Insert
+  angle: string;             // Eye Level | High | Low | Bird's Eye | Dutch
+  movement: string;          // Static | Pan | Tilt | Dolly | Handheld | Crane
+  lens: string;              // 24mm | 35mm | 50mm | 85mm | 100mm
+  status: string;            // Planned | Approved | Shot
+  imageUrl?: string;         // Reserved for future storyboard feature
+  equipment?: string;        // Optional equipment used (Sticks, Handheld, Gimbal...)
+  intExt?: string;           // INT / EXT / I/E
+  note?: string;             // Notes
+}
+
 export interface FileDoc {
   id: string;
   title: string;
@@ -57,6 +74,8 @@ export interface FileDoc {
   content?: string; // used if type === "idea" (rich text HTML/Markdown)
   characters?: CharacterRecord[]; // used if type === "character"
   outlineTree?: OutlineNode[]; // used if type === "outline"
+  shotList?: Shot[]; // used if type === "shotlist"
+  shotListCreationMode?: "manual" | "generated" | "empty"; // creation mode metadata
 }
 
 export interface Project {
