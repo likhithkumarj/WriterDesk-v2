@@ -8,7 +8,7 @@ import { ExportModal } from "../modals/ExportModal";
 import {
   Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search,
   Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
-  ChevronLeft, MoreHorizontal, Lightbulb, User, ListCollapse, BookOpen, Bookmark, Trash2, Gauge, CheckSquare, Clapperboard
+  ChevronLeft, MoreHorizontal, Lightbulb, User, ListCollapse, BookOpen, Bookmark, Trash2, Gauge, CheckSquare, Clapperboard, List, Film
 } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { supabase } from "../../utils/supabaseClient";
@@ -255,7 +255,19 @@ export function FilesScreen({
   const [activeTab, setActiveTab] = useState<"files" | "collaborators" | "settings">("files");
   const [showExport, setShowExport] = useState(false);
   const [showEditDetails, setShowEditDetails] = useState(false);
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<{ id: string; openAbove: boolean } | null>(null);
+
+  const handleMenuToggle = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (openMenu?.id === id) {
+      setOpenMenu(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < 185;
+      setOpenMenu({ id, openAbove });
+    }
+  };
   const [dragId, setDragId] = useState<string | null>(null);
 
   const [localProject, setLocalProject] = useState<Project>(project);
@@ -577,11 +589,11 @@ export function FilesScreen({
   };
 
   const getFileIconColor = (type: string) => {
-    if (type === "script") return "#c084fc"; // Purple
-    if (type === "idea") return "#fde047"; // Yellow
-    if (type === "character") return "#93c5fd"; // Blue
-    if (type === "outline") return "#86efac"; // Green
-    if (type === "shotlist") return "#fb923c"; // Orange
+    if (type === "script") return "#38bdf8"; // Sky blue
+    if (type === "idea") return "#f59e0b"; // Amber/Orange
+    if (type === "character") return "#ec4899"; // Pink
+    if (type === "outline") return "#10b981"; // Emerald green
+    if (type === "shotlist") return "#a855f7"; // Violet/purple
     return "var(--sp-accent)";
   };
 
@@ -746,27 +758,10 @@ export function FilesScreen({
   };
 
   const deleteFile = async (id: string) => {
-    if (!window.confirm("Delete this file?")) return;
     try {
       if (supabaseService.isConfigured()) {
-        // Delete associated comments first to prevent foreign key constraint error
-        const { error: commentErr } = await supabase
-          .from("comments")
-          .delete()
-          .eq("file_id", id);
-        if (commentErr) throw commentErr;
-
-        // Perform the delete and check if any rows were deleted (tests for RLS deletion permissions)
-        const { data, error } = await supabase
-          .from("files")
-          .delete()
-          .eq("id", id)
-          .select("id");
-
+        const { error } = await supabaseService.deleteFile(id);
         if (error) throw error;
-        if (!data || data.length === 0) {
-          throw new Error("Deletion failed. You may not have permission to delete files from this project, or the file has already been deleted.");
-        }
       }
       persist({ ...localProject, files: localProject.files.filter((x) => x.id !== id) });
     } catch (err: any) {
@@ -775,7 +770,6 @@ export function FilesScreen({
   };
 
   const handleRemoveCollaborator = async (collabId: string) => {
-    if (!window.confirm("Are you sure you want to remove this collaborator?")) return;
     try {
       if (supabaseService.isConfigured()) {
         const { error } = await supabaseService.removeCollaborator(collabId);
@@ -2080,8 +2074,8 @@ export function FilesScreen({
                                 {displayType === "script" && <FileText size={15} color={fileIconColor} />}
                                 {displayType === "idea" && <Lightbulb size={15} color={fileIconColor} />}
                                 {displayType === "character" && <User size={15} color={fileIconColor} />}
-                                {displayType === "outline" && <ListCollapse size={15} color={fileIconColor} />}
-                                {displayType === "shotlist" && <Clapperboard size={15} color={fileIconColor} />}
+                                {displayType === "outline" && <List size={15} color={fileIconColor} />}
+                                {displayType === "shotlist" && <Film size={15} color={fileIconColor} />}
                               </div>
                               <div style={{ minWidth: 0 }}>
                                 <h3 className="sp-ws-file-title">{f.title}</h3>
@@ -2120,10 +2114,18 @@ export function FilesScreen({
                             </div>
 
                             {hasWriteAccess && (
-                              <div className="sp-ws-col-more" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }}>
+                              <div className="sp-ws-col-more" onClick={(e) => handleMenuToggle(f.id, e)}>
                                 <button className="sp-ws-row-action-btn">⋮</button>
-                                {openMenu === f.id && (
-                                  <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                                {openMenu?.id === f.id && (
+                                  <div 
+                                    className="sp-menu" 
+                                    style={{ 
+                                      right: 0, 
+                                      zIndex: 100,
+                                      ...(openMenu.openAbove ? { bottom: "calc(100% + 4px)", top: "auto" } : { top: "calc(100% + 4px)" })
+                                    }} 
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
                                     <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
                                     <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
@@ -2388,7 +2390,8 @@ export function FilesScreen({
                           {displayType === "script" && <FileText size={16} color={fileIconColor} />}
                           {displayType === "idea" && <Lightbulb size={16} color={fileIconColor} />}
                           {displayType === "character" && <User size={16} color={fileIconColor} />}
-                          {displayType === "outline" && <ListCollapse size={16} color={fileIconColor} />}
+                          {displayType === "outline" && <List size={16} color={fileIconColor} />}
+                          {displayType === "shotlist" && <Film size={16} color={fileIconColor} />}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                           <h3 className="sp-ws-mobile-file-title" style={{ fontSize: 13.5, fontWeight: 700, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.title}</h3>
@@ -2406,11 +2409,19 @@ export function FilesScreen({
                         </div>
                         {hasWriteAccess && (
                           <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
-                            <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === f.id ? null : f.id); }} style={{ background: "transparent", border: "none", color: "#8e8e93", cursor: "pointer", padding: 4 }}>
+                            <button className="sp-ws-mobile-file-more-btn" onClick={(e) => handleMenuToggle(f.id, e)} style={{ background: "transparent", border: "none", color: "#8e8e93", cursor: "pointer", padding: 4 }}>
                               <MoreVertical size={16} />
                             </button>
-                            {openMenu === f.id && (
-                              <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                            {openMenu?.id === f.id && (
+                              <div 
+                                className="sp-menu" 
+                                style={{ 
+                                  right: 0, 
+                                  zIndex: 100,
+                                  ...(openMenu.openAbove ? { bottom: "calc(100% + 4px)", top: "auto" } : { top: "calc(100% + 4px)" })
+                                }} 
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button onClick={() => { renameFile(f.id); setOpenMenu(null); }}>Rename</button>
                                 <button onClick={() => { duplicateFile(f.id); setOpenMenu(null); }}>Duplicate</button>
                                 <button onClick={() => { deleteFile(f.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>

@@ -205,6 +205,29 @@ export const supabaseService = {
     return migratedProjects;
   },
 
+  async deleteProject(projectId: string): Promise<{ error: any }> {
+    try {
+      const { error: fileErr } = await supabase.from("files").delete().eq("project_id", projectId);
+      if (fileErr) return { error: fileErr };
+      await supabase.from("collaborators").delete().eq("project_id", projectId);
+      const { error: projErr } = await supabase.from("projects").delete().eq("id", projectId);
+      return { error: projErr };
+    } catch (err: any) {
+      return { error: err };
+    }
+  },
+
+  async deleteFile(fileId: string): Promise<{ error: any }> {
+    try {
+      const { error: commentErr } = await supabase.from("comments").delete().eq("file_id", fileId);
+      if (commentErr) return { error: commentErr };
+      const { error: fileErr } = await supabase.from("files").delete().eq("id", fileId);
+      return { error: fileErr };
+    } catch (err: any) {
+      return { error: err };
+    }
+  },
+
   async syncStore(newStore: Store, oldStore: Store): Promise<boolean> {
     try {
       const { data: { user: supabaseUser } } = await supabase.auth.getUser();

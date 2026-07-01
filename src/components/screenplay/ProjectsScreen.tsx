@@ -26,7 +26,19 @@ export function ProjectsScreen({
   const navigate = useNavigate();
   const [showNew, setShowNew] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<"projects" | "recent">("projects");
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [openMenu, setOpenMenu] = useState<{ id: string; openAbove: boolean } | null>(null);
+
+  const handleMenuToggle = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (openMenu?.id === id) {
+      setOpenMenu(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < 185;
+      setOpenMenu({ id, openAbove });
+    }
+  };
   const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   const [shareProjectId, setShareProjectId] = useState<string | null>(null);
   const [shareProjectTitle, setShareProjectTitle] = useState("");
@@ -139,9 +151,16 @@ export function ProjectsScreen({
     persist({ ...store, projects: [np, ...store.projects] });
   };
 
-  const deleteProject = (id: string) => {
-    if (!window.confirm("Delete this project?")) return;
-    persist({ ...store, projects: store.projects.filter((x) => x.id !== id) });
+  const deleteProject = async (id: string) => {
+    try {
+      if (supabaseService.isConfigured()) {
+        const { error } = await supabaseService.deleteProject(id);
+        if (error) throw error;
+      }
+      persist({ ...store, projects: store.projects.filter((x) => x.id !== id) });
+    } catch (err: any) {
+      alert("Error deleting project: " + err.message);
+    }
   };
 
   // Helper values to map data exactly to mockup visual design
@@ -915,10 +934,18 @@ export function ProjectsScreen({
                               {badgeInfo.text}
                             </span>
 
-                            <div className="sp-db-project-action" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === p.id ? null : p.id); }}>
+                            <div className="sp-db-project-action" onClick={(e) => handleMenuToggle(p.id, e)}>
                               <button className="sp-db-project-action-btn">⋯</button>
-                              {openMenu === p.id && (
-                                <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
+                              {openMenu?.id === p.id && (
+                                <div 
+                                  className="sp-menu" 
+                                  style={{ 
+                                    right: 0, 
+                                    zIndex: 100,
+                                    ...(openMenu.openAbove ? { bottom: "calc(100% + 4px)", top: "auto" } : { top: "calc(100% + 4px)" })
+                                  }} 
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <button onClick={() => { renameProject(p.id); setOpenMenu(null); }}>Rename</button>
                                   <button onClick={() => { duplicateProject(p.id); setOpenMenu(null); }}>Duplicate</button>
                                   <button onClick={() => { setShareProjectId(p.id); setShareProjectTitle(p.title); setOpenMenu(null); }}>Share</button>
@@ -1105,16 +1132,37 @@ export function ProjectsScreen({
                           {p.type || "Feature Film"}{p.genre ? ` • ${p.genre}` : ""} • {p.files.length} file{p.files.length === 1 ? "" : "s"}
                         </span>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                        <span className="sp-db-project-stat" style={{ display: "inline", fontSize: 11, color: "#8e8e93" }}>
-                          {p.title === "Noir City" ? "Jun 8" : getFileFormattedDate(p.dateModified)}
-                        </span>
-                        <span
-                          className="sp-db-project-badge"
-                          style={{ color: badgeInfo.color, backgroundColor: badgeInfo.bg, border: `1px solid ${badgeInfo.color}1d`, fontSize: 9, padding: "2px 6px" }}
-                        >
-                          {badgeInfo.text}
-                        </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                          <span className="sp-db-project-stat" style={{ display: "inline", fontSize: 11, color: "#8e8e93" }}>
+                            {p.title === "Noir City" ? "Jun 8" : getFileFormattedDate(p.dateModified)}
+                          </span>
+                          <span
+                            className="sp-db-project-badge"
+                            style={{ color: badgeInfo.color, backgroundColor: badgeInfo.bg, border: `1px solid ${badgeInfo.color}1d`, fontSize: 9, padding: "2px 6px" }}
+                          >
+                            {badgeInfo.text}
+                          </span>
+                        </div>
+                        <div className="sp-db-project-action" onClick={(e) => handleMenuToggle(p.id, e)} style={{ position: "relative" }}>
+                          <button className="sp-db-project-action-btn" style={{ padding: "4px 6px" }}>⋯</button>
+                          {openMenu?.id === p.id && (
+                            <div 
+                              className="sp-menu" 
+                              style={{ 
+                                right: 0, 
+                                zIndex: 100,
+                                ...(openMenu.openAbove ? { bottom: "calc(100% + 4px)", top: "auto" } : { top: "calc(100% + 4px)" })
+                              }} 
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button onClick={() => { renameProject(p.id); setOpenMenu(null); }}>Rename</button>
+                              <button onClick={() => { duplicateProject(p.id); setOpenMenu(null); }}>Duplicate</button>
+                              <button onClick={() => { setShareProjectId(p.id); setShareProjectTitle(p.title); setOpenMenu(null); }}>Share</button>
+                              <button onClick={() => { deleteProject(p.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Delete</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
