@@ -1540,11 +1540,10 @@ export function FilesScreen({
             padding: 0;
           }
           .sp-ws-mobile-card {
-            background: linear-gradient(135deg, #121214 0%, #161619 100%);
-            border: 1px solid #232329;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            border-radius: 14px;
-            padding: 18px;
+            background: #121215;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 20px;
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
@@ -2291,40 +2290,48 @@ export function FilesScreen({
             )}
           </div>
         </div>
-
-        {/* Mobile Project stats card */}
+              {/* Mobile Project stats card */}
         <div className="sp-ws-mobile-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-              <h1 className="sp-ws-mobile-card-title">{localProject.title}</h1>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "6px 0" }}>
-                <span style={{ fontSize: 10, background: "rgba(255, 255, 255, 0.05)", padding: "2px 8px", borderRadius: 4, color: "#8e8e93", fontWeight: 600 }}>{localProject.type || "Feature Film"}</span>
-                {localProject.genre && (
-                  <span style={{ fontSize: 10, background: "rgba(255, 255, 255, 0.05)", padding: "2px 8px", borderRadius: 4, color: "#8e8e93", fontWeight: 600 }}>{localProject.genre}</span>
-                )}
-              </div>
-              {localProject.description && <p className="sp-ws-mobile-card-desc" style={{ marginTop: 6, marginBottom: 6 }}>{localProject.description}</p>}
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-                <span
-                  className="sp-ws-badge-active"
-                  style={{
-                    color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "var(--sp-accent)",
-                    borderColor: localProject.status === "Draft" ? "rgba(96, 165, 250, 0.2)" : localProject.status === "New" ? "rgba(52, 211, 153, 0.2)" : "rgba(142, 142, 147, 0.2)",
-                    background: localProject.status === "Draft" ? "rgba(96, 165, 250, 0.08)" : localProject.status === "New" ? "rgba(52, 211, 153, 0.08)" : localProject.status === "Empty" ? "rgba(142, 142, 147, 0.08)" : "rgba(var(--sp-accent-rgb), 0.08)"
-                  }}
-                >
-                  {localProject.status || "Active"}
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.02em" }}>{localProject.title}</h1>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                <span style={{ fontSize: 11, background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "4px 10px", borderRadius: "6px", color: "#94a3b8", fontWeight: 600 }}>
+                  {localProject.type || "Feature Film"}
                 </span>
+                {localProject.genre && (
+                  <span style={{ fontSize: 11, background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.06)", padding: "4px 10px", borderRadius: "6px", color: "#94a3b8", fontWeight: 600 }}>
+                    {localProject.genre}
+                  </span>
+                )}
               </div>
             </div>
             {isOwner && (
-              <button className="sp-ws-mobile-card-options-btn" onClick={() => setShowEditDetails(true)} title="Edit Project Details">
-                <Edit2 size={16} />
+              <button 
+                onClick={() => setShowEditDetails(true)} 
+                style={{ background: "transparent", border: "none", color: "#efeff1", opacity: 0.8, cursor: "pointer", padding: 4 }}
+                title="Edit Project Details"
+              >
+                <Edit2 size={18} />
               </button>
             )}
           </div>
-
-
+          {localProject.description && (
+            <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: "1.5", margin: "6px 0 10px 0" }}>
+              {localProject.description}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span
+              style={{
+                color: localProject.status === "Draft" ? "#60A5FA" : localProject.status === "New" ? "#34D399" : localProject.status === "Empty" ? "#8e8e93" : "var(--sp-accent)",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {localProject.status || "Active"}
+            </span>
+          </div>
         </div>
 
         {/* Mobile Tabs Switch */}
@@ -2367,10 +2374,50 @@ export function FilesScreen({
                 )}
               </div>
 
-              {localProject.files.length === 0 ? (
+              {/* Horizontal scrollable filter pills for mobile */}
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, marginBottom: 12, scrollbarWidth: "none" }} className="sp-no-scrollbar">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "script", label: "Scripts", color: "#38bdf8" },
+                  { id: "outline", label: "Outlines", color: "#10b981" },
+                  { id: "shotlist", label: "Shot Lists", color: "#a855f7" },
+                  { id: "idea", label: "Idea Boards", color: "#f59e0b" },
+                  { id: "character", label: "Characters", color: "#ec4899" }
+                ].map((pill) => {
+                  const isActive = selectedFilter === pill.id;
+                  return (
+                    <button
+                      key={pill.id}
+                      onClick={() => setSelectedFilter(pill.id as any)}
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: "20px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        cursor: "pointer",
+                        border: isActive 
+                          ? `1px solid ${pill.color || "var(--sp-accent)"}` 
+                          : "1px solid rgba(255, 255, 255, 0.05)",
+                        background: isActive 
+                          ? `${pill.color || "rgba(var(--sp-accent-rgb), 1)"}18` 
+                          : "rgba(255, 255, 255, 0.02)",
+                        color: isActive 
+                          ? (pill.color || "var(--sp-accent)") 
+                          : "#8e8e93",
+                        transition: "all 0.15s"
+                      }}
+                    >
+                      {pill.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {sortedFiles.length === 0 ? (
                 <p style={{ textAlign: "center", color: "#8e8e93", padding: 24, background: "#121214", borderRadius: 12 }}>No files yet.</p>
               ) : (
-                localProject.files.map((f) => {
+                sortedFiles.map((f) => {
                   const displayType = f.type || "script";
                   const displayStatus = f.status || "Draft";
                   const displayWords = getFileWords(f);
@@ -2384,9 +2431,16 @@ export function FilesScreen({
                       key={f.id}
                       className="sp-ws-mobile-file-card"
                       onClick={() => openFile(f.id)}
+                      style={{ border: "1px solid rgba(255, 255, 255, 0.04)" }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-                        <div className="sp-ws-row-icon-box" style={{ background: `rgba(255, 255, 255, 0.01)` }}>
+                        <div 
+                          className="sp-ws-row-icon-box" 
+                          style={{ 
+                            borderColor: `${fileIconColor}40`,
+                            background: `${fileIconColor}0d`
+                          }}
+                        >
                           {displayType === "script" && <FileText size={16} color={fileIconColor} />}
                           {displayType === "idea" && <Lightbulb size={16} color={fileIconColor} />}
                           {displayType === "character" && <User size={16} color={fileIconColor} />}
@@ -2394,18 +2448,18 @@ export function FilesScreen({
                           {displayType === "shotlist" && <Film size={16} color={fileIconColor} />}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                          <h3 className="sp-ws-mobile-file-title" style={{ fontSize: 13.5, fontWeight: 700, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.title}</h3>
-                          <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 11, color: "#6c6c74", margin: 0 }}>
+                          <h3 className="sp-ws-mobile-file-title" style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.title}</h3>
+                          <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 11, color: "#8e8e93", margin: 0 }}>
                             {displayType} · {displayStatus} · {fileAuthor}
                           </p>
                         </div>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                          <span className="sp-ws-mobile-file-badge" style={{ fontSize: 10, background: "#1c1c20", color: "#8e8e93", padding: "1px 5px", borderRadius: 4, fontWeight: 600 }}>
+                          <span className="sp-ws-mobile-file-badge" style={{ fontSize: 10, background: "#1c1c20", color: "#94a3b8", padding: "3px 8px", borderRadius: 6, fontWeight: 600 }}>
                             {filePages} pp
                           </span>
-                          <span className="sp-ws-mobile-file-date" style={{ fontSize: 10, color: "#6c6c74" }}>{fileDate}</span>
+                          <span className="sp-ws-mobile-file-date" style={{ fontSize: 10, color: "#71717a" }}>{fileDate}</span>
                         </div>
                         {hasWriteAccess && (
                           <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
