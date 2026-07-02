@@ -744,7 +744,7 @@ export function EditorScreen({
         ? window.getSelection()?.getRangeAt(0).startOffset 
         : 0;
       
-      editorRef.current.innerHTML = activeFile.blocks.map(b => 
+      editorRef.current.innerHTML = blocks.map(b => 
         `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
       ).join("");
 
