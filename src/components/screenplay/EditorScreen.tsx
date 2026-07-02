@@ -392,6 +392,18 @@ export function EditorScreen({
     return null;
   };
 
+  const isUndoRedoRef = useRef(false);
+
+  const handleUndo = () => {
+    isUndoRedoRef.current = true;
+    dispatch({ type: "undo" });
+  };
+
+  const handleRedo = () => {
+    isUndoRedoRef.current = true;
+    dispatch({ type: "redo" });
+  };
+
   const handleSelectionUpdate = () => {
     const el = getSelectionBlock();
     if (el) {
@@ -402,55 +414,76 @@ export function EditorScreen({
     }
   };
 
+  const debouncedInputSync = useRef<NodeJS.Timeout | null>(null);
+
   // DOM to Blocks parser: runs on native user text inputs
-  const handleContentInput = () => {
+  const handleContentInput = (immediate: boolean | React.FormEvent<HTMLDivElement> = false) => {
     if (!editorRef.current) return;
     
-    const nextBlocks: Block[] = [];
-    const children = Array.from(editorRef.current.children);
-    
-    children.forEach((child) => {
-      const el = child as HTMLElement;
+    const isImmediate = immediate === true;
+
+    const sync = () => {
+      if (!editorRef.current) return;
+      const nextBlocks: Block[] = [];
+      const children = Array.from(editorRef.current.children);
       
-      // Enforce correct block className
-      if (!el.classList.contains("sp-block")) {
-        el.classList.add("sp-block");
-      }
-      
-      const id = el.getAttribute("data-id") || uid();
-      if (!el.getAttribute("data-id")) {
-        el.setAttribute("data-id", id);
-        el.setAttribute("data-block-id", id);
-      }
-      
-      let type = el.getAttribute("data-type") as BlockType || "action";
-      let text = el.innerHTML || "";
-      
-      // Cleanup browser placeholder line breaks
-      if (text === "<br>" || text === "\n") text = "";
-      
-      // Auto-detect Scene Heading type based on Fountain formatting
-      const cleanText = el.innerText?.trim() || "";
-      const SCENE_RE = /^(INT|EXT|EST|INT\.?\/EXT|I\/E)[\.\s]/i;
-      
-      if (cleanText.startsWith(".") && !cleanText.startsWith("..")) {
-        type = "scene";
-        text = cleanText.slice(1).trim();
-        el.setAttribute("data-type", "scene");
-      } else if (SCENE_RE.test(cleanText)) {
-        type = "scene";
-        el.setAttribute("data-type", "scene");
-      }
-      
-      nextBlocks.push({
-        id,
-        type,
-        text,
+      children.forEach((child) => {
+        const el = child as HTMLElement;
+        
+        // Enforce correct block className
+        if (!el.classList.contains("sp-block")) {
+          el.classList.add("sp-block");
+        }
+        
+        const id = el.getAttribute("data-id") || uid();
+        if (!el.getAttribute("data-id")) {
+          el.setAttribute("data-id", id);
+          el.setAttribute("data-block-id", id);
+        }
+        
+        let type = el.getAttribute("data-type") as BlockType || "action";
+        let text = el.innerHTML || "";
+        
+        // Cleanup browser placeholder line breaks
+        if (text === "<br>" || text === "\n") text = "";
+        
+        // Auto-detect Scene Heading type based on Fountain formatting
+        const cleanText = el.innerText?.trim() || "";
+        const SCENE_RE = /^(INT|EXT|EST|INT\.?\/EXT|I\/E)[\.\s]/i;
+        
+        if (cleanText.startsWith(".") && !cleanText.startsWith("..")) {
+          type = "scene";
+          text = cleanText.slice(1).trim();
+          el.setAttribute("data-type", "scene");
+        } else if (SCENE_RE.test(cleanText)) {
+          type = "scene";
+          el.setAttribute("data-type", "scene");
+        }
+        
+        nextBlocks.push({
+          id,
+          type,
+          text,
+        });
       });
-    });
-    
-    const finalBlocks = nextBlocks.length > 0 ? nextBlocks : [{ id: uid(), type: "action" as BlockType, text: "" }];
-    setBlocks(finalBlocks);
+      
+      const finalBlocks = nextBlocks.length > 0 ? nextBlocks : [{ id: uid(), type: "action" as BlockType, text: "" }];
+      
+      // Save stringify comparison CPU time
+      if (JSON.stringify(blocksRef.current) !== JSON.stringify(finalBlocks)) {
+        setBlocks(finalBlocks);
+      }
+    };
+
+    if (debouncedInputSync.current) {
+      clearTimeout(debouncedInputSync.current);
+    }
+
+    if (isImmediate) {
+      sync();
+    } else {
+      debouncedInputSync.current = setTimeout(sync, 400); // 400ms debounce
+    }
   };
 
   // Keyboard handlers for Enter (next-type prediction) and Tab (indent cycling)
@@ -469,7 +502,7 @@ export function EditorScreen({
         const idx = TYPE_ORDER.indexOf(currentType);
         const nextType = TYPE_ORDER[(idx + 1) % TYPE_ORDER.length];
         el.setAttribute("data-type", nextType);
-        handleContentInput();
+        handleContentInput(true); // Immediate sync on Tab
       }
       return;
     }
@@ -490,7 +523,7 @@ export function EditorScreen({
             const id = uid();
             newEl.setAttribute("data-id", id);
             newEl.setAttribute("data-block-id", id);
-            handleContentInput();
+            handleContentInput(true); // Immediate sync on Enter
           }
         }, 0);
       }
@@ -504,17 +537,162 @@ export function EditorScreen({
 
     // Parse the pasted text using parseFountain
     const parsedBlocks = parseFountain(text);
+    if (parsedBlocks.length === 0) return;
 
-    // Convert blocks to HTML strings
-    const html = parsedBlocks.map(b => 
-      `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type}">${b.text || "<br>"}</div>`
-    ).join("");
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
 
-    // Insert HTML at the cursor selection
-    document.execCommand("insertHTML", false, html);
-    
-    // Sync to state
-    handleContentInput();
+    // If editor is completely empty
+    const isEmptyEditor = !editorRef.current || editorRef.current.children.length === 0;
+    if (isEmptyEditor && editorRef.current) {
+      const fragment = document.createDocumentFragment();
+      const pastedElements: HTMLElement[] = [];
+      
+      parsedBlocks.forEach((b) => {
+        const div = document.createElement("div");
+        div.className = "sp-block";
+        div.setAttribute("data-id", b.id);
+        div.setAttribute("data-block-id", b.id);
+        div.setAttribute("data-type", b.type);
+        div.innerHTML = b.text || "<br>";
+        fragment.appendChild(div);
+        pastedElements.push(div);
+      });
+
+      editorRef.current.appendChild(fragment);
+
+      // Move selection caret to the end of the pasted content
+      const lastPastedEl = pastedElements[pastedElements.length - 1];
+      try {
+        lastPastedEl.focus();
+        const newRange = document.createRange();
+        newRange.selectNodeContents(lastPastedEl);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      } catch (err) {
+        console.error("Error setting caret after paste:", err);
+      }
+
+      handleContentInput(true); // Immediate sync
+      return;
+    }
+
+    // Find the current block element containing the caret
+    const currentBlock = getSelectionBlock();
+    if (!currentBlock || !editorRef.current) return;
+
+    const isCurrentEmpty = currentBlock.innerText.trim() === "";
+
+    if (isCurrentEmpty) {
+      // Replace the current block with the first pasted block
+      const firstBlock = parsedBlocks[0];
+      currentBlock.setAttribute("data-type", firstBlock.type);
+      currentBlock.innerHTML = firstBlock.text || "<br>";
+      
+      // Create DOM elements for the rest of the pasted blocks
+      const fragment = document.createDocumentFragment();
+      const pastedElements: HTMLElement[] = [currentBlock];
+      
+      parsedBlocks.slice(1).forEach((b) => {
+        const div = document.createElement("div");
+        div.className = "sp-block";
+        div.setAttribute("data-id", b.id);
+        div.setAttribute("data-block-id", b.id);
+        div.setAttribute("data-type", b.type);
+        div.innerHTML = b.text || "<br>";
+        fragment.appendChild(div);
+        pastedElements.push(div);
+      });
+
+      if (parsedBlocks.length > 1) {
+        if (currentBlock.nextSibling) {
+          editorRef.current.insertBefore(fragment, currentBlock.nextSibling);
+        } else {
+          editorRef.current.appendChild(fragment);
+        }
+      }
+
+      // Move selection caret to the end of the pasted content
+      const lastPastedEl = pastedElements[pastedElements.length - 1];
+      try {
+        lastPastedEl.focus();
+        const newRange = document.createRange();
+        newRange.selectNodeContents(lastPastedEl);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      } catch (err) {
+        console.error("Error setting caret after paste:", err);
+      }
+    } else {
+      // Split the current block's content at the cursor
+      const preRange = range.cloneRange();
+      preRange.selectNodeContents(currentBlock);
+      preRange.setEnd(range.startContainer, range.startOffset);
+      const preHtml = document.createElement("div");
+      preHtml.appendChild(preRange.cloneContents());
+      const beforeText = preHtml.innerHTML;
+
+      const postRange = range.cloneRange();
+      postRange.selectNodeContents(currentBlock);
+      postRange.setStart(range.endContainer, range.endOffset);
+      const postHtml = document.createElement("div");
+      postHtml.appendChild(postRange.cloneContents());
+      const afterText = postHtml.innerHTML;
+
+      // Update the current block with the first part of the text
+      currentBlock.innerHTML = beforeText || "<br>";
+
+      // Create DOM elements for the pasted blocks
+      const fragment = document.createDocumentFragment();
+      const pastedElements: HTMLElement[] = [];
+      
+      parsedBlocks.forEach((b) => {
+        const div = document.createElement("div");
+        div.className = "sp-block";
+        div.setAttribute("data-id", b.id);
+        div.setAttribute("data-block-id", b.id);
+        div.setAttribute("data-type", b.type);
+        div.innerHTML = b.text || "<br>";
+        fragment.appendChild(div);
+        pastedElements.push(div);
+      });
+
+      // Append the remaining text of the split block to the last pasted element
+      if (afterText && afterText !== "<br>") {
+        const lastEl = pastedElements[pastedElements.length - 1];
+        if (lastEl.innerHTML === "<br>") {
+          lastEl.innerHTML = afterText;
+        } else {
+          lastEl.innerHTML += afterText;
+        }
+      }
+
+      // Insert the pasted blocks as siblings right after the current block
+      if (currentBlock.nextSibling) {
+        editorRef.current.insertBefore(fragment, currentBlock.nextSibling);
+      } else {
+        editorRef.current.appendChild(fragment);
+      }
+
+      // Move selection caret to the end of the pasted content
+      const lastPastedEl = pastedElements[pastedElements.length - 1];
+      try {
+        lastPastedEl.focus();
+        const newRange = document.createRange();
+        newRange.selectNodeContents(lastPastedEl);
+        newRange.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      } catch (err) {
+        console.error("Error setting caret after paste:", err);
+      }
+    }
+
+    // Sync to state immediately
+    handleContentInput(true);
   };
 
   const scrollToBlock = (id: string) => {
@@ -544,12 +722,55 @@ export function EditorScreen({
     
     const children = Array.from(editorRef.current.children);
     
-    // 1. Rebuild editor DOM on file switch or initial render
-    if (children.length === 0 || activeFile.id !== editorRef.current.getAttribute("data-active-file-id")) {
+    // 1. Rebuild editor DOM on file switch, initial render, or explicit undo/redo
+    if (children.length === 0 || 
+        activeFile.id !== editorRef.current.getAttribute("data-active-file-id") ||
+        isUndoRedoRef.current) {
+      
       editorRef.current.setAttribute("data-active-file-id", activeFile.id);
+      
+      // Save caret position if it was focused before rebuild
+      const activeEl = document.activeElement;
+      const activeId = activeEl?.getAttribute("data-id");
+      const cursorOffset = window.getSelection()?.rangeCount 
+        ? window.getSelection()?.getRangeAt(0).startOffset 
+        : 0;
+      
       editorRef.current.innerHTML = activeFile.blocks.map(b => 
         `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
       ).join("");
+
+      isUndoRedoRef.current = false;
+
+      // Restore focus/caret if possible
+      if (activeId) {
+        const target = editorRef.current.querySelector(`[data-id="${activeId}"]`) as HTMLElement | null;
+        if (target) {
+          try {
+            target.focus();
+            const range = document.createRange();
+            
+            // Try to set caret precisely in the text node
+            let textNode = target.firstChild;
+            while (textNode && textNode.nodeType !== Node.TEXT_NODE) {
+              textNode = textNode.firstChild;
+            }
+            if (textNode) {
+              const pos = Math.min(cursorOffset || 0, textNode.textContent?.length || 0);
+              range.setStart(textNode, pos);
+              range.setEnd(textNode, pos);
+            } else {
+              range.selectNodeContents(target);
+              range.collapse(false);
+            }
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          } catch (err) {
+            console.error("Caret restore error:", err);
+          }
+        }
+      }
       return;
     }
 
@@ -584,9 +805,9 @@ export function EditorScreen({
     const h = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
-        e.preventDefault(); dispatch({ type: "undo" });
+        e.preventDefault(); handleUndo();
       } else if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) {
-        e.preventDefault(); dispatch({ type: "redo" });
+        e.preventDefault(); handleRedo();
       } else if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
         saveManually();
@@ -1338,8 +1559,8 @@ export function EditorScreen({
   
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
   
-                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "undo" }); }} style={{ width: 32, height: 32, padding: 6 }} title="Undo (Ctrl+Z)"><Undo2 size={13} /></button>
-                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "redo" }); }} style={{ width: 32, height: 32, padding: 6 }} title="Redo (Ctrl+Y)"><Redo2 size={13} /></button>
+                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); handleUndo(); }} style={{ width: 32, height: 32, padding: 6 }} title="Undo (Ctrl+Z)"><Undo2 size={13} /></button>
+                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); handleRedo(); }} style={{ width: 32, height: 32, padding: 6 }} title="Redo (Ctrl+Y)"><Redo2 size={13} /></button>
   
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
   
@@ -1413,14 +1634,14 @@ export function EditorScreen({
                 
                 {/* Undo / Redo */}
                 <button 
-                  onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "undo" }); }}
+                  onMouseDown={(e) => { e.preventDefault(); handleUndo(); }}
                   className="sp-mobile-bar-icon-btn"
                   style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
                 >
                   <Undo2 size={12} />
                 </button>
                 <button 
-                  onMouseDown={(e) => { e.preventDefault(); dispatch({ type: "redo" }); }}
+                  onMouseDown={(e) => { e.preventDefault(); handleRedo(); }}
                   className="sp-mobile-bar-icon-btn"
                   style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
                 >
