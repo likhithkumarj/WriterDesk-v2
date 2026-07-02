@@ -1567,8 +1567,24 @@ export function EditorScreen({
   
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
   
-                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); handleUndo(); }} style={{ width: 32, height: 32, padding: 6 }} title="Undo (Ctrl+Z)"><Undo2 size={13} /></button>
-                <button className="sp-btn sp-btn-ghost sp-btn-icon" onMouseDown={(e) => { e.preventDefault(); handleRedo(); }} style={{ width: 32, height: 32, padding: 6 }} title="Redo (Ctrl+Y)"><Redo2 size={13} /></button>
+                <button 
+                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                  disabled={state.past.length === 0}
+                  onMouseDown={(e) => { e.preventDefault(); if (state.past.length > 0) handleUndo(); }} 
+                  style={{ width: 32, height: 32, padding: 6, opacity: state.past.length === 0 ? 0.4 : 1, cursor: state.past.length === 0 ? "not-allowed" : "pointer" }} 
+                  title="Undo (Ctrl+Z)"
+                >
+                  <Undo2 size={13} />
+                </button>
+                <button 
+                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                  disabled={state.future.length === 0}
+                  onMouseDown={(e) => { e.preventDefault(); if (state.future.length > 0) handleRedo(); }} 
+                  style={{ width: 32, height: 32, padding: 6, opacity: state.future.length === 0 ? 0.4 : 1, cursor: state.future.length === 0 ? "not-allowed" : "pointer" }} 
+                  title="Redo (Ctrl+Y)"
+                >
+                  <Redo2 size={13} />
+                </button>
   
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
   
@@ -1642,16 +1658,18 @@ export function EditorScreen({
                 
                 {/* Undo / Redo */}
                 <button 
-                  onMouseDown={(e) => { e.preventDefault(); handleUndo(); }}
+                  disabled={state.past.length === 0}
+                  onMouseDown={(e) => { e.preventDefault(); if (state.past.length > 0) handleUndo(); }}
                   className="sp-mobile-bar-icon-btn"
-                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0, opacity: state.past.length === 0 ? 0.4 : 1, cursor: state.past.length === 0 ? "not-allowed" : "pointer" }}
                 >
                   <Undo2 size={12} />
                 </button>
                 <button 
-                  onMouseDown={(e) => { e.preventDefault(); handleRedo(); }}
+                  disabled={state.future.length === 0}
+                  onMouseDown={(e) => { e.preventDefault(); if (state.future.length > 0) handleRedo(); }}
                   className="sp-mobile-bar-icon-btn"
-                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
+                  style={{ width: 30, height: 30, padding: 0, flexShrink: 0, opacity: state.future.length === 0 ? 0.4 : 1, cursor: state.future.length === 0 ? "not-allowed" : "pointer" }}
                 >
                   <Redo2 size={12} />
                 </button>
