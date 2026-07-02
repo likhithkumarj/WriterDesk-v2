@@ -7,7 +7,7 @@ import { sceneSuggestions, characterSuggestions } from "../../utils/suggestions"
 import { paginate } from "../../utils/pagination";
 import { computeStats } from "../../utils/stats";
 import { editorReducer } from "../../hooks/useEditorReducer";
-import { PageCanvas } from "./PageCanvas";
+import { parseFountain } from "../../utils/import";
 import { HelpModal } from "../modals/HelpModal";
 import { ExportModal } from "../modals/ExportModal";
 import { TitlePageModal } from "../modals/TitlePageModal";
@@ -79,6 +79,7 @@ export function EditorScreen({
   const [state, dispatch] = useReducer(editorReducer, { past: [], present: activeFile.blocks, future: [] });
   const blocks = state.present;
   const [focusedId, setFocusedId] = useState<string | null>(activeFile.blocks[0]?.id ?? null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 768 : false);
   const [showScenes, setShowScenes] = useState(typeof window !== "undefined" ? window.innerWidth >= 768 : true);
   const [activeMobileTab, setActiveMobileTab] = useState<"comments" | "characters" | null>(null);
@@ -376,115 +377,211 @@ export function EditorScreen({
     updateBlock(id, { type, text: normalizeText(type, b.text) });
   };
 
-  // Global key bindings
+  // Helper to find the current active block element containing the text selection/caret
+  const getSelectionBlock = (): HTMLElement | null => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const range = selection.getRangeAt(0);
+    let node = range.startContainer;
+    while (node && node !== editorRef.current) {
+      if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).classList.contains("sp-block")) {
+        return node as HTMLElement;
+      }
+      node = node.parentNode!;
+    }
+    return null;
+  };
+
+  const handleSelectionUpdate = () => {
+    const el = getSelectionBlock();
+    if (el) {
+      const id = el.getAttribute("data-id");
+      if (id && id !== focusedId) {
+        setFocusedId(id);
+      }
+    }
+  };
+
+  // DOM to Blocks parser: runs on native user text inputs
+  const handleContentInput = () => {
+    if (!editorRef.current) return;
+    
+    const nextBlocks: Block[] = [];
+    const children = Array.from(editorRef.current.children);
+    
+    children.forEach((child) => {
+      const el = child as HTMLElement;
+      
+      // Enforce correct block className
+      if (!el.classList.contains("sp-block")) {
+        el.classList.add("sp-block");
+      }
+      
+      const id = el.getAttribute("data-id") || uid();
+      if (!el.getAttribute("data-id")) {
+        el.setAttribute("data-id", id);
+        el.setAttribute("data-block-id", id);
+      }
+      
+      let type = el.getAttribute("data-type") as BlockType || "action";
+      let text = el.innerHTML || "";
+      
+      // Cleanup browser placeholder line breaks
+      if (text === "<br>" || text === "\n") text = "";
+      
+      // Auto-detect Scene Heading type based on Fountain formatting
+      const cleanText = el.innerText?.trim() || "";
+      const SCENE_RE = /^(INT|EXT|EST|INT\.?\/EXT|I\/E)[\.\s]/i;
+      
+      if (cleanText.startsWith(".") && !cleanText.startsWith("..")) {
+        type = "scene";
+        text = cleanText.slice(1).trim();
+        el.setAttribute("data-type", "scene");
+      } else if (SCENE_RE.test(cleanText)) {
+        type = "scene";
+        el.setAttribute("data-type", "scene");
+      }
+      
+      nextBlocks.push({
+        id,
+        type,
+        text,
+      });
+    });
+    
+    const finalBlocks = nextBlocks.length > 0 ? nextBlocks : [{ id: uid(), type: "action" as BlockType, text: "" }];
+    setBlocks(finalBlocks);
+  };
+
+  // Keyboard handlers for Enter (next-type prediction) and Tab (indent cycling)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (readOnly) {
+      e.preventDefault();
+      return;
+    }
+
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const el = getSelectionBlock();
+      if (el) {
+        const currentType = el.getAttribute("data-type") as BlockType || "action";
+        const TYPE_ORDER: BlockType[] = ["scene", "action", "character", "parenthetical", "dialogue"];
+        const idx = TYPE_ORDER.indexOf(currentType);
+        const nextType = TYPE_ORDER[(idx + 1) % TYPE_ORDER.length];
+        el.setAttribute("data-type", nextType);
+        handleContentInput();
+      }
+      return;
+    }
+
+    if (e.key === "Enter") {
+      const el = getSelectionBlock();
+      if (el) {
+        const currentType = el.getAttribute("data-type") as BlockType || "action";
+        const text = el.innerText || "";
+        const nextType = nextTypeOnEnter(currentType, text);
+        
+        // Let the browser perform Enter key splits natively to preserve caretaker placement.
+        // Update the formatting rules on the newly created line right after in the event loop tick.
+        setTimeout(() => {
+          const newEl = getSelectionBlock();
+          if (newEl && newEl !== el) {
+            newEl.setAttribute("data-type", nextType);
+            const id = uid();
+            newEl.setAttribute("data-id", id);
+            newEl.setAttribute("data-block-id", id);
+            handleContentInput();
+          }
+        }, 0);
+      }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    if (!text) return;
+
+    // Parse the pasted text using parseFountain
+    const parsedBlocks = parseFountain(text);
+
+    // Convert blocks to HTML strings
+    const html = parsedBlocks.map(b => 
+      `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type}">${b.text || "<br>"}</div>`
+    ).join("");
+
+    // Insert HTML at the cursor selection
+    document.execCommand("insertHTML", false, html);
+    
+    // Sync to state
+    handleContentInput();
+  };
+
+  const scrollToBlock = (id: string) => {
+    const el = document.querySelector(`[data-block-id="${id}"]`) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setFocusedId(id);
+      
+      // Place caret natively at the beginning of the block
+      try {
+        el.focus();
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } catch (err) {
+        console.error("Caret placement error:", err);
+      }
+    }
+  };
+
+  // Sync state blocks to DOM safely without resetting cursor caretaker
+  useEffect(() => {
+    if (!editorRef.current) return;
+    
+    const children = Array.from(editorRef.current.children);
+    
+    // 1. Rebuild editor DOM on file switch or initial render
+    if (children.length === 0 || activeFile.id !== editorRef.current.getAttribute("data-active-file-id")) {
+      editorRef.current.setAttribute("data-active-file-id", activeFile.id);
+      editorRef.current.innerHTML = activeFile.blocks.map(b => 
+        `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
+      ).join("");
+      return;
+    }
+
+    // 2. Sync incoming real-time edits for lines the user is NOT currently focusing/editing
+    activeFile.blocks.forEach((b) => {
+      const el = editorRef.current?.querySelector(`[data-id="${b.id}"]`) as HTMLElement | null;
+      if (el) {
+        const isActive = document.activeElement === el || el.contains(document.activeElement);
+        if (!isActive) {
+          if (el.innerHTML !== (b.text || "<br>")) {
+            el.innerHTML = b.text || "<br>";
+          }
+          if (el.getAttribute("data-type") !== b.type) {
+            el.setAttribute("data-type", b.type || "action");
+          }
+        }
+      } else {
+        // Safe full rebuild if blocks were added/deleted externally by a collaborator
+        const isEditing = document.activeElement === editorRef.current || (editorRef.current && editorRef.current.contains(document.activeElement));
+        if (!isEditing && editorRef.current) {
+          editorRef.current.innerHTML = activeFile.blocks.map(b => 
+            `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
+          ).join("");
+        }
+      }
+    });
+  }, [activeFile.blocks, activeFile.id]);
+
+  // Global key bindings for shortcuts
   useEffect(() => {
     if (readOnly) return;
     const h = (e: KeyboardEvent) => {
-      // Handle delete/backspace/typing when selection spans multiple blocks
-      const sel = window.getSelection();
-      if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        
-        // Find all blocks that are partially or fully inside the selection
-        const ids: string[] = [];
-        blocksRef.current.forEach((b) => {
-          const el = document.querySelector(`[data-block-id="${b.id}"]`);
-          if (el && sel.containsNode(el, true)) {
-            ids.push(b.id);
-          }
-        });
-        
-        if (ids.length > 1) {
-          const isDelete = e.key === "Backspace" || e.key === "Delete";
-          const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
-          
-          if (isDelete || isPrintable) {
-            e.preventDefault();
-            
-            const firstBlockId = ids[0];
-            const lastBlockId = ids[ids.length - 1];
-            
-            const firstEl = document.querySelector(`[data-block-id="${firstBlockId}"]`) as HTMLElement | null;
-            const lastEl = document.querySelector(`[data-block-id="${lastBlockId}"]`) as HTMLElement | null;
-            
-            if (firstEl && lastEl) {
-              // Helper to find caret offset in plain text
-              const getCaretOffset = (element: HTMLElement, isStart: boolean) => {
-                try {
-                  const preCaretRange = range.cloneRange();
-                  preCaretRange.selectNodeContents(element);
-                  if (isStart) {
-                    preCaretRange.setEnd(range.startContainer, range.startOffset);
-                  } else {
-                    preCaretRange.setEnd(range.endContainer, range.endOffset);
-                  }
-                  return preCaretRange.toString().length;
-                } catch (err) {
-                  return isStart ? 0 : element.textContent?.length || 0;
-                }
-              };
-              
-              const startOffset = getCaretOffset(firstEl, true);
-              const endOffset = getCaretOffset(lastEl, false);
-              
-              const firstText = firstEl.textContent || "";
-              const lastText = lastEl.textContent || "";
-              
-              const beforeText = firstText.substring(0, startOffset);
-              const afterText = lastText.substring(endOffset);
-              
-              const typed = isPrintable ? e.key : "";
-              const mergedText = beforeText + typed + afterText;
-              
-              // Construct next blocks
-              const nextBlocks: Block[] = [];
-              blocksRef.current.forEach((b) => {
-                if (b.id === firstBlockId) {
-                  nextBlocks.push({ ...b, text: mergedText });
-                } else if (!ids.includes(b.id)) {
-                  nextBlocks.push(b);
-                }
-              });
-              
-              if (nextBlocks.length === 0) {
-                nextBlocks.push({ id: uid(), type: "action", text: "" });
-              }
-              
-              setBlocks(nextBlocks);
-              setFocusedId(firstBlockId);
-              
-              // Place cursor at the merge point in the next event loop tick
-              setTimeout(() => {
-                const el = document.querySelector(`[data-block-id="${firstBlockId}"]`) as HTMLElement | null;
-                if (el) {
-                  el.focus();
-                  const targetSel = window.getSelection();
-                  if (targetSel) {
-                    const newRange = document.createRange();
-                    // Try to find the text node to place the cursor precisely
-                    let textNode = el.firstChild;
-                    while (textNode && textNode.nodeType !== Node.TEXT_NODE) {
-                      textNode = textNode.firstChild;
-                    }
-                    if (textNode) {
-                      const caretPos = Math.min(beforeText.length + typed.length, textNode.textContent?.length || 0);
-                      newRange.setStart(textNode, caretPos);
-                      newRange.setEnd(textNode, caretPos);
-                    } else {
-                      newRange.selectNodeContents(el);
-                      newRange.collapse(false);
-                    }
-                    targetSel.removeAllRanges();
-                    targetSel.addRange(newRange);
-                  }
-                }
-              }, 10);
-            }
-            return;
-          }
-        }
-      }
-
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
         e.preventDefault(); dispatch({ type: "undo" });
@@ -505,7 +602,7 @@ export function EditorScreen({
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [blocks, activeFile, saveManually, focusedId]);
+  }, [focusedId, readOnly, saveManually]);
 
   const pages = useMemo(() => paginate(blocks), [blocks]);
   const stats = useMemo(() => computeStats(blocks), [blocks]);
@@ -543,13 +640,7 @@ export function EditorScreen({
 
   const [showTitlePage, setShowTitlePage] = useState(false);
 
-  const scrollToBlock = (id: string) => {
-    const el = document.querySelector(`[data-block-id="${id}"]`) as HTMLElement | null;
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      setFocusedId(id);
-    }
-  };
+
 
   // Find active metrics page/scene number based on cursor focus
   const activePageNum = useMemo(() => {
@@ -1433,23 +1524,28 @@ export function EditorScreen({
           )}
 
           {/* C. Physical sheet pagination canvas */}
-          <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
-            <PageCanvas
-              pages={pages}
-              file={activeFile}
-              focusedId={focusedId}
-              sceneNumbersOn={sceneNumbersOn}
-              sceneNumberFor={sceneNumberFor}
-              suggestionsFor={suggestionsFor}
-              setFocusedId={setFocusedId}
-              updateBlock={updateBlock}
-              insertAfter={insertAfter}
-              nextTypeOnEnter={nextTypeOnEnter}
-              deleteBlock={deleteBlock}
-              cycleType={cycleType}
-              showBlockBars={showBlockBars}
-              readOnly={readOnly}
-            />
+          <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, overflowY: "auto", padding: "24px 0", ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
+            <div className="sp-page-wrapper" style={{ margin: "0 auto 40px auto", width: "794px" }}>
+              <div
+                ref={editorRef}
+                className="sp-page sp-script-editor-canvas"
+                contentEditable={!readOnly}
+                suppressContentEditableWarning
+                onInput={handleContentInput}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onKeyUp={handleSelectionUpdate}
+                onMouseUp={handleSelectionUpdate}
+                onFocus={handleSelectionUpdate}
+                style={{
+                  outline: "none",
+                  height: "auto",
+                  minHeight: "1123px",
+                  padding: "72px 72px 72px 108px",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
           </div>
 
         </div>

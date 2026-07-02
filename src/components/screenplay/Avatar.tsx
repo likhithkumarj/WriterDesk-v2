@@ -40,6 +40,7 @@ export function Avatar({
       <img
         src={src}
         alt={name}
+        title={name}
         onError={() => setError(true)}
         style={{
           width: size,
@@ -55,6 +56,7 @@ export function Avatar({
 
   return (
     <div
+      title={name}
       style={{
         width: size,
         height: size,

@@ -144,6 +144,7 @@ export const supabaseService = {
           outlineTree: f.outline_tree || [],
           shotList: f.shot_list ? (Array.isArray(f.shot_list) ? f.shot_list : (f.shot_list.shots || [])) : [],
           shotListCreationMode: f.shot_list ? (Array.isArray(f.shot_list) ? "empty" : (f.shot_list.creationMode || "empty")) : "empty",
+          author: f.author || undefined,
         })),
       }));
     } catch (err: any) {
@@ -261,7 +262,7 @@ export const supabaseService = {
 
         // Upsert files inside project
         for (const f of p.files) {
-          const { error: fileErr } = await supabase.from("files").upsert({
+          const payload: any = {
             id: f.id,
             project_id: p.id,
             title: f.title,
@@ -275,7 +276,17 @@ export const supabaseService = {
             characters: f.characters || null,
             outline_tree: f.outlineTree || null,
             shot_list: f.shotList ? { creationMode: f.shotListCreationMode || "empty", shots: f.shotList } : null,
-          });
+            author: f.author || null,
+          };
+
+          let { error: fileErr } = await supabase.from("files").upsert(payload);
+          
+          if (fileErr && fileErr.message && fileErr.message.includes("column \"author\"")) {
+            delete payload.author;
+            const { error: retryErr } = await supabase.from("files").upsert(payload);
+            fileErr = retryErr;
+          }
+
           if (fileErr) {
             console.error("Sync error upserting file:", f.id, fileErr);
             syncSuccess = false;

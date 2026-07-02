@@ -582,10 +582,29 @@ export function FilesScreen({
   };
 
   const getFileAuthor = (f: FileDoc) => {
-    if (f.title === "Act One Draft") return "Ben Carter";
-    if (f.title === "Act Two Outline") return "Sarah Mitchell";
-    if (f.title === "Character Bible") return "Marco Rivera";
+    // 1. If the file has a saved author, return it!
+    if (f.author) return f.author;
+
+    // 2. Return template mock authors only for template sandbox projects
+    if (localProject.title === "Noir City" || localProject.title === "Pilot EP1") {
+      if (f.title === "Act One Draft") return "Ben Carter";
+      if (f.title === "Act Two Outline") return "Sarah Mitchell";
+      if (f.title === "Character Bible") return "Marco Rivera";
+    }
+
+    // 3. Try finding creator/owner name from project collaborators list
+    const ownerCollab = collaborators.find((c) => c.role === "Owner" || c.id === "owner");
+    if (ownerCollab) return ownerCollab.name;
+
+    // 4. Fall back to current user profile details
     return user?.name || "Ben Carter";
+  };
+
+  const getCollaboratorAvatar = (authorName: string) => {
+    const collab = collaborators.find((c) => c.name === authorName);
+    if (collab && collab.avatar) return collab.avatar;
+    if (authorName === user?.name && user?.avatar) return user.avatar;
+    return `https://api.dicebear.com/9.x/avataaars/svg?seed=${authorName}`;
   };
 
   const getFileIconColor = (type: string) => {
@@ -732,6 +751,8 @@ export function FilesScreen({
       };
     }
 
+    newFile.author = user?.name || "Ben Carter";
+
     persist({
       ...localProject,
       dateModified: Date.now(),
@@ -754,7 +775,7 @@ export function FilesScreen({
 
   const duplicateFile = (id: string) => {
     const f = localProject.files.find((x) => x.id === id); if (!f) return;
-    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks ? f.blocks.map(b => ({ ...b, id: uid() })) : [], characters: f.characters ? f.characters.map(c => ({ ...c, id: uid() })) : undefined, outlineTree: f.outlineTree ? JSON.parse(JSON.stringify(f.outlineTree)) : undefined, shotList: f.shotList ? JSON.parse(JSON.stringify(f.shotList)) : undefined }] });
+    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks ? f.blocks.map(b => ({ ...b, id: uid() })) : [], characters: f.characters ? f.characters.map(c => ({ ...c, id: uid() })) : undefined, outlineTree: f.outlineTree ? JSON.parse(JSON.stringify(f.outlineTree)) : undefined, shotList: f.shotList ? JSON.parse(JSON.stringify(f.shotList)) : undefined, author: user?.name || f.author || "Ben Carter" }] });
   };
 
   const deleteFile = async (id: string) => {
@@ -1768,13 +1789,33 @@ export function FilesScreen({
               </button>
             )}
             {hasWriteAccess && (
-              <button className="sp-ws-btn-gold" onClick={() => {
-                setNewFileType("script");
-                setNewFileTitle("");
-                setShowAddFileModal(true);
-              }}>
-                <Plus size={13} /> New File
-              </button>
+              <>
+                <button 
+                  className="sp-ws-btn-share" 
+                  onClick={() => document.getElementById("desktop-script-import-input")?.click()}
+                  style={{ display: "flex", gap: 6, alignItems: "center" }}
+                >
+                  <Download size={13} style={{ transform: "rotate(180deg)" }} /> Import
+                </button>
+                <input 
+                  id="desktop-script-import-input" 
+                  type="file" 
+                  accept=".fountain,.txt,.md" 
+                  style={{ display: "none" }} 
+                  onChange={(e) => {
+                    importFiles(e.target.files);
+                    e.target.value = "";
+                  }} 
+                />
+                
+                <button className="sp-ws-btn-gold" onClick={() => {
+                  setNewFileType("script");
+                  setNewFileTitle("");
+                  setShowAddFileModal(true);
+                }}>
+                  <Plus size={13} /> New File
+                </button>
+              </>
             )}
             <div onClick={() => navigate("/profile")} style={{ cursor: "pointer", marginLeft: 4 }}>
               <Avatar src={user?.avatar} name={user?.name || "User"} size={28} />
@@ -1865,21 +1906,9 @@ export function FilesScreen({
                 {/* Banner Right Actions */}
                 <div className="sp-ws-banner-actions-col">
                   <div className="sp-ws-banner-buttons-row">
-                    <button className="sp-ws-btn-gold" style={{ display: "flex", gap: 6 }} onClick={() => {
-                      const firstFile = localProject.files[0];
-                      if (firstFile) openFile(firstFile.id);
-                      else alert("Create a file first!");
-                    }}>
-                      <Edit2 size={13} /> Open Editor
-                    </button>
                     {isOwner && (
-                      <button className="sp-ws-btn-share" onClick={() => setShowInviteModal(true)}>
-                        <Users size={13} /> Share
-                      </button>
-                    )}
-                    {isOwner && (
-                      <button className="sp-ws-icon-btn" onClick={() => setShowEditDetails(true)} title="Edit details">
-                        <MoreHorizontal size={14} />
+                      <button className="sp-ws-btn-share" onClick={() => setShowEditDetails(true)} style={{ display: "flex", gap: 6 }} title="Edit details">
+                        <Edit2 size={13} /> Edit Project
                       </button>
                     )}
                   </div>
@@ -2016,20 +2045,6 @@ export function FilesScreen({
                         <option value="name">Sort by: Name</option>
                         <option value="words">Sort by: Words</option>
                       </select>
-                      {/* Create new file */}
-                      {hasWriteAccess && (
-                        <button
-                          className="sp-ws-btn-gold"
-                          style={{ height: 32, display: "flex", alignItems: "center", gap: 6, padding: "0 14px", whiteSpace: "nowrap" }}
-                          onClick={() => {
-                            setNewFileType("script");
-                            setNewFileTitle("");
-                            setShowAddFileModal(true);
-                          }}
-                        >
-                          <Plus size={13} /> New File
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -2109,7 +2124,7 @@ export function FilesScreen({
                             </span>
 
                             <div className="sp-ws-col-author">
-                              <Avatar src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${fileAuthor}`} name={fileAuthor} size={22} />
+                              <Avatar src={getCollaboratorAvatar(fileAuthor)} name={fileAuthor} size={22} />
                             </div>
 
                             {hasWriteAccess && (

@@ -76,6 +76,7 @@ export interface FileDoc {
   outlineTree?: OutlineNode[]; // used if type === "outline"
   shotList?: Shot[]; // used if type === "shotlist"
   shotListCreationMode?: "manual" | "generated" | "empty"; // creation mode metadata
+  author?: string; // name of user who created the file
 }
 
 export interface Project {

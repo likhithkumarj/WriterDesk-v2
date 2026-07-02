@@ -210,3 +210,11 @@ USING (
       )
   )
 );
+
+
+-- ============================================================
+-- 7. Add author column to files table for custom creator names
+-- ============================================================
+ALTER TABLE public.files
+ADD COLUMN IF NOT EXISTS author text;
+

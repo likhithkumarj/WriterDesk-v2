@@ -18,7 +18,7 @@ export function parseFountain(src: string): Block[] {
     if (line.startsWith("!")) { out.push({ id: uid(), type: "action", text: line.slice(1).trim() }); lastType = "action"; prevBlank = false; i++; continue; }
     if (line.startsWith(".") && !line.startsWith("..")) { out.push({ id: uid(), type: "scene", text: line.slice(1).trim().toUpperCase() }); lastType = "scene"; prevBlank = false; i++; continue; }
     if (line.startsWith("@")) { out.push({ id: uid(), type: "character", text: line.slice(1).trim().toUpperCase() }); lastType = "character"; prevBlank = false; i++; continue; }
-    if (prevBlank && SCENE_RE.test(line)) {
+    if (SCENE_RE.test(line)) {
       out.push({ id: uid(), type: "scene", text: line.toUpperCase() });
       lastType = "scene"; prevBlank = false; i++; continue;
     }
@@ -29,7 +29,7 @@ export function parseFountain(src: string): Block[] {
     const next = lines[i + 1];
     const stripped = line.replace(/\([^)]*\)/g, "").trim();
     const isUpper = stripped.length > 0 && stripped === stripped.toUpperCase() && /[A-Z]/.test(stripped);
-    if (prevBlank && isUpper && next && next.trim() !== "") {
+    if (isUpper && next && next.trim() !== "") {
       out.push({ id: uid(), type: "character", text: line.toUpperCase() });
       lastType = "character"; prevBlank = false; i++; continue;
     }
