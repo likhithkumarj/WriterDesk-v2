@@ -338,7 +338,8 @@ export function EditorScreen({
     if (readOnly) return;
     document.execCommand(command);
     if (focusedId) {
-      const el = document.querySelector(`[data-block-id="${focusedId}"]`) as HTMLDivElement | null;
+      const el = (document.querySelector(`[data-id="${focusedId}"]`) || 
+                  document.querySelector(`[data-block-id="${focusedId}"]`)) as HTMLDivElement | null;
       if (el) {
         updateBlock(focusedId, { text: el.innerHTML });
       }
@@ -374,6 +375,13 @@ export function EditorScreen({
   const setType = (id: string, type: BlockType) => {
     if (readOnly) return;
     const b = blocks.find((x) => x.id === id); if (!b) return;
+    
+    // Snappy DOM attribute update
+    const el = document.querySelector(`[data-id="${id}"]`) as HTMLElement | null;
+    if (el) {
+      el.setAttribute("data-type", type);
+    }
+    
     updateBlock(id, { type, text: normalizeText(type, b.text) });
   };
 
@@ -774,8 +782,8 @@ export function EditorScreen({
       return;
     }
 
-    // 2. Sync incoming real-time edits for lines the user is NOT currently focusing/editing
-    activeFile.blocks.forEach((b) => {
+    // 2. Sync incoming edits/local formatting changes for lines the user is NOT currently focusing/editing
+    blocks.forEach((b) => {
       const el = editorRef.current?.querySelector(`[data-id="${b.id}"]`) as HTMLElement | null;
       if (el) {
         const isActive = document.activeElement === el || el.contains(document.activeElement);
@@ -791,13 +799,13 @@ export function EditorScreen({
         // Safe full rebuild if blocks were added/deleted externally by a collaborator
         const isEditing = document.activeElement === editorRef.current || (editorRef.current && editorRef.current.contains(document.activeElement));
         if (!isEditing && editorRef.current) {
-          editorRef.current.innerHTML = activeFile.blocks.map(b => 
+          editorRef.current.innerHTML = blocks.map(b => 
             `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
           ).join("");
         }
       }
     });
-  }, [activeFile.blocks, activeFile.id]);
+  }, [blocks, activeFile.id]);
 
   // Global key bindings for shortcuts
   useEffect(() => {
