@@ -6,16 +6,23 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 
 ## 🚀 Key Features
 
-* **Automatic Screenplay Editor:** Industry-standard formatting (Scene Headings, Action, Characters, Dialogue) with outline navigation sidebar and live script statistics.
-* **Redesigned Multi-File Workspace:** Organize acts, treatments, outlines, and character bibles in a single interface with live project word counts.
-* **Import & Export Systems:** Import from `.fountain`, `.txt`, or `.md` drafts; export to industry-standard PDFs, `.fountain` files, or `.json` backups.
-* **Writers Lounge Feed:** Social community feed to post updates, share Courier-formatted script snippets, and discuss screenplay structures.
-* **Script Explorer:** Browse, search, and read public screenplays written by community authors.
-* **Custom Themes & Zoom:** Midnight Gold, Cyberpunk Purple, Forest Green, and Classic Dark layouts with scalable editor zoom.
-* **Interactive Document Planners (Added: June 22, 2026):**
+* **Single-Text Screenplay Editor (Updated: July 2, 2026):**
+  * Replaced the slow block-by-block editor with a single continuous text canvas.
+  * Supported **native copy-pasting, highlighting, selection, and line deletions** across multiple pages.
+  * Incorporated a **smart paste interceptor** that parses Fountain screenplay text on-the-fly and splits them into flat sibling lines (no nested formatting staircase).
+  * Butter-smooth **60fps typing performance** via debounced state syncing (400ms delay), with instant syncing on explicit format changes.
+  * Reliable **Undo/Redo with Caret Memory** that restores the cursor precisely to the relative line index, with disabled toolbar button states.
+* **Interactive Document Planners:**
+  * *Shot List Editor (Added: July 1, 2026):* Spreadsheet-style table planner supporting Scene #, Shot #, Description, Camera Type, Angle, Movement, Lens, and Status. Responsive bi-directional scroll (frozen columns on mobile), automatic script scene generation, and CSV/PDF export.
   * *Idea Editor:* Notion-style rich-text note editor supporting headings, lists, checklists, links, and tags.
   * *Character Worksheet:* Structured profile card forms and a tabular side-by-side comparison grid.
   * *Outline Tree:* Hierarchical tree planner (Acts ➔ Sequences ➔ Beats ➔ Notes) with collapsing nodes and sibling reordering.
+* **Redesigned Multi-File Workspace:** Organize acts, treatments, outlines, and character bibles in a single interface with live project word counts.
+* **Import & Export Systems:** Import from `.fountain`, `.txt`, or `.md` drafts; export to industry-standard PDFs, CSVs, `.fountain` files, or `.json` backups.
+* **Writers Lounge Feed:** Social community feed to post updates, share Courier-formatted script snippets, and discuss screenplay structures.
+* **Script Explorer:** Browse, search, and read public screenplays written by community authors.
+* **Collaborator Custom Avatars:** Displays actual uploaded user profiles in the authors/collaborators listing rather than random seeded icons.
+* **Custom Themes & Zoom:** Midnight Gold, Cyberpunk Purple, Forest Green, and Classic Dark layouts with scalable editor zoom.
 
 ---
 
