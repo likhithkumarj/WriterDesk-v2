@@ -158,8 +158,9 @@ export function NotificationsPage({
     setNotifications(notifications.map(n => ({ ...n, unread: false })));
   };
 
-  const handleClearAll = () => {
-    if (window.confirm("Clear all notifications?")) {
+  const handleClearAll = async () => {
+    const confirmed = await (window as any).customConfirm("Clear all notifications?", "Clear Notifications");
+    if (confirmed) {
       setNotifications([]);
     }
   };

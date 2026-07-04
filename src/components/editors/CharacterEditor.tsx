@@ -88,10 +88,11 @@ export function CharacterEditor({
     triggerSave(newChars);
   };
 
-  const handleDeleteCharacter = (id: string, e: React.MouseEvent) => {
+  const handleDeleteCharacter = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (readOnly) return;
-    if (!window.confirm("Are you sure you want to delete this character?")) return;
+    const confirmed = await (window as any).customConfirm("Are you sure you want to delete this character?", "Delete Character");
+    if (!confirmed) return;
 
     const newChars = characters.filter((c) => c.id !== id);
     setCharacters(newChars);

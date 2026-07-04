@@ -197,9 +197,10 @@ export function OutlineEditor({
       });
   };
 
-  const handleDeleteNode = (id: string, e?: React.MouseEvent) => {
+  const handleDeleteNode = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this element and all its nested sub-elements?")) return;
+    const confirmed = await (window as any).customConfirm("Are you sure you want to delete this element and all its nested sub-elements?", "Delete Outline Element");
+    if (!confirmed) return;
 
     const updated = deleteNodeFromTree(tree, id);
     setTree(updated);

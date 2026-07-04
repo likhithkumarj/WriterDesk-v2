@@ -352,13 +352,32 @@ export const supabaseService = {
 
   // --- COLLABORATORS ---
   async fetchCollaborators(projectId: string) {
+    if (!this.isConfigured()) {
+      const raw = localStorage.getItem(`collaborators:${projectId}`);
+      return { data: raw ? JSON.parse(raw) : [], error: null };
+    }
     return supabase
       .from("collaborators")
-      .select("id, invited_email, status, user_id, role")
+      .select("id, invited_email, status, user_id, role, production_role")
       .eq("project_id", projectId);
   },
 
-  async inviteCollaborator(projectId: string, email: string, userId: string | null) {
+  async inviteCollaborator(projectId: string, email: string, userId: string | null, role: "Editor" | "Viewer" = "Viewer", productionRole: string = "Writer") {
+    if (!this.isConfigured()) {
+      const raw = localStorage.getItem(`collaborators:${projectId}`);
+      const list = raw ? JSON.parse(raw) : [];
+      const newCollab = {
+        id: "local_" + Math.random().toString(36).substr(2, 9),
+        invited_email: email,
+        status: "accepted",
+        user_id: userId || "local_user",
+        role,
+        production_role: productionRole
+      };
+      list.push(newCollab);
+      localStorage.setItem(`collaborators:${projectId}`, JSON.stringify(list));
+      return { data: newCollab, error: null };
+    }
     return supabase
       .from("collaborators")
       .insert({
@@ -366,18 +385,55 @@ export const supabaseService = {
         invited_email: email,
         user_id: userId,
         status: "pending",
-        role: "Viewer", // DEFAULT Viewer
+        role,
+        production_role: productionRole,
       });
   },
 
-  async updateCollaboratorRole(collabId: string, role: "Editor" | "Viewer") {
+  async updateCollaboratorRole(collabId: string, role: "Editor" | "Viewer", productionRole: string) {
+    if (!this.isConfigured()) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("collaborators:")) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            const idx = list.findIndex((c: any) => c.id === collabId);
+            if (idx !== -1) {
+              list[idx].role = role;
+              list[idx].production_role = productionRole;
+              localStorage.setItem(key, JSON.stringify(list));
+              break;
+            }
+          }
+        }
+      }
+      return { data: null, error: null };
+    }
     return supabase
       .from("collaborators")
-      .update({ role })
+      .update({ role, production_role: productionRole })
       .eq("id", collabId);
   },
 
   async removeCollaborator(collabId: string) {
+    if (!this.isConfigured()) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("collaborators:")) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            const filtered = list.filter((c: any) => c.id !== collabId);
+            if (filtered.length !== list.length) {
+              localStorage.setItem(key, JSON.stringify(filtered));
+              break;
+            }
+          }
+        }
+      }
+      return { data: null, error: null };
+    }
     return supabase
       .from("collaborators")
       .delete()

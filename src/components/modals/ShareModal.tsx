@@ -7,7 +7,8 @@ interface Collaborator {
   id: string;
   invited_email: string;
   status: string;
-  role?: string;
+  role: "Editor" | "Viewer";
+  production_role?: string;
   user_id?: string | null;
 }
 
@@ -25,6 +26,8 @@ export function ShareModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isOwner, setIsOwner] = useState(true);
+  const [invitedRole, setInvitedRole] = useState<"Editor" | "Viewer">("Viewer");
+  const [invitedProductionRole, setInvitedProductionRole] = useState<string>("Writer");
 
   const checkOwner = async () => {
     if (!supabaseService.isConfigured()) {
@@ -50,10 +53,6 @@ export function ShareModal({
   };
 
   const loadCollaborators = async () => {
-    if (!supabaseService.isConfigured()) {
-      setIsLoading(false);
-      return;
-    }
     setIsLoading(true);
     try {
       const { data, error } = await supabaseService.fetchCollaborators(projectId);
@@ -82,12 +81,6 @@ export function ShareModal({
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return;
 
-    if (!supabaseService.isConfigured()) {
-      alert("Invite sent! (Simulated - Supabase is not configured)");
-      setEmail("");
-      return;
-    }
-
     if (collaborators.some((c) => c.invited_email.toLowerCase() === cleanEmail)) {
       alert("This user is already invited or is a collaborator on this project.");
       return;
@@ -95,13 +88,18 @@ export function ShareModal({
 
     setIsSending(true);
     try {
-      // Find if user already has a profile to set user_id
-      const { data: profileData } = await supabaseService.fetchProfileByEmail(cleanEmail);
+      let userId: string | null = null;
+      if (supabaseService.isConfigured()) {
+        const { data: profileData } = await supabaseService.fetchProfileByEmail(cleanEmail);
+        userId = profileData?.id || null;
+      }
 
       const { error } = await supabaseService.inviteCollaborator(
         projectId,
         cleanEmail,
-        profileData?.id || null
+        userId,
+        invitedRole,
+        invitedProductionRole
       );
 
       if (error) throw error;
@@ -115,17 +113,22 @@ export function ShareModal({
     }
   };
 
-  const handleRemove = async (collabId: string) => {
-    if (!window.confirm("Remove this collaborator? They will lose access to the project.")) return;
-
-    if (!supabaseService.isConfigured()) {
-      setCollaborators(collaborators.filter((c) => c.id !== collabId));
-      return;
+  const handleUpdateCollaborator = async (collabId: string, role: "Editor" | "Viewer", productionRole: string) => {
+    try {
+      const { error } = await supabaseService.updateCollaboratorRole(collabId, role, productionRole);
+      if (error) throw error;
+      loadCollaborators();
+    } catch (err: any) {
+      alert("Error updating collaborator: " + err.message);
     }
+  };
+
+  const handleRemove = async (collabId: string) => {
+    const confirmed = await (window as any).customConfirm("Remove this collaborator? They will lose access to the project.", "Remove Collaborator");
+    if (!confirmed) return;
 
     try {
       const { error } = await supabaseService.removeCollaborator(collabId);
-
       if (error) throw error;
       loadCollaborators();
     } catch (err: any) {
@@ -135,45 +138,66 @@ export function ShareModal({
 
   return (
     <div className="sp-modal-backdrop" onClick={onClose}>
-      <div className="sp-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+      <div className="sp-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Share "{projectTitle}"</h2>
         <p style={{ fontSize: 13, color: "var(--sp-muted)", marginBottom: 20 }}>
-          Invite other writers to edit this screenplay in real time.
+          Invite other creative writers, directors, and actors to collaborate on this screenplay.
         </p>
 
-        {!supabaseService.isConfigured() ? (
-          <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl text-center">
-            ⚠️ Supabase is not configured. Real-time collaboration is disabled in mock/demo mode.
-          </div>
-        ) : !isOwner ? (
+        {!isOwner ? (
           <div style={{ marginBottom: 24, padding: "10px 12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--sp-border)", borderRadius: 8, fontSize: 13, color: "var(--sp-muted)", textAlign: "center" }}>
-            ℹ️ Only the project owner can invite new collaborators.
+            ℹ️ Only the project owner can invite or modify collaborators.
           </div>
         ) : (
-          <form onSubmit={handleInvite} style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-            <div style={{ position: "relative", flex: 1 }}>
+          <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+            <div style={{ position: "relative", width: "100%" }}>
               <Mail 
                 size={14} 
-                style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--sp-muted)" }} 
+                style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--sp-muted)" }} 
               />
               <input
                 type="email"
                 required
                 className="sp-input"
-                placeholder="writer@example.com"
+                placeholder="collaborator@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{ paddingLeft: 32 }}
+                style={{ paddingLeft: 36, width: "100%" }}
               />
             </div>
-            <button 
-              type="submit" 
-              className="sp-btn sp-btn-primary" 
-              disabled={isSending || !email.trim()}
-              style={{ padding: "8px 16px" }}
-            >
-              {isSending ? <Loader2 size={14} className="animate-spin" /> : "Invite"}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select
+                value={invitedRole}
+                onChange={(e) => setInvitedRole(e.target.value as "Editor" | "Viewer")}
+                className="sp-input"
+                style={{ flex: 1, padding: "8px 12px", minWidth: 120, borderRadius: 8, background: "#1c1c20", border: "1px solid var(--sp-border)", color: "var(--sp-text)", fontSize: 13, cursor: "pointer" }}
+              >
+                <option value="Viewer">Viewer (Read-only)</option>
+                <option value="Editor">Editor (Read/Write)</option>
+              </select>
+              <select
+                value={invitedProductionRole}
+                onChange={(e) => setInvitedProductionRole(e.target.value)}
+                className="sp-input"
+                style={{ flex: 1, padding: "8px 12px", minWidth: 120, borderRadius: 8, background: "#1c1c20", border: "1px solid var(--sp-border)", color: "var(--sp-text)", fontSize: 13, cursor: "pointer" }}
+              >
+                <option value="Writer">Writer</option>
+                <option value="Director">Director</option>
+                <option value="Actor">Actor</option>
+                <option value="Producer">Producer</option>
+                <option value="DP">Director of Photography</option>
+                <option value="Editor">Creative Editor</option>
+                <option value="Other">Other</option>
+              </select>
+              <button 
+                type="submit" 
+                className="sp-btn sp-btn-primary" 
+                disabled={isSending || !email.trim()}
+                style={{ padding: "8px 16px" }}
+              >
+                {isSending ? <Loader2 size={14} className="animate-spin" /> : "Invite"}
+              </button>
+            </div>
           </form>
         )}
 
@@ -188,89 +212,108 @@ export function ShareModal({
             No collaborators invited yet.
           </p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 200, overflowY: "auto", marginBottom: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 220, overflowY: "auto", marginBottom: 20 }}>
             {collaborators.map((c) => (
               <div 
                 key={c.id} 
                 style={{ 
                   display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "space-between", 
+                  flexDirection: "column",
+                  gap: 8,
                   padding: "10px 12px", 
                   borderRadius: 8, 
                   border: "1px solid var(--sp-border)",
                   background: "var(--sp-bg)" 
                 }}
               >
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>{c.invited_email}</span>
-                  <span 
-                    style={{ 
-                      fontSize: 10, 
-                      display: "inline-flex", 
-                      alignItems: "center", 
-                      gap: 4, 
-                      color: c.status === "accepted" ? "#10b981" : "#f59e0b" 
-                    }}
-                  >
-                    {c.status === "accepted" ? (
-                      <><CheckCircle size={10} /> Accepted</>
-                    ) : (
-                      <><Clock size={10} /> Pending invite</>
-                    )}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  {isOwner ? (
-                    <select
-                      value={c.role || "Viewer"}
-                      onChange={async (e) => {
-                        const newRole = e.target.value as "Editor" | "Viewer";
-                        try {
-                          const { error } = await supabaseService.updateCollaboratorRole(c.id, newRole);
-                          if (error) throw error;
-                          loadCollaborators();
-                        } catch (err: any) {
-                          alert("Error updating role: " + err.message);
-                        }
-                      }}
-                      style={{
-                        background: "#1c1c20",
-                        border: "1px solid var(--sp-border)",
-                        color: "var(--sp-text)",
-                        fontSize: 12,
-                        padding: "4px 8px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <option value="Viewer">Viewer</option>
-                      <option value="Editor">Editor</option>
-                    </select>
-                  ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{c.invited_email}</span>
                     <span 
                       style={{ 
-                        fontSize: 11, 
-                        color: c.role === "Editor" ? "#60A5FA" : "#8e8e93",
-                        background: c.role === "Editor" ? "rgba(96, 165, 250, 0.08)" : "rgba(142, 142, 147, 0.08)",
-                        padding: "2px 8px",
-                        borderRadius: 4,
-                        fontWeight: 500
+                        fontSize: 10, 
+                        display: "inline-flex", 
+                        alignItems: "center", 
+                        gap: 4, 
+                        color: c.status === "accepted" ? "#10b981" : "#f59e0b" 
                       }}
                     >
-                      {c.role || "Viewer"}
+                      {c.status === "accepted" ? (
+                        <><CheckCircle size={10} /> Accepted</>
+                      ) : (
+                        <><Clock size={10} /> Pending invite</>
+                      )}
                     </span>
-                  )}
-                  {isOwner && (
-                    <button 
-                      className="sp-btn sp-btn-ghost sp-btn-icon" 
-                      onClick={() => handleRemove(c.id)}
-                      title="Remove collaborator"
-                      style={{ color: "var(--sp-muted)", padding: 6 }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
+                  </div>
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {isOwner ? (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <select
+                          value={c.role || "Viewer"}
+                          onChange={(e) => {
+                            const newRole = e.target.value as "Editor" | "Viewer";
+                            handleUpdateCollaborator(c.id, newRole, c.production_role || "Writer");
+                          }}
+                          style={{
+                            background: "#1c1c20",
+                            border: "1px solid var(--sp-border)",
+                            color: "var(--sp-text)",
+                            fontSize: 11,
+                            padding: "4px 8px",
+                            borderRadius: 6,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="Viewer">Viewer</option>
+                          <option value="Editor">Editor</option>
+                        </select>
+                        <select
+                          value={c.production_role || "Writer"}
+                          onChange={(e) => {
+                            const newProdRole = e.target.value;
+                            handleUpdateCollaborator(c.id, c.role || "Viewer", newProdRole);
+                          }}
+                          style={{
+                            background: "#1c1c20",
+                            border: "1px solid var(--sp-border)",
+                            color: "var(--sp-text)",
+                            fontSize: 11,
+                            padding: "4px 8px",
+                            borderRadius: 6,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="Writer">Writer</option>
+                          <option value="Director">Director</option>
+                          <option value="Actor">Actor</option>
+                          <option value="Producer">Producer</option>
+                          <option value="DP">DP</option>
+                          <option value="Editor">Editor</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <span style={{ fontSize: 10, color: "#60A5FA", background: "rgba(96, 165, 250, 0.08)", padding: "2px 6px", borderRadius: 4, fontWeight: 500 }}>
+                          {c.role || "Viewer"}
+                        </span>
+                        <span style={{ fontSize: 10, color: "#10B981", background: "rgba(16, 185, 129, 0.08)", padding: "2px 6px", borderRadius: 4, fontWeight: 500 }}>
+                          {c.production_role || "Writer"}
+                        </span>
+                      </div>
+                    )}
+                    {isOwner && (
+                      <button 
+                        className="sp-btn sp-btn-ghost sp-btn-icon" 
+                        onClick={() => handleRemove(c.id)}
+                        title="Remove collaborator"
+                        style={{ color: "var(--sp-muted)", padding: 6 }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

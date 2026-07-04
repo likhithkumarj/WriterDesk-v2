@@ -356,8 +356,12 @@ export function SettingsPage({
                 </div>
                 <button 
                   className="sp-btn" 
-                  onClick={() => {
-                    if (window.confirm("WARNING: Are you absolutely sure you want to delete all projects and local storage? This cannot be undone.")) {
+                  onClick={async () => {
+                    const confirmed = await (window as any).customConfirm(
+                      "WARNING: Are you absolutely sure you want to delete all projects and local storage? This cannot be undone.",
+                      "Reset Application"
+                    );
+                    if (confirmed) {
                       localStorage.clear();
                       window.location.reload();
                     }

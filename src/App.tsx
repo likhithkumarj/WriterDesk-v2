@@ -16,6 +16,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { supabaseService } from "./utils/supabaseService";
 import { Analytics } from "@vercel/analytics/react";
+import { CheckCircle, AlertTriangle, Info, X } from "lucide-react";
 
 interface UserProfile {
   id?: string;
@@ -31,6 +32,58 @@ function AppContent() {
     return saved ? JSON.parse(saved) : null;
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; title: string; resolve: (val: boolean) => void } | null>(null);
+
+  const addToast = (message: string, type: "success" | "error" | "info" = "info") => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  useEffect(() => {
+    // Override default alert
+    window.alert = (msg: any) => {
+      const messageString = typeof msg === "object" ? JSON.stringify(msg) : String(msg);
+      let type: "success" | "error" | "info" = "info";
+      const lower = messageString.toLowerCase();
+      if (lower.includes("success") || lower.includes("saved") || lower.includes("accepted") || lower.includes("deleted file") || lower.includes("simulated") || lower.includes("sent")) {
+        type = "success";
+      } else if (lower.includes("error") || lower.includes("failed") || lower.includes("invalid") || lower.includes("violation") || lower.includes("missing")) {
+        type = "error";
+      }
+      addToast(messageString, type);
+    };
+
+    // Expose a custom async confirmation popup
+    (window as any).customConfirm = (message: string, title = "Confirm Action") => {
+      return new Promise<boolean>((resolve) => {
+        setConfirmDialog({ message, title, resolve });
+      });
+    };
+
+    // Inject animation styles
+    const styleEl = document.createElement("style");
+    styleEl.innerHTML = `
+      @keyframes sp-toast-fade-in {
+        from { opacity: 0; transform: translateY(12px) scale(0.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes sp-modal-fade-in {
+        from { opacity: 0; transform: scale(0.92); }
+        to { opacity: 1; transform: scale(1); }
+      }
+    `;
+    document.head.appendChild(styleEl);
+
+    return () => {
+      try {
+        document.head.removeChild(styleEl);
+      } catch (e) {}
+    };
+  }, []);
 
   const loadData = async (userId?: string) => {
     if (supabaseService.isConfigured() && userId) {
@@ -172,56 +225,190 @@ function AppContent() {
   }
 
   return (
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<LandingScreen />} />
-      <Route 
-        path="/login" 
-        element={user ? <Navigate to="/projects" replace /> : <LoginScreen onLogin={handleLogin} />} 
-      />
+    <>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<LandingScreen />} />
+        <Route 
+          path="/login" 
+          element={user ? <Navigate to="/projects" replace /> : <LoginScreen onLogin={handleLogin} />} 
+        />
 
-      {/* Protected Routes */}
-      <Route 
-        path="/projects" 
-        element={user ? <ProjectsRoute store={store} persist={persist} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/project/:projectId" 
-        element={user ? <ProjectFilesRoute store={store} persist={persist} user={user} /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/project/:projectId/file/:fileId" 
-        element={user ? <EditorRoute store={store} persist={persist} user={user} /> : <Navigate to="/login" replace />} 
-      />
+        {/* Protected Routes */}
+        <Route 
+          path="/projects" 
+          element={user ? <ProjectsRoute store={store} persist={persist} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/project/:projectId" 
+          element={user ? <ProjectFilesRoute store={store} persist={persist} user={user} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/project/:projectId/file/:fileId" 
+          element={user ? <EditorRoute store={store} persist={persist} user={user} /> : <Navigate to="/login" replace />} 
+        />
 
-      {/* Expanded Routes */}
-      <Route 
-        path="/community" 
-        element={user ? <CommunityPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/explore" 
-        element={user ? <ExplorePage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/messages" 
-        element={user ? <MessagesPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/notifications" 
-        element={user ? <NotificationsPage store={store} user={user} onLogout={handleLogout} onRefreshProjects={handleRefreshProjects} /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/settings" 
-        element={user ? <SettingsPage store={store} user={user} onLogout={handleLogout} onUpdateUser={handleUpdateUser} /> : <Navigate to="/login" replace />} 
-      />
-      <Route 
-        path="/profile" 
-        element={user ? <ProfilePage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
-      />
+        {/* Expanded Routes */}
+        <Route 
+          path="/community" 
+          element={user ? <CommunityPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/explore" 
+          element={user ? <ExplorePage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/messages" 
+          element={user ? <MessagesPage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/notifications" 
+          element={user ? <NotificationsPage store={store} user={user} onLogout={handleLogout} onRefreshProjects={handleRefreshProjects} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/settings" 
+          element={user ? <SettingsPage store={store} user={user} onLogout={handleLogout} onUpdateUser={handleUpdateUser} /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/profile" 
+          element={user ? <ProfilePage store={store} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+        />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {/* Floating Toast Notification Stack */}
+      {toasts.length > 0 && (
+        <div 
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            zIndex: 9999,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            maxWidth: "calc(100% - 48px)",
+            width: 360,
+          }}
+        >
+          {toasts.map((t) => {
+            const isSuccess = t.type === "success";
+            const isError = t.type === "error";
+            return (
+              <div
+                key={t.id}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  background: "rgba(20, 20, 22, 0.95)",
+                  border: `1px solid ${isSuccess ? "rgba(16, 185, 129, 0.4)" : isError ? "rgba(239, 68, 68, 0.4)" : "rgba(255, 255, 255, 0.08)"}`,
+                  boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+                  backdropFilter: "blur(8px)",
+                  transform: "translateY(0)",
+                  animation: "sp-toast-fade-in 0.3s ease",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <div style={{ marginTop: 2 }}>
+                  {isSuccess && <CheckCircle size={16} color="#10b981" />}
+                  {isError && <AlertTriangle size={16} color="#ef4444" />}
+                  {!isSuccess && !isError && <Info size={16} color="var(--sp-accent)" />}
+                </div>
+                <div style={{ flex: 1, fontSize: 13, color: "#fff", fontWeight: 500, lineHeight: 1.4 }}>
+                  {t.message}
+                </div>
+                <button
+                  onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 2,
+                    cursor: "pointer",
+                    color: "rgba(255,255,255,0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Global Custom Confirmation Modal Dialog */}
+      {confirmDialog && (
+        <div 
+          style={{
+            position: "fixed",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(4px)",
+            zIndex: 99999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => {
+            confirmDialog.resolve(false);
+            setConfirmDialog(null);
+          }}
+        >
+          <div 
+            style={{
+              width: "100%",
+              maxWidth: 400,
+              background: "rgba(20, 20, 22, 0.95)",
+              border: "1px solid var(--sp-border)",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+              borderRadius: 16,
+              padding: 20,
+              animation: "sp-modal-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginTop: 0, marginBottom: 8 }}>
+              {confirmDialog.title}
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--sp-muted)", lineHeight: 1.5, margin: 0, marginBottom: 24 }}>
+              {confirmDialog.message}
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button 
+                className="sp-btn"
+                onClick={() => {
+                  confirmDialog.resolve(false);
+                  setConfirmDialog(null);
+                }}
+                style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12 }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="sp-btn sp-btn-primary"
+                onClick={() => {
+                  confirmDialog.resolve(true);
+                  setConfirmDialog(null);
+                }}
+                style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12 }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

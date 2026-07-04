@@ -20,6 +20,8 @@ UPDATE public.collaborators SET role = 'Viewer'  WHERE role IS NULL;
 -- ============================================================
 -- 2. PROFILES — everyone authenticated can read profiles
 -- ============================================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 DROP POLICY IF EXISTS "Profiles are viewable by everyone"        ON public.profiles;
 DROP POLICY IF EXISTS "Users can view their own profile"         ON public.profiles;
@@ -32,6 +34,8 @@ ON public.profiles FOR SELECT USING (true);
 -- 3. PROJECTS — owners + collaborators can read
 -- Safe: projects -> collaborators (collaborators policy = true, no loop)
 -- ============================================================
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Users can view their own projects"           ON public.projects;
 DROP POLICY IF EXISTS "Owners and collaborators can view projects"  ON public.projects;
 
@@ -217,4 +221,11 @@ USING (
 -- ============================================================
 ALTER TABLE public.files
 ADD COLUMN IF NOT EXISTS author text;
+
+
+-- ============================================================
+-- 8. Add production_role column to collaborators table
+-- ============================================================
+ALTER TABLE public.collaborators
+ADD COLUMN IF NOT EXISTS production_role text DEFAULT 'Writer' CHECK (production_role IN ('Writer', 'Director', 'Actor', 'Producer', 'DP', 'Editor', 'Other'));
 

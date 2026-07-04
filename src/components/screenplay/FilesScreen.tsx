@@ -99,6 +99,8 @@ function InviteCollaboratorModal({
   onInviteSuccess: () => void;
 }) {
   const [input, setInput] = useState("");
+  const [role, setRole] = useState<"Editor" | "Viewer">("Viewer");
+  const [productionRole, setProductionRole] = useState<string>("Writer");
   const [isSending, setIsSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -112,7 +114,15 @@ function InviteCollaboratorModal({
 
     try {
       if (!supabaseService.isConfigured()) {
-        alert("Invite sent! (Simulated - Supabase is not configured)");
+        const { error } = await supabaseService.inviteCollaborator(
+          projectId,
+          cleanInput,
+          null,
+          role,
+          productionRole
+        );
+        if (error) throw error;
+        alert("Invite sent! (Simulated - Saved locally)");
         onInviteSuccess();
         onClose();
         return;
@@ -132,7 +142,9 @@ function InviteCollaboratorModal({
       const { error } = await supabaseService.inviteCollaborator(
         projectId,
         profile.email,
-        profile.id
+        profile.id,
+        role,
+        productionRole
       );
 
       if (error) {
@@ -159,10 +171,10 @@ function InviteCollaboratorModal({
 
   return (
     <div className="sp-modal-backdrop" onClick={onClose}>
-      <div className="sp-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+      <div className="sp-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: "#fff" }}>Add Collaborator</h2>
         <p style={{ fontSize: 13, color: "#8e8e93", marginBottom: 20 }}>
-          Enter the registered username or email address of the writer you want to invite.
+          Enter the username or email address of the writer you want to invite.
         </p>
 
         <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -186,6 +198,42 @@ function InviteCollaboratorModal({
                 {errorMsg}
               </p>
             )}
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", marginBottom: 6, letterSpacing: "0.05em" }}>
+                Access Level
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as "Editor" | "Viewer")}
+                className="sp-input"
+                style={{ width: "100%", padding: "8px 12px", background: "#1c1c20", border: "1px solid var(--sp-border)", color: "var(--sp-text)", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
+              >
+                <option value="Viewer">Viewer (Read-only)</option>
+                <option value="Editor">Editor (Read/Write)</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", marginBottom: 6, letterSpacing: "0.05em" }}>
+                Creative Role
+              </label>
+              <select
+                value={productionRole}
+                onChange={(e) => setProductionRole(e.target.value)}
+                className="sp-input"
+                style={{ width: "100%", padding: "8px 12px", background: "#1c1c20", border: "1px solid var(--sp-border)", color: "var(--sp-text)", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
+              >
+                <option value="Writer">Writer</option>
+                <option value="Director">Director</option>
+                <option value="Actor">Actor</option>
+                <option value="Producer">Producer</option>
+                <option value="DP">DP (Cinematographer)</option>
+                <option value="Editor">Editor</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
@@ -215,6 +263,7 @@ const mockCollaboratorsList = [
     email: "ben@screenplay.app",
     avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Ben",
     role: "Owner",
+    production_role: "Director",
     roleColor: "var(--sp-accent)",
     roleBg: "rgba(var(--sp-accent-rgb), 0.08)",
     joined: "Jan 2026"
@@ -225,6 +274,7 @@ const mockCollaboratorsList = [
     email: "sarah.m@email.com",
     avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Sarah",
     role: "Editor",
+    production_role: "Writer",
     roleColor: "#60A5FA",
     roleBg: "rgba(96, 165, 250, 0.08)",
     joined: "Mar 2026"
@@ -235,6 +285,7 @@ const mockCollaboratorsList = [
     email: "marco.r@email.com",
     avatar: "https://api.dicebear.com/9.x/avataaars/svg?seed=Marco",
     role: "Viewer",
+    production_role: "Producer",
     roleColor: "#8e8e93",
     roleBg: "rgba(142, 142, 147, 0.08)",
     joined: "Jun 2026"
@@ -342,8 +393,40 @@ export function FilesScreen({
   };
 
   const loadCollaborators = async () => {
-    if (!supabaseService.isConfigured() || !project?.id) {
-      setCollaborators(mockCollaboratorsList);
+    if (!project?.id) return;
+
+    if (!supabaseService.isConfigured()) {
+      const { data } = await supabaseService.fetchCollaborators(project.id);
+      if (data && data.length > 0) {
+        const mapped = data.map((c: any) => {
+          const isAccepted = c.status === "accepted";
+          const dbRole = c.role || "Viewer";
+          const isOwner = c.id === "owner" || c.role === "Owner";
+          return {
+            id: c.id,
+            name: c.invited_email.split("@")[0] || "Collaborator",
+            email: c.invited_email,
+            avatar: `https://api.dicebear.com/9.x/avataaars/svg?seed=${c.invited_email || c.id}`,
+            role: dbRole,
+            production_role: c.production_role || "Writer",
+            roleColor: isOwner ? "var(--sp-accent)" : dbRole === "Editor" ? "#60A5FA" : "#8e8e93",
+            roleBg: isOwner ? "rgba(var(--sp-accent-rgb), 0.08)" : dbRole === "Editor" ? "rgba(96, 165, 250, 0.08)" : "rgba(142, 142, 147, 0.08)",
+            joined: isAccepted ? "Joined" : "Pending",
+            status: c.status
+          };
+        });
+        setCollaborators(mapped);
+      } else {
+        const initialList = mockCollaboratorsList.map(c => ({
+          id: c.id,
+          invited_email: c.email,
+          status: "accepted",
+          role: c.role === "Owner" ? "Viewer" : (c.role as "Editor" | "Viewer"),
+          production_role: c.production_role,
+        }));
+        localStorage.setItem(`collaborators:${project.id}`, JSON.stringify(initialList));
+        setCollaborators(mockCollaboratorsList);
+      }
       return;
     }
 
@@ -468,10 +551,12 @@ export function FilesScreen({
             name,
             email: resolvedEmail,
             avatar,
-            role,
+            role: dbRole,
+            production_role: c.production_role || "Writer",
             roleColor,
             roleBg,
-            joined: isAccepted ? "Joined" : "Pending"
+            joined: isAccepted ? "Joined" : "Pending",
+            status: c.status
           });
         });
       }
@@ -2169,11 +2254,12 @@ export function FilesScreen({
                   </div>
 
                   <div className="sp-ws-table" style={{ width: "100%" }}>
-                    <div className="sp-ws-th-row" style={{ display: "grid", gridTemplateColumns: "1.5fr 2fr 1fr 1fr 0.5fr", borderBottom: "1px solid #1c1c20" }}>
+                    <div className="sp-ws-th-row" style={{ display: "grid", gridTemplateColumns: "1.2fr 1.5fr 0.8fr 1fr 1fr 0.5fr", borderBottom: "1px solid #1c1c20" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", paddingLeft: 12 }}>Name</span>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Email</span>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Status</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Role</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Access Level</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93" }}>Creative Role</span>
                       <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#8e8e93", textAlign: "right", paddingRight: 12 }}>Actions</span>
                     </div>
 
@@ -2190,7 +2276,7 @@ export function FilesScreen({
                             className="sp-ws-td-row"
                             style={{
                               display: "grid",
-                              gridTemplateColumns: "1.5fr 2fr 1fr 1fr 0.5fr",
+                              gridTemplateColumns: "1.2fr 1.5fr 0.8fr 1fr 1fr 0.5fr",
                               alignItems: "center",
                               borderBottom: "1px solid #1c1c20",
                               padding: "12px 0",
@@ -2226,7 +2312,7 @@ export function FilesScreen({
                                   onChange={async (e) => {
                                     const newRole = e.target.value as "Editor" | "Viewer";
                                     try {
-                                      const { error } = await supabaseService.updateCollaboratorRole(c.id, newRole);
+                                      const { error } = await supabaseService.updateCollaboratorRole(c.id, newRole, c.production_role || "Writer");
                                       if (error) throw error;
                                       loadCollaborators();
                                     } catch (err: any) {
@@ -2258,6 +2344,53 @@ export function FilesScreen({
                                   }}
                                 >
                                   {c.role || "Viewer"}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              {isOwner && !isCreator ? (
+                                <select
+                                  value={c.production_role || "Writer"}
+                                  onChange={async (e) => {
+                                    const newProdRole = e.target.value;
+                                    try {
+                                      const { error } = await supabaseService.updateCollaboratorRole(c.id, c.role || "Viewer", newProdRole);
+                                      if (error) throw error;
+                                      loadCollaborators();
+                                    } catch (err: any) {
+                                      alert("Error updating production role: " + err.message);
+                                    }
+                                  }}
+                                  style={{
+                                    background: "#1c1c20",
+                                    border: "1px solid var(--sp-border)",
+                                    color: "var(--sp-text)",
+                                    fontSize: 12,
+                                    padding: "4px 8px",
+                                    borderRadius: 6,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <option value="Writer">Writer</option>
+                                  <option value="Director">Director</option>
+                                  <option value="Actor">Actor</option>
+                                  <option value="Producer">Producer</option>
+                                  <option value="DP">DP</option>
+                                  <option value="Editor">Editor</option>
+                                  <option value="Other">Other</option>
+                                </select>
+                              ) : (
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: "#10b981",
+                                    background: "rgba(16, 185, 129, 0.08)",
+                                    padding: "2px 8px",
+                                    borderRadius: 4,
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  {c.production_role || "Writer"}
                                 </span>
                               )}
                             </div>
@@ -2568,45 +2701,117 @@ export function FilesScreen({
                 )}
               </div>
 
-              {collaborators.map((c) => (
-                <div key={c.email} className="sp-ws-mobile-collab-card">
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <Avatar src={c.avatar} name={c.name} size={36} />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      <h3 className="sp-ws-mobile-file-title">{c.name}</h3>
-                      <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 10 }}>{c.email}</p>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                      <span className="sp-ws-role-badge" style={{ color: c.roleColor, backgroundColor: c.roleBg, fontSize: 10, padding: "2px 8px" }}>
-                        {c.role}
+              {collaborators.map((c) => {
+                const isCreator = c.joined === "Creator" || c.id === "owner";
+                return (
+                  <div key={c.email} className="sp-ws-mobile-collab-card" style={{ display: "flex", flexDirection: "column", gap: 10, padding: 12, borderBottom: "1px solid #1c1c20" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <Avatar src={c.avatar} name={c.name} size={36} />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <h3 className="sp-ws-mobile-file-title" style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>{c.name}</h3>
+                          <p className="sp-ws-mobile-file-subtitle" style={{ fontSize: 10, color: "#8e8e93", margin: 0 }}>{c.email}</p>
+                        </div>
+                      </div>
+                      <span
+                        className="sp-ws-badge-status"
+                        style={{
+                          fontSize: 9,
+                          background: c.joined === "Creator" ? "rgba(var(--sp-accent-rgb), 0.08)" : c.status === "accepted" || c.joined === "Joined" ? "rgba(16, 185, 129, 0.08)" : "rgba(245, 158, 11, 0.08)",
+                          color: c.joined === "Creator" ? "var(--sp-accent)" : c.status === "accepted" || c.joined === "Joined" ? "#10b981" : "#f59e0b",
+                          borderColor: "transparent",
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          fontWeight: 600
+                        }}
+                      >
+                        {c.joined === "Creator" ? "Creator" : c.status === "accepted" || c.joined === "Joined" ? "Joined" : "Pending"}
                       </span>
-                      <span className="sp-ws-mobile-file-date">Joined {c.joined}</span>
                     </div>
-                    {isOwner && c.id !== "owner" && (
-                      <div style={{ position: "relative" }}>
-                        <button className="sp-ws-mobile-file-more-btn" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === c.email ? null : c.email); }}>
-                          <MoreVertical size={16} />
-                        </button>
-                        {openMenu === c.email && (
-                          <div className="sp-menu" style={{ right: 0, top: 28 }} onClick={(e) => e.stopPropagation()}>
-                            <button onClick={async () => {
-                              const newRole = c.role === "Editor" ? "Viewer" : "Editor";
-                              await supabaseService.updateCollaboratorRole(c.id, newRole);
-                              loadCollaborators();
-                              setOpenMenu(null);
-                            }}>
-                              Make {c.role === "Editor" ? "Viewer" : "Editor"}
-                            </button>
-                            <button onClick={() => { handleRemoveCollaborator(c.id); setOpenMenu(null); }} style={{ color: "#ef4444" }}>Remove</button>
-                          </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                      {isOwner && !isCreator ? (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <select
+                            value={c.role || "Viewer"}
+                            onChange={async (e) => {
+                              const newRole = e.target.value as "Editor" | "Viewer";
+                              try {
+                                await supabaseService.updateCollaboratorRole(c.id, newRole, c.production_role || "Writer");
+                                loadCollaborators();
+                              } catch (err: any) {
+                                alert("Error: " + err.message);
+                              }
+                            }}
+                            style={{
+                              background: "#1c1c20",
+                              border: "1px solid var(--sp-border)",
+                              color: "var(--sp-text)",
+                              fontSize: 11,
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                            }}
+                          >
+                            <option value="Viewer">Viewer</option>
+                            <option value="Editor">Editor</option>
+                          </select>
+
+                          <select
+                            value={c.production_role || "Writer"}
+                            onChange={async (e) => {
+                              const newProdRole = e.target.value;
+                              try {
+                                await supabaseService.updateCollaboratorRole(c.id, c.role || "Viewer", newProdRole);
+                                loadCollaborators();
+                              } catch (err: any) {
+                                alert("Error: " + err.message);
+                              }
+                            }}
+                            style={{
+                              background: "#1c1c20",
+                              border: "1px solid var(--sp-border)",
+                              color: "var(--sp-text)",
+                              fontSize: 11,
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                            }}
+                          >
+                            <option value="Writer">Writer</option>
+                            <option value="Director">Director</option>
+                            <option value="Actor">Actor</option>
+                            <option value="Producer">Producer</option>
+                            <option value="DP">DP</option>
+                            <option value="Editor">Editor</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <span style={{ fontSize: 10, color: "#60A5FA", background: "rgba(96, 165, 250, 0.08)", padding: "2px 6px", borderRadius: 4, fontWeight: 500 }}>
+                            {c.role || "Viewer"}
+                          </span>
+                          <span style={{ fontSize: 10, color: "#10B981", background: "rgba(16, 185, 129, 0.08)", padding: "2px 6px", borderRadius: 4, fontWeight: 500 }}>
+                            {c.production_role || "Writer"}
+                          </span>
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span className="sp-ws-mobile-file-date" style={{ fontSize: 10, color: "#71717a" }}>Joined {c.joined}</span>
+                        {isOwner && !isCreator && (
+                          <button
+                            className="sp-btn sp-btn-ghost sp-btn-icon"
+                            onClick={() => handleRemoveCollaborator(c.id)}
+                            style={{ color: "var(--sp-muted)", padding: 4 }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>
