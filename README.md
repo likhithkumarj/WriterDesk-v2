@@ -35,21 +35,6 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 
 ---
 
-## 🏁 Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Start the dev server
-npm run dev
-
-# Build production bundle
-npm run build
-```
-
----
-
 ## 📝 Screenplay Layout Guide
 
 Standard screenplay formatting relies on specific indents. Pressing **Tab** or **Enter** cycles through elements naturally.
