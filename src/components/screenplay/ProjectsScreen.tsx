@@ -152,6 +152,14 @@ export function ProjectsScreen({
   };
 
   const deleteProject = async (id: string) => {
+    const projTitle = store.projects.find((p) => p.id === id)?.title || "this project";
+    const confirmed = await (window as any).customConfirm(
+      `Are you sure you want to delete "${projTitle}"? All associated files, screenplays, and character sheets will be permanently deleted.`,
+      "Delete Project",
+      { confirmText: "Delete", variant: "destructive" }
+    );
+    if (!confirmed) return;
+
     try {
       if (supabaseService.isConfigured()) {
         const { error } = await supabaseService.deleteProject(id);

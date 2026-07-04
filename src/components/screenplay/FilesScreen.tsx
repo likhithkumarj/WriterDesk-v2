@@ -864,6 +864,14 @@ export function FilesScreen({
   };
 
   const deleteFile = async (id: string) => {
+    const fileTitle = localProject.files.find((x) => x.id === id)?.title || "this file";
+    const confirmed = await (window as any).customConfirm(
+      `Are you sure you want to delete "${fileTitle}"? This action cannot be undone.`,
+      "Delete File",
+      { confirmText: "Delete", variant: "destructive" }
+    );
+    if (!confirmed) return;
+
     try {
       if (supabaseService.isConfigured()) {
         const { error } = await supabaseService.deleteFile(id);
@@ -876,6 +884,14 @@ export function FilesScreen({
   };
 
   const handleRemoveCollaborator = async (collabId: string) => {
+    const collabName = collaborators.find((c) => c.id === collabId)?.name || "this collaborator";
+    const confirmed = await (window as any).customConfirm(
+      `Remove "${collabName}" from the project? They will lose all access.`,
+      "Remove Collaborator",
+      { confirmText: "Remove", variant: "destructive" }
+    );
+    if (!confirmed) return;
+
     try {
       if (supabaseService.isConfigured()) {
         const { error } = await supabaseService.removeCollaborator(collabId);
