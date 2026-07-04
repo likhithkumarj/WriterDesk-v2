@@ -43,9 +43,6 @@ npm install
 
 # Start the dev server
 npm run dev
-
-# Build production bundle
-npm run build
 ```
 
 ---
