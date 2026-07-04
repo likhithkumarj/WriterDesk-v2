@@ -40,9 +40,6 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 ```bash
 # Install dependencies
 npm install
-
-# Start the dev server
-npm run dev
 ```
 
 ---
