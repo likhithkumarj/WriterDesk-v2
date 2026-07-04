@@ -359,7 +359,8 @@ export function SettingsPage({
                   onClick={async () => {
                     const confirmed = await (window as any).customConfirm(
                       "WARNING: Are you absolutely sure you want to delete all projects and local storage? This cannot be undone.",
-                      "Reset Application"
+                      "Reset Application",
+                      { confirmText: "Delete All", variant: "destructive" }
                     );
                     if (confirmed) {
                       localStorage.clear();

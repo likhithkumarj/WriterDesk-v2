@@ -124,7 +124,11 @@ export function ShareModal({
   };
 
   const handleRemove = async (collabId: string) => {
-    const confirmed = await (window as any).customConfirm("Remove this collaborator? They will lose access to the project.", "Remove Collaborator");
+    const confirmed = await (window as any).customConfirm(
+      "Remove this collaborator? They will lose access to the project.", 
+      "Remove Collaborator",
+      { confirmText: "Remove", variant: "destructive" }
+    );
     if (!confirmed) return;
 
     try {

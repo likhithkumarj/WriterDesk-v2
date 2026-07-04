@@ -33,7 +33,14 @@ function AppContent() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
-  const [confirmDialog, setConfirmDialog] = useState<{ message: string; title: string; resolve: (val: boolean) => void } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    title: string;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: "destructive" | "primary";
+    resolve: (val: boolean) => void;
+  } | null>(null);
 
   const addToast = (message: string, type: "success" | "error" | "info" = "info") => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -58,9 +65,16 @@ function AppContent() {
     };
 
     // Expose a custom async confirmation popup
-    (window as any).customConfirm = (message: string, title = "Confirm Action") => {
+    (window as any).customConfirm = (message: string, title = "Confirm Action", options: any = {}) => {
       return new Promise<boolean>((resolve) => {
-        setConfirmDialog({ message, title, resolve });
+        setConfirmDialog({ 
+          message, 
+          title, 
+          confirmText: options.confirmText, 
+          cancelText: options.cancelText, 
+          variant: options.variant, 
+          resolve 
+        });
       });
     };
 
@@ -392,17 +406,26 @@ function AppContent() {
                 }}
                 style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12 }}
               >
-                Cancel
+                {confirmDialog.cancelText || "Cancel"}
               </button>
               <button 
-                className="sp-btn sp-btn-primary"
+                className={confirmDialog.variant === "destructive" ? "sp-btn" : "sp-btn sp-btn-primary"}
                 onClick={() => {
                   confirmDialog.resolve(true);
                   setConfirmDialog(null);
                 }}
-                style={{ padding: "6px 14px", borderRadius: 8, fontSize: 12 }}
+                style={{ 
+                  padding: "6px 14px", 
+                  borderRadius: 8, 
+                  fontSize: 12,
+                  ...(confirmDialog.variant === "destructive" ? {
+                    background: "#ef4444",
+                    borderColor: "#ef4444",
+                    color: "#fff"
+                  } : {})
+                }}
               >
-                Confirm
+                {confirmDialog.confirmText || "Confirm"}
               </button>
             </div>
           </div>

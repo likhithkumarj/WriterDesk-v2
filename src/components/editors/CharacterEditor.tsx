@@ -91,7 +91,11 @@ export function CharacterEditor({
   const handleDeleteCharacter = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (readOnly) return;
-    const confirmed = await (window as any).customConfirm("Are you sure you want to delete this character?", "Delete Character");
+    const confirmed = await (window as any).customConfirm(
+      "Are you sure you want to delete this character?", 
+      "Delete Character",
+      { confirmText: "Delete", variant: "destructive" }
+    );
     if (!confirmed) return;
 
     const newChars = characters.filter((c) => c.id !== id);
