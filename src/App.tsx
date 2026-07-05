@@ -14,6 +14,7 @@ import { MessagesPage } from "./pages/MessagesPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { supabaseService } from "./utils/supabaseService";
 import { Analytics } from "@vercel/analytics/react";
 import { CheckCircle, AlertTriangle, Info, X } from "lucide-react";
@@ -246,6 +247,10 @@ function AppContent() {
         <Route 
           path="/login" 
           element={user ? <Navigate to="/projects" replace /> : <LoginScreen onLogin={handleLogin} />} 
+        />
+        <Route 
+          path="/reset-password" 
+          element={<ResetPasswordPage />} 
         />
 
         {/* Protected Routes */}

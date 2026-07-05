@@ -9,12 +9,38 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [googleStep, setGoogleStep] = useState<"idle" | "selecting" | "authenticating">("idle");
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isForgotPassword) {
+      if (!email) return;
+      setIsSubmitting(true);
+      if (!supabaseService.isConfigured()) {
+        setTimeout(() => {
+          setIsSubmitting(false);
+          alert("Reset link sent! (Simulated - check console)");
+          setIsForgotPassword(false);
+        }, 1200);
+        return;
+      }
+      try {
+        const { error } = await supabaseService.resetPassword(email);
+        if (error) throw error;
+        alert("A password reset link has been sent to your email.");
+        setIsForgotPassword(false);
+      } catch (err: any) {
+        alert("Reset Password Error: " + err.message);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (!email || !password) return;
 
     setIsSubmitting(true);
@@ -109,10 +135,10 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
             <PenTool className="w-6 h-6 text-slate-950" />
           </div>
           <h2 className="text-2xl font-bold text-white tracking-tight">
-            {isRegister ? "Create Account" : "Welcome to WriterDesk"}
+            {isForgotPassword ? "Reset Password" : isRegister ? "Create Account" : "Welcome to WriterDesk"}
           </h2>
           <p className="text-slate-400 text-sm mt-1">
-            {isRegister ? "Join WriterDesk today" : "Begin writing your next masterpiece"}
+            {isForgotPassword ? "Enter your email to receive a reset link" : isRegister ? "Join WriterDesk today" : "Begin writing your next masterpiece"}
           </p>
         </div>
 
@@ -134,22 +160,35 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Password</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
-                <Lock className="w-4 h-4" />
-              </span>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-950/60 border border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-200 placeholder-slate-500 transition-all outline-none"
-              />
+          {!isForgotPassword && (
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Password</label>
+                {!isRegister && (
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-xs text-amber-500 hover:text-amber-400 transition-colors focus:outline-none"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
+                  <Lock className="w-4 h-4" />
+                </span>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950/60 border border-slate-800 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl py-3 pl-11 pr-4 text-sm text-slate-200 placeholder-slate-500 transition-all outline-none"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <button
             type="submit"
@@ -158,39 +197,54 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> {isRegister ? "Creating Account..." : "Signing In..."}
+                <Loader2 className="w-4 h-4 animate-spin" /> {isForgotPassword ? "Sending Link..." : isRegister ? "Creating Account..." : "Signing In..."}
               </>
             ) : (
-              isRegister ? "Sign Up" : "Sign In"
+              isForgotPassword ? "Send Reset Link" : isRegister ? "Sign Up" : "Sign In"
             )}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm">
-          <span className="text-slate-400">
-            {isRegister ? "Already have an account?" : "Don't have an account?"}
-          </span>{" "}
-          <button
-            onClick={() => setIsRegister(!isRegister)}
-            className="text-amber-500 hover:text-amber-400 font-semibold transition-all focus:outline-none"
-          >
-            {isRegister ? "Sign In" : "Sign Up"}
-          </button>
-        </div>
-
-        <div className="relative my-8 text-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-800"></div>
+        {isForgotPassword ? (
+          <div className="mt-6 text-center text-sm">
+            <button
+              type="button"
+              onClick={() => setIsForgotPassword(false)}
+              className="text-amber-500 hover:text-amber-400 font-semibold transition-all focus:outline-none"
+            >
+              Back to Sign In
+            </button>
           </div>
-          <span className="relative px-3 bg-slate-950 text-slate-500 text-xs font-medium uppercase tracking-wider">
-            or continue with
-          </span>
-        </div>
+        ) : (
+          <div className="mt-6 text-center text-sm">
+            <span className="text-slate-400">
+              {isRegister ? "Already have an account?" : "Don't have an account?"}
+            </span>{" "}
+            <button
+              type="button"
+              onClick={() => setIsRegister(!isRegister)}
+              className="text-amber-500 hover:text-amber-400 font-semibold transition-all focus:outline-none"
+            >
+              {isRegister ? "Sign In" : "Sign Up"}
+            </button>
+          </div>
+        )}
 
-        {/* Google Authentication Button */}
-        <button
-          onClick={handleGoogleClick}
-          disabled={isSubmitting || isGoogleLoading}
+        {!isForgotPassword && (
+          <>
+            <div className="relative my-8 text-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-800"></div>
+              </div>
+              <span className="relative px-3 bg-slate-950 text-slate-500 text-xs font-medium uppercase tracking-wider">
+                or continue with
+              </span>
+            </div>
+
+            {/* Google Authentication Button */}
+            <button
+              onClick={handleGoogleClick}
+              disabled={isSubmitting || isGoogleLoading}
           className="w-full py-3.5 rounded-xl border border-slate-800 bg-slate-900/30 hover:bg-slate-900/80 text-slate-200 font-semibold text-sm transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -213,7 +267,9 @@ export function LoginScreen({ onLogin }: { onLogin: (user: { name: string; email
           </svg>
           {isRegister ? "Sign up with Google" : "Sign in with Google"}
         </button>
-      </div>
+      </>
+    )}
+  </div>
 
       {/* Simulated Google OAuth Dialog Popup */}
       {isGoogleLoading && googleStep !== "idle" && (

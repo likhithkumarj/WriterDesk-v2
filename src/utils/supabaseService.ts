@@ -36,6 +36,18 @@ export const supabaseService = {
     });
   },
 
+  async resetPassword(email: string) {
+    if (!this.isConfigured()) return { data: null, error: null };
+    return supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/reset-password",
+    });
+  },
+
+  async updatePassword(password: string) {
+    if (!this.isConfigured()) return { data: null, error: null };
+    return supabase.auth.updateUser({ password });
+  },
+
   async signOut() {
     if (!this.isConfigured()) return;
     return supabase.auth.signOut();
