@@ -66,9 +66,17 @@ export const supabaseService = {
     if (!this.isConfigured()) return { data: null, error: null };
     return supabase
       .from("profiles")
-      .select("id, email, full_name, avatar_url")
+      .select("id, email, full_name, avatar_url, onboarding_metadata")
       .eq("id", id)
       .maybeSingle();
+  },
+
+  async updateProfile(id: string, updates: { full_name?: string; avatar_url?: string; onboarding_metadata?: any }) {
+    if (!this.isConfigured()) return { data: null, error: null };
+    return supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", id);
   },
 
   async fetchProfileByEmailOrUsername(input: string) {

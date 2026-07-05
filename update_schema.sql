@@ -229,3 +229,10 @@ ADD COLUMN IF NOT EXISTS author text;
 ALTER TABLE public.collaborators
 ADD COLUMN IF NOT EXISTS production_role text DEFAULT 'Writer' CHECK (production_role IN ('Writer', 'Director', 'Actor', 'Producer', 'DP', 'Editor', 'Other'));
 
+
+-- ============================================================
+-- 9. Add onboarding_metadata column to profiles table
+-- ============================================================
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS onboarding_metadata jsonb;
+

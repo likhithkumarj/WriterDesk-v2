@@ -15,6 +15,7 @@ import { NotificationsPage } from "./pages/NotificationsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { OnboardingScreen } from "./components/screenplay/OnboardingScreen";
 import { supabaseService } from "./utils/supabaseService";
 import { Analytics } from "@vercel/analytics/react";
 import { CheckCircle, AlertTriangle, Info, X } from "lucide-react";
@@ -33,7 +34,22 @@ function AppContent() {
     return saved ? JSON.parse(saved) : null;
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
+
+  // Check if logged-in user needs onboarding
+  useEffect(() => {
+    if (user?.id) {
+      const onboardingCompleted = localStorage.getItem(`onboarding_completed:${user.id}`);
+      if (onboardingCompleted !== "true") {
+        setShowOnboarding(true);
+      } else {
+        setShowOnboarding(false);
+      }
+    } else {
+      setShowOnboarding(false);
+    }
+  }, [user?.id]);
   const [confirmDialog, setConfirmDialog] = useState<{
     message: string;
     title: string;
@@ -142,16 +158,41 @@ function AppContent() {
 
   useEffect(() => {
     // Check active session
-    supabaseService.getSession().then((session) => {
+    supabaseService.getSession().then(async (session) => {
       if (session?.user) {
+        let dbProfile: any = null;
+        try {
+          const res = await supabaseService.fetchProfileById(session.user.id);
+          dbProfile = res?.data;
+        } catch (e) {
+          console.error("Error fetching db profile:", e);
+        }
+
         const profile = {
           id: session.user.id,
-          name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
+          name: dbProfile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
           email: session.user.email || "",
-          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
+          avatar: dbProfile?.avatar_url || session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
         };
         setUser(profile);
         localStorage.setItem("writerdesk_user", JSON.stringify(profile));
+
+        if (dbProfile?.onboarding_metadata) {
+          localStorage.setItem(`onboarding_state:${session.user.id}`, JSON.stringify(dbProfile.onboarding_metadata));
+          localStorage.setItem(`onboarding_completed:${session.user.id}`, "true");
+        } else {
+          // Silent migration check
+          const localStateStr = localStorage.getItem(`onboarding_state:${session.user.id}`);
+          if (localStateStr) {
+            try {
+              const localState = JSON.parse(localStateStr);
+              supabaseService.updateProfile(session.user.id, {
+                onboarding_metadata: localState
+              }).catch(e => console.error("Error migrating local onboarding to DB:", e));
+            } catch (e) {}
+          }
+        }
+
         loadData(session.user.id).finally(() => setIsLoading(false));
       } else {
         loadData().finally(() => setIsLoading(false));
@@ -161,16 +202,41 @@ function AppContent() {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabaseService.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabaseService.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        let dbProfile: any = null;
+        try {
+          const res = await supabaseService.fetchProfileById(session.user.id);
+          dbProfile = res?.data;
+        } catch (e) {
+          console.error("Error fetching db profile on auth change:", e);
+        }
+
         const profile = {
           id: session.user.id,
-          name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
+          name: dbProfile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
           email: session.user.email || "",
-          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
+          avatar: dbProfile?.avatar_url || session.user.user_metadata?.avatar_url || `https://api.dicebear.com/9.x/bottts/svg?seed=${session.user.email?.split("@")[0] || "User"}`,
         };
         setUser(profile);
         localStorage.setItem("writerdesk_user", JSON.stringify(profile));
+
+        if (dbProfile?.onboarding_metadata) {
+          localStorage.setItem(`onboarding_state:${session.user.id}`, JSON.stringify(dbProfile.onboarding_metadata));
+          localStorage.setItem(`onboarding_completed:${session.user.id}`, "true");
+        } else {
+          // Silent migration check on auth changes
+          const localStateStr = localStorage.getItem(`onboarding_state:${session.user.id}`);
+          if (localStateStr) {
+            try {
+              const localState = JSON.parse(localStateStr);
+              supabaseService.updateProfile(session.user.id, {
+                onboarding_metadata: localState
+              }).catch(e => console.error("Error migrating local onboarding to DB on auth change:", e));
+            } catch (e) {}
+          }
+        }
+
         loadData(session.user.id);
       } else if (event === "SIGNED_OUT") {
         setUser(null);
@@ -208,18 +274,28 @@ function AppContent() {
     localStorage.setItem("writerdesk_user", JSON.stringify(profile));
   };
 
-  const handleUpdateUser = (newUser: UserProfile) => {
+  const handleUpdateUser = async (newUser: UserProfile) => {
     setUser(newUser);
     localStorage.setItem("writerdesk_user", JSON.stringify(newUser));
+    if (supabaseService.isConfigured() && newUser.id) {
+      try {
+        await supabaseService.updateProfile(newUser.id, {
+          full_name: newUser.name,
+          avatar_url: newUser.avatar
+        });
+      } catch (e) {
+        console.error("Error updating supabase profile:", e);
+      }
+    }
   };
 
   const handleLogout = async () => {
     if (supabaseService.isConfigured()) {
       await supabaseService.signOut();
-    } else {
-      setUser(null);
-      localStorage.removeItem("writerdesk_user");
     }
+    setUser(null);
+    localStorage.removeItem("writerdesk_user");
+    setShowOnboarding(false);
   };
 
   if (isLoading) {
@@ -236,6 +312,56 @@ function AppContent() {
           }
         `}} />
       </div>
+    );
+  }
+
+  if (showOnboarding && user) {
+    const defaultData = {
+      displayName: user.name || "",
+      roles: [],
+      experienceLevel: "",
+      productionHouseType: "" as const,
+      productionHouseName: "",
+      writeFrequency: "",
+      favoriteStoryteller: ""
+    };
+    
+    let initialData = defaultData;
+    const saved = localStorage.getItem(`onboarding_state:${user.id}`);
+    if (saved) {
+      try {
+        initialData = JSON.parse(saved);
+      } catch (e) {}
+    }
+
+    return (
+      <OnboardingScreen
+        userId={user.id!}
+        defaultName={user.name}
+        initialData={initialData}
+        onComplete={async (onboardingData) => {
+          localStorage.setItem(`onboarding_state:${user.id}`, JSON.stringify(onboardingData));
+          localStorage.setItem(`onboarding_completed:${user.id}`, "true");
+          
+          if (supabaseService.isConfigured() && user.id) {
+            try {
+              await supabaseService.updateProfile(user.id, {
+                full_name: onboardingData.displayName,
+                onboarding_metadata: onboardingData
+              });
+            } catch (e) {
+              console.error("Error updating supabase profile with onboarding data:", e);
+            }
+          }
+
+          if (onboardingData.displayName && onboardingData.displayName !== user.name) {
+            const updatedProfile = { ...user, name: onboardingData.displayName };
+            setUser(updatedProfile);
+            localStorage.setItem("writerdesk_user", JSON.stringify(updatedProfile));
+          }
+          setShowOnboarding(false);
+        }}
+      />
     );
   }
 
@@ -256,7 +382,7 @@ function AppContent() {
         {/* Protected Routes */}
         <Route 
           path="/projects" 
-          element={user ? <ProjectsRoute store={store} persist={persist} user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
+          element={user ? <ProjectsRoute store={store} persist={persist} user={user} onLogout={handleLogout} onEditProfile={() => setShowOnboarding(true)} /> : <Navigate to="/login" replace />} 
         />
         <Route 
           path="/project/:projectId" 
@@ -445,12 +571,14 @@ function ProjectsRoute({
   store, 
   persist, 
   user, 
-  onLogout 
+  onLogout,
+  onEditProfile
 }: { 
   store: Store; 
   persist: (s: Store) => void; 
   user: UserProfile; 
   onLogout: () => void;
+  onEditProfile: () => void;
 }) {
   const navigate = useNavigate();
   return (
@@ -460,6 +588,7 @@ function ProjectsRoute({
       openProject={(id) => navigate(`/project/${id}`)} 
       user={user}
       onLogout={onLogout}
+      onEditProfile={onEditProfile}
     />
   );
 }

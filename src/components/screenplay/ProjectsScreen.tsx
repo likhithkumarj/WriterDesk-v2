@@ -15,15 +15,41 @@ import {
 } from "lucide-react";
 
 export function ProjectsScreen({
-  store, persist, openProject, user, onLogout,
+  store, persist, openProject, user, onLogout, onEditProfile,
 }: {
   store: Store;
   persist: (s: Store) => void;
   openProject: (id: string) => void;
-  user?: { name: string; email: string; avatar: string };
+  user?: { id?: string; name: string; email: string; avatar: string };
   onLogout?: () => void;
+  onEditProfile?: () => void;
 }) {
   const navigate = useNavigate();
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const completed = localStorage.getItem(`onboarding_completed:${user.id}`);
+    if (completed === "true") {
+      const saved = localStorage.getItem(`onboarding_state:${user.id}`);
+      if (saved) {
+        try {
+          const profile = JSON.parse(saved);
+          const hasEmptyField = 
+            !profile.roles || profile.roles.length === 0 || 
+            !profile.experienceLevel || 
+            !profile.productionHouseType || 
+            !profile.writeFrequency || 
+            !profile.favoriteStoryteller;
+          setProfileIncomplete(hasEmptyField);
+        } catch (e) {
+          setProfileIncomplete(true);
+        }
+      } else {
+        setProfileIncomplete(true);
+      }
+    }
+  }, [user?.id, store]);
   const [showNew, setShowNew] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<"projects" | "recent">("projects");
   const [openMenu, setOpenMenu] = useState<{ id: string; openAbove: boolean } | null>(null);
@@ -855,6 +881,34 @@ export function ProjectsScreen({
           <div className="sp-db-main-scroll">
             <div className="sp-db-main-grid">
 
+              {/* Profile Incomplete Banner */}
+              {profileIncomplete && (
+                <div style={{ 
+                  padding: "16px 20px", 
+                  borderRadius: 12, 
+                  border: "1px solid rgba(245, 158, 11, 0.4)", 
+                  background: "rgba(245, 158, 11, 0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 13, color: "#f59e0b", fontWeight: 600 }}>⚠️ Incomplete Profile</span>
+                    <span style={{ fontSize: 13, color: "#fff" }}>
+                      Tell us more about your creative roles and writing habits to unlock full workspace customization!
+                    </span>
+                  </div>
+                  <button 
+                    className="sp-ws-btn-gold" 
+                    style={{ padding: "6px 14px", fontSize: 12, background: "var(--sp-accent)", color: "#000" }} 
+                    onClick={onEditProfile}
+                  >
+                    Complete Profile
+                  </button>
+                </div>
+              )}
+
               {/* Pending Invites Alert List */}
               {pendingInvites.length > 0 && (
                 <div style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid var(--sp-accent)", background: "rgba(var(--sp-accent-rgb), 0.1)" }}>
@@ -1064,6 +1118,32 @@ export function ProjectsScreen({
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="2" y1="14" x2="6" y2="14" /><line x1="10" y1="8" x2="14" y2="8" /><line x1="18" y1="16" x2="22" y2="16" /></svg>
             </button>
           </div>
+
+          {/* Profile Incomplete Banner Mobile */}
+          {profileIncomplete && (
+            <div style={{ 
+              padding: "14px 16px", 
+              borderRadius: 12, 
+              border: "1px solid rgba(245, 158, 11, 0.4)", 
+              background: "rgba(245, 158, 11, 0.08)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              marginBottom: 20
+            }}>
+              <span style={{ fontSize: 13, color: "#f59e0b", fontWeight: 700 }}>⚠️ Incomplete Profile</span>
+              <span style={{ fontSize: 12, color: "#fff", lineHeight: 1.4 }}>
+                Fill out your role and writing habits to unlock full workspace customization!
+              </span>
+              <button 
+                className="sp-ws-btn-gold" 
+                style={{ width: "100%", padding: "8px 12px", fontSize: 12, background: "var(--sp-accent)", color: "#000", justifyContent: "center" }} 
+                onClick={onEditProfile}
+              >
+                Complete Profile
+              </button>
+            </div>
+          )}
 
           {/* Start Writing card */}
           <div className="sp-db-banner" style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 20, marginBottom: 20 }}>
