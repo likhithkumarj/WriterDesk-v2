@@ -236,3 +236,23 @@ ADD COLUMN IF NOT EXISTS production_role text DEFAULT 'Writer' CHECK (production
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS onboarding_metadata jsonb;
 
+
+-- ============================================================
+-- 10. Add writing_activity table for tracking save actions
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.writing_activity (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  activity_date date DEFAULT CURRENT_DATE,
+  activity_count integer DEFAULT 1,
+  CONSTRAINT unique_user_date UNIQUE (user_id, activity_date)
+);
+
+-- RLS policies
+ALTER TABLE public.writing_activity ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage their own activity logs" ON public.writing_activity;
+CREATE POLICY "Users can manage their own activity logs" 
+ON public.writing_activity 
+FOR ALL USING (auth.uid() = user_id);
+

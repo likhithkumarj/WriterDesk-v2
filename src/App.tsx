@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate, useLocation } from "react-router-dom";
 import { Store } from "./types/screenplay";
 import { loadStore, STORAGE_KEY } from "./utils/storage";
 import { LandingScreen } from "./components/screenplay/LandingScreen";
@@ -36,6 +36,90 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" }[]>([]);
+
+  const getTodayDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const lastSyncRef = useRef<number>(0);
+
+  const flushActivitySync = async (userId: string) => {
+    const dirtyStr = localStorage.getItem(`writing_activity_dirty:${userId}`);
+    if (!dirtyStr) return;
+    try {
+      const dirty = JSON.parse(dirtyStr);
+      const entries = Object.entries(dirty).map(([date, count]) => ({
+        date,
+        count: count as number
+      }));
+      
+      if (entries.length === 0) return;
+      
+      const res = await supabaseService.syncWritingActivityBatch(userId, entries);
+      if (!res.error) {
+        localStorage.removeItem(`writing_activity_dirty:${userId}`);
+      }
+    } catch (e) {
+      console.error("Failed to flush activity sync:", e);
+    }
+  };
+
+  const triggerThrottledActivitySync = (userId: string) => {
+    const now = Date.now();
+    if (now - lastSyncRef.current > 5 * 60 * 1000) { // 5 minutes
+      lastSyncRef.current = now;
+      flushActivitySync(userId);
+    }
+  };
+
+  const syncAndLoadActivity = async (userId: string) => {
+    try {
+      const actRes = await supabaseService.fetchWritingActivity(userId);
+      if (actRes?.data) {
+        const dbActivities = actRes.data;
+        const localStateStr = localStorage.getItem(`writing_activity:${userId}`) || "{}";
+        const localState = JSON.parse(localStateStr);
+        
+        dbActivities.forEach((act: any) => {
+          const dateStr = act.activity_date;
+          const dbCount = act.activity_count || 0;
+          if (!localState[dateStr] || localState[dateStr] < dbCount) {
+            localState[dateStr] = dbCount;
+          }
+        });
+        
+        localStorage.setItem(`writing_activity:${userId}`, JSON.stringify(localState));
+      }
+    } catch (e) {
+      console.error("Error loading writing activity details:", e);
+    }
+    await flushActivitySync(userId);
+  };
+
+  const location = useLocation();
+
+  // Flush activity sync on route changes (editor exit)
+  useEffect(() => {
+    if (user?.id) {
+      flushActivitySync(user.id);
+    }
+  }, [location.pathname, user?.id]);
+
+  // Flush activity sync on page unload
+  useEffect(() => {
+    const handleUnload = () => {
+      if (user?.id) {
+        // Run flush synchronously or try sending it
+        flushActivitySync(user.id);
+      }
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [user?.id]);
 
   // Check if logged-in user needs onboarding
   useEffect(() => {
@@ -193,7 +277,9 @@ function AppContent() {
           }
         }
 
-        loadData(session.user.id).finally(() => setIsLoading(false));
+        syncAndLoadActivity(session.user.id).finally(() => {
+          loadData(session.user.id).finally(() => setIsLoading(false));
+        });
       } else {
         loadData().finally(() => setIsLoading(false));
       }
@@ -237,7 +323,9 @@ function AppContent() {
           }
         }
 
-        loadData(session.user.id);
+        syncAndLoadActivity(session.user.id).finally(() => {
+          loadData(session.user.id);
+        });
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         localStorage.removeItem("writerdesk_user");
@@ -251,6 +339,25 @@ function AppContent() {
   const persist = async (newStore: Store) => {
     // Optimistic update
     setStore(newStore);
+
+    if (user?.id) {
+      const todayStr = getTodayDateString();
+      try {
+        const cacheStr = localStorage.getItem(`writing_activity:${user.id}`) || "{}";
+        const cache = JSON.parse(cacheStr);
+        cache[todayStr] = (cache[todayStr] || 0) + 1;
+        localStorage.setItem(`writing_activity:${user.id}`, JSON.stringify(cache));
+
+        const dirtyStr = localStorage.getItem(`writing_activity_dirty:${user.id}`) || "{}";
+        const dirty = JSON.parse(dirtyStr);
+        dirty[todayStr] = cache[todayStr];
+        localStorage.setItem(`writing_activity_dirty:${user.id}`, JSON.stringify(dirty));
+
+        triggerThrottledActivitySync(user.id);
+      } catch (e) {
+        console.error("Failed to update activity cache:", e);
+      }
+    }
 
     if (!supabaseService.isConfigured()) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));

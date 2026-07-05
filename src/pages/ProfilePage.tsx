@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { DashboardLayout } from "./DashboardLayout";
 import { 
   Award, 
@@ -17,10 +17,12 @@ import {
   ChevronRight,
   Star,
   Sparkles,
-  Edit2
+  Edit2,
+  Plus
 } from "lucide-react";
 import { Store } from "../types/screenplay";
 import { useNavigate } from "react-router-dom";
+import { ActivityCalendar } from "../components/screenplay/ActivityCalendar";
 
 export function ProfilePage({
   store,
@@ -33,6 +35,33 @@ export function ProfilePage({
 }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"overview" | "projects" | "achievements">("overview");
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const completed = localStorage.getItem(`onboarding_completed:${user.id}`);
+    if (completed === "true") {
+      const saved = localStorage.getItem(`onboarding_state:${user.id}`);
+      if (saved) {
+        try {
+          const profile = JSON.parse(saved);
+          const hasEmptyField = 
+            !profile.roles || profile.roles.length === 0 || 
+            !profile.experienceLevel || 
+            !profile.productionHouseType || 
+            !profile.writeFrequency || 
+            !profile.favoriteStoryteller;
+          setProfileIncomplete(hasEmptyField);
+        } catch (e) {
+          setProfileIncomplete(true);
+        }
+      } else {
+        setProfileIncomplete(true);
+      }
+    } else {
+      setProfileIncomplete(true);
+    }
+  }, [user?.id]);
 
   // Load onboarding data from local storage
   const onboardingData = useMemo(() => {
@@ -97,35 +126,7 @@ export function ProfilePage({
 
   const unlockedCount = achievements.filter(a => a.unlocked).length;
 
-  // Generate a mock contribution calendar representing a GitHub commit graph
-  const contributionGrid = useMemo(() => {
-    const cols = 48; // weeks
-    const rows = 7;  // days of week
-    const grid = [];
-    
-    // Seeded random number generator based on name
-    const seed = user.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    let currSeed = seed;
-    const random = () => {
-      const x = Math.sin(currSeed++) * 10000;
-      return x - Math.floor(x);
-    };
 
-    for (let r = 0; r < rows; r++) {
-      const row = [];
-      for (let c = 0; c < cols; c++) {
-        const val = random();
-        let level = 0; // 0 = empty, 1-4 = increasing density of amber/gold
-        if (val > 0.85) level = 4;
-        else if (val > 0.7) level = 3;
-        else if (val > 0.5) level = 2;
-        else if (val > 0.3) level = 1;
-        row.push(level);
-      }
-      grid.push(row);
-    }
-    return grid;
-  }, [user.name]);
 
   return (
     <DashboardLayout title="Profile" user={user} onLogout={onLogout} projectsCount={store.projects.length}>
@@ -140,6 +141,126 @@ export function ProfilePage({
             box-sizing: border-box;
             font-family: 'Outfit', sans-serif;
             color: #efeff1;
+          }
+
+          .sp-db-top-widgets-row {
+            display: grid;
+            grid-template-columns: 1fr max-content;
+            gap: 16px;
+            width: 100%;
+            margin-bottom: 24px;
+            align-items: stretch;
+          }
+          @media (max-width: 768px) {
+            .sp-db-top-widgets-row {
+              grid-template-columns: 1fr;
+            }
+          }
+
+          .sp-db-warning-widget {
+            flex: 1;
+            min-width: 260px;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 16px;
+            padding: 16px 20px;
+            background: rgba(245, 158, 11, 0.04);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+
+          .sp-db-calendar-widget {
+            flex-shrink: 0;
+          }
+
+          /* Banner Card Styles */
+          .sp-db-banner {
+            background: var(--sp-accent);
+            border-radius: 16px;
+            padding: 28px 36px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+            color: #0f0f11;
+            box-sizing: border-box;
+          }
+          .sp-db-banner-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+          .sp-db-banner-subtitle {
+            font-size: 11px;
+            font-weight: 700;
+            color: #3b2803;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+          }
+          .sp-db-banner-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: #0f0f11;
+            margin: 0;
+            letter-spacing: -0.01em;
+          }
+          .sp-db-banner-desc {
+            font-size: 14px;
+            color: #3b2803;
+            margin: 0;
+            font-weight: 500;
+          }
+          .sp-db-banner-buttons {
+            display: flex;
+            gap: 12px;
+          }
+          .sp-db-btn-black {
+            background: #0f0f11;
+            border: 1px solid #0f0f11;
+            color: var(--sp-accent);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 13.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+          .sp-db-btn-black:hover {
+            background: #1c1c20;
+            border-color: #1c1c20;
+          }
+
+          .sp-db-banner.sp-db-banner-compact {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            gap: 16px;
+            box-sizing: border-box;
+            width: 100%;
+          }
+          @media (max-width: 580px) {
+            .sp-db-banner.sp-db-banner-compact {
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 12px;
+            }
+          }
+          .sp-db-banner.sp-db-banner-compact .sp-db-banner-title {
+            font-size: 17px;
+          }
+          .sp-db-banner.sp-db-banner-compact .sp-db-banner-desc {
+            font-size: 11.5px;
+            line-height: 1.35;
+          }
+          .sp-db-banner.sp-db-banner-compact .sp-db-btn-black {
+            padding: 6px 12px;
+            font-size: 12px;
           }
 
           .sp-wd-layout {
@@ -421,58 +542,7 @@ export function ProfilePage({
             background-color: var(--sp-accent);
           }
 
-          /* Contributions calendar matching WriterDesk amber theme */
-          .sp-wd-calendar-container {
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 20px;
-            background: rgba(20, 20, 22, 0.3);
-            backdrop-filter: blur(8px);
-          }
 
-          .sp-wd-calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            font-size: 14px;
-            color: #fff;
-          }
-
-          .sp-wd-calendar-scroll {
-            overflow-x: auto;
-            padding-bottom: 4px;
-          }
-
-          .sp-wd-calendar-grid {
-            display: grid;
-            grid-template-rows: repeat(7, 10px);
-            grid-auto-flow: column;
-            gap: 4px;
-          }
-
-          .sp-wd-calendar-cell {
-            width: 10px;
-            height: 10px;
-            border-radius: 2px;
-            background-color: rgba(255, 255, 255, 0.02);
-            transition: all 0.2s ease;
-          }
-
-          .sp-wd-calendar-cell.level-1 { background-color: rgba(245, 158, 11, 0.15); }
-          .sp-wd-calendar-cell.level-2 { background-color: rgba(245, 158, 11, 0.35); }
-          .sp-wd-calendar-cell.level-3 { background-color: rgba(245, 158, 11, 0.65); }
-          .sp-wd-calendar-cell.level-4 { background-color: #f59e0b; }
-
-          .sp-wd-calendar-legend {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 6px;
-            font-size: 12px;
-            color: #55555d;
-            margin-top: 14px;
-          }
 
           /* Projects List Tab */
           .sp-wd-projects-list {
@@ -705,6 +775,33 @@ export function ProfilePage({
             {/* Render Overview Content Tab */}
             {activeTab === "overview" && (
               <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                {profileIncomplete && (
+                  <div style={{ 
+                    padding: "12px 18px", 
+                    borderRadius: 12, 
+                    border: "1px solid rgba(245, 158, 11, 0.4)", 
+                    background: "rgba(245, 158, 11, 0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 13, color: "#f59e0b", fontWeight: 600 }}>⚠️ Incomplete Profile</span>
+                      <span style={{ fontSize: 13, color: "#fff" }}>
+                        Complete your creative roles and writing habits to unlock full customizations!
+                      </span>
+                    </div>
+                    <button 
+                      className="sp-ws-btn-gold" 
+                      style={{ padding: "6px 14px", fontSize: 12, background: "var(--sp-accent)", color: "#000" }} 
+                      onClick={() => navigate("/settings")}
+                    >
+                      Complete Profile
+                    </button>
+                  </div>
+                )}
+
                 <div>
                   <h3 className="sp-prof-section-title" style={{ marginBottom: 16 }}>Pinned Projects</h3>
                   
@@ -741,36 +838,26 @@ export function ProfilePage({
                   )}
                 </div>
 
-                {/* Heatmap Contribution Graph */}
-                <div className="sp-wd-calendar-container">
-                  <div className="sp-wd-calendar-header">
-                    <span><strong>{totalWords.toLocaleString()}</strong> words written this year</span>
-                    <span style={{ fontSize: 12, color: "#8e8e93" }}>Writing Activity Calendar</span>
-                  </div>
-                  
-                  <div className="sp-wd-calendar-scroll">
-                    <div className="sp-wd-calendar-grid">
-                      {contributionGrid.map((row, rIdx) => 
-                        row.map((level, cIdx) => (
-                          <div 
-                            key={`${rIdx}-${cIdx}`} 
-                            className={`sp-wd-calendar-cell level-${level}`}
-                            title={`Contribution level: ${level}`}
-                          />
-                        ))
-                      )}
+                {/* Start Writing & Activity Calendar Row */}
+                <div className="sp-db-top-widgets-row">
+                  <div className="sp-db-banner sp-db-banner-compact animate-fade-in">
+                    <div className="sp-db-banner-text">
+                      <span className="sp-db-banner-subtitle">START WRITING</span>
+                      <h2 className="sp-db-banner-title">Create a New Project</h2>
+                      <p className="sp-db-banner-desc">Bring your story to life - start a blank screenplay today</p>
+                    </div>
+                    <div className="sp-db-banner-buttons">
+                      <button className="sp-db-btn-black" onClick={() => navigate("/projects")}>
+                        <Plus size={14} /> New Project
+                      </button>
                     </div>
                   </div>
 
-                  <div className="sp-wd-calendar-legend">
-                    <span>Less</span>
-                    <div className="sp-wd-calendar-cell" />
-                    <div className="sp-wd-calendar-cell level-1" />
-                    <div className="sp-wd-calendar-cell level-2" />
-                    <div className="sp-wd-calendar-cell level-3" />
-                    <div className="sp-wd-calendar-cell level-4" />
-                    <span>More</span>
-                  </div>
+                  {user?.id && (
+                    <div className="sp-db-calendar-widget">
+                      <ActivityCalendar userId={user.id} />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

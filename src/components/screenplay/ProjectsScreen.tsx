@@ -7,6 +7,7 @@ import { ShareModal } from "../modals/ShareModal";
 import { supabaseService } from "../../utils/supabaseService";
 import { Avatar } from "./Avatar";
 import { DashboardLayout } from "../../pages/DashboardLayout";
+import { ActivityCalendar } from "./ActivityCalendar";
 import {
   Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search,
   Download, Share2, Plus, Edit2, MoreVertical, LogOut, Sun, UserPlus, Check,
@@ -552,6 +553,62 @@ export function ProjectsScreen({
           gap: 8px;
           min-width: 0;
         }
+        .sp-db-top-widgets-row {
+          display: grid;
+          grid-template-columns: 1fr max-content;
+          gap: 16px;
+          width: 100%;
+          margin-bottom: 24px;
+          align-items: stretch;
+        }
+        @media (max-width: 768px) {
+          .sp-db-top-widgets-row {
+            grid-template-columns: 1fr;
+          }
+        }
+        .sp-db-warning-widget {
+          flex: 1;
+          min-width: 260px;
+          border: 1px solid rgba(245, 158, 11, 0.2);
+          border-radius: 16px;
+          padding: 16px 20px;
+          background: rgba(245, 158, 11, 0.04);
+          backdrop-filter: blur(8px);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        .sp-db-calendar-widget {
+          flex-shrink: 0;
+        }
+        .sp-db-banner.sp-db-banner-compact {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 20px;
+          gap: 16px;
+          box-sizing: border-box;
+          width: 100%;
+        }
+        @media (max-width: 580px) {
+          .sp-db-banner.sp-db-banner-compact {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+          }
+        }
+        .sp-db-banner.sp-db-banner-compact .sp-db-banner-title {
+          font-size: 17px;
+        }
+        .sp-db-banner.sp-db-banner-compact .sp-db-banner-desc {
+          font-size: 11.5px;
+          line-height: 1.35;
+        }
+        .sp-db-banner.sp-db-banner-compact .sp-db-btn-black {
+          padding: 6px 12px;
+          font-size: 12px;
+        }
         .sp-db-col-right {
           flex: 1.1;
           display: flex;
@@ -884,19 +941,20 @@ export function ProjectsScreen({
               {/* Profile Incomplete Banner */}
               {profileIncomplete && (
                 <div style={{ 
-                  padding: "16px 20px", 
+                  padding: "12px 18px", 
                   borderRadius: 12, 
                   border: "1px solid rgba(245, 158, 11, 0.4)", 
                   background: "rgba(245, 158, 11, 0.08)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  gap: 12
+                  gap: 12,
+                  marginBottom: 16
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 13, color: "#f59e0b", fontWeight: 600 }}>⚠️ Incomplete Profile</span>
                     <span style={{ fontSize: 13, color: "#fff" }}>
-                      Tell us more about your creative roles and writing habits to unlock full workspace customization!
+                      Tell us more about your creative roles and habits to unlock full workspace customization!
                     </span>
                   </div>
                   <button 
@@ -929,18 +987,26 @@ export function ProjectsScreen({
                 </div>
               )}
 
-              {/* Start Writing banner card */}
-              <div className="sp-db-banner">
-                <div className="sp-db-banner-text">
-                  <span className="sp-db-banner-subtitle">START WRITING</span>
-                  <h2 className="sp-db-banner-title">Create a New Project</h2>
-                  <p className="sp-db-banner-desc">Bring your story to life - start a blank screenplay today</p>
+              {/* Start Writing & Activity Calendar Row */}
+              <div className="sp-db-top-widgets-row">
+                <div className="sp-db-banner sp-db-banner-compact animate-fade-in">
+                  <div className="sp-db-banner-text">
+                    <span className="sp-db-banner-subtitle">START WRITING</span>
+                    <h2 className="sp-db-banner-title">Create a New Project</h2>
+                    <p className="sp-db-banner-desc">Bring your story to life - start a blank screenplay today</p>
+                  </div>
+                  <div className="sp-db-banner-buttons">
+                    <button className="sp-db-btn-black" onClick={() => setShowNew(true)}>
+                      <Plus size={14} /> New Project
+                    </button>
+                  </div>
                 </div>
-                <div className="sp-db-banner-buttons">
-                  <button className="sp-db-btn-black" onClick={() => setShowNew(true)}>
-                    <Plus size={14} /> New Project
-                  </button>
-                </div>
+
+                {user?.id && (
+                  <div className="sp-db-calendar-widget">
+                    <ActivityCalendar userId={user.id} />
+                  </div>
+                )}
               </div>
 
               {/* Columns layout */}
@@ -1260,6 +1326,14 @@ export function ProjectsScreen({
           ) : (
             /* Recent Files List */
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+              
+              {/* Mobile activity calendar widget */}
+              {user?.id && (
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                  <ActivityCalendar userId={user.id} />
+                </div>
+              )}
+
               <div className="sp-db-section-header">
                 <h2 className="sp-db-section-title">Recent Files</h2>
               </div>

@@ -79,6 +79,28 @@ export const supabaseService = {
       .eq("id", id);
   },
 
+  async fetchWritingActivity(userId: string) {
+    if (!this.isConfigured()) return { data: null, error: null };
+    return supabase
+      .from("writing_activity")
+      .select("activity_date, activity_count")
+      .eq("user_id", userId);
+  },
+
+  async syncWritingActivityBatch(userId: string, activities: { date: string; count: number }[]) {
+    if (!this.isConfigured() || activities.length === 0) return { data: null, error: null };
+    
+    const payload = activities.map(act => ({
+      user_id: userId,
+      activity_date: act.date,
+      activity_count: act.count
+    }));
+    
+    return supabase
+      .from("writing_activity")
+      .upsert(payload, { onConflict: "user_id,activity_date" });
+  },
+
   async fetchProfileByEmailOrUsername(input: string) {
     if (!this.isConfigured()) return { data: null, error: null };
     const cleanInput = input.trim();
