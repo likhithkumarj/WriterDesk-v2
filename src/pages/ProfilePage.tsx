@@ -1,6 +1,24 @@
-import React from "react";
-import { DashboardLayout, UserProfile } from "./DashboardLayout";
-import { Award, PenTool, Flame, Calendar, BookOpen, Layers, BarChart } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { DashboardLayout } from "./DashboardLayout";
+import { 
+  Award, 
+  PenTool, 
+  Flame, 
+  Calendar, 
+  BookOpen, 
+  Layers, 
+  Building,
+  Briefcase,
+  Clock,
+  Heart,
+  Mail,
+  Link as LinkIcon,
+  Folder,
+  ChevronRight,
+  Star,
+  Sparkles,
+  Edit2
+} from "lucide-react";
 import { Store } from "../types/screenplay";
 import { useNavigate } from "react-router-dom";
 
@@ -10,12 +28,49 @@ export function ProfilePage({
   onLogout,
 }: {
   store: Store;
-  user: UserProfile;
+  user: { id?: string; name: string; email: string; avatar: string };
   onLogout: () => void;
 }) {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"overview" | "projects" | "achievements">("overview");
 
-  // Dynamically compute real writer statistics from store
+  // Load onboarding data from local storage
+  const onboardingData = useMemo(() => {
+    const saved = localStorage.getItem(`onboarding_state:${user.id}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return null;
+  }, [user.id]);
+
+  // Compute dynamic biography
+  const dynamicBio = useMemo(() => {
+    if (!onboardingData) return "Screenwriter & storytelling developer. Working on feature screenplays and TV pilots.";
+    
+    const roleText = onboardingData.roles?.length > 0 
+      ? onboardingData.roles.join(" / ") 
+      : "Storyteller";
+      
+    const expText = onboardingData.experienceLevel 
+      ? `(${onboardingData.experienceLevel})` 
+      : "";
+      
+    const houseText = onboardingData.productionHouseType === "studio" && onboardingData.productionHouseName
+      ? `at ${onboardingData.productionHouseName}`
+      : onboardingData.productionHouseType === "independent"
+        ? "as an Independent Creator"
+        : "";
+        
+    const tellerText = onboardingData.favoriteStoryteller
+      ? ` inspired by ${onboardingData.favoriteStoryteller}`
+      : "";
+      
+    return `${roleText} ${expText} ${houseText}${tellerText}. Planning to write ${onboardingData.writeFrequency?.toLowerCase() || "regularly"}.`;
+  }, [onboardingData]);
+
+  // Calculate statistics
   const totalProjects = store.projects.length;
   const totalScripts = store.projects.reduce((sum, p) => sum + p.files.length, 0);
   
@@ -40,191 +95,461 @@ export function ProfilePage({
     { id: "a-4", title: "Collaborator Star", desc: "Invite co-writers to work on drafts", unlocked: true, icon: Award }
   ];
 
+  const unlockedCount = achievements.filter(a => a.unlocked).length;
+
+  // Generate a mock contribution calendar representing a GitHub commit graph
+  const contributionGrid = useMemo(() => {
+    const cols = 48; // weeks
+    const rows = 7;  // days of week
+    const grid = [];
+    
+    // Seeded random number generator based on name
+    const seed = user.name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    let currSeed = seed;
+    const random = () => {
+      const x = Math.sin(currSeed++) * 10000;
+      return x - Math.floor(x);
+    };
+
+    for (let r = 0; r < rows; r++) {
+      const row = [];
+      for (let c = 0; c < cols; c++) {
+        const val = random();
+        let level = 0; // 0 = empty, 1-4 = increasing density of amber/gold
+        if (val > 0.85) level = 4;
+        else if (val > 0.7) level = 3;
+        else if (val > 0.5) level = 2;
+        else if (val > 0.3) level = 1;
+        row.push(level);
+      }
+      grid.push(row);
+    }
+    return grid;
+  }, [user.name]);
+
   return (
     <DashboardLayout title="Profile" user={user} onLogout={onLogout} projectsCount={store.projects.length}>
-      <div className="sp-prof-container">
+      <div className="sp-wd-container">
+        
+        {/* Style block */}
         <style dangerouslySetInnerHTML={{ __html: `
-          .sp-prof-container {
-            max-width: 900px;
+          .sp-wd-container {
+            max-width: 1100px;
             margin: 0 auto;
             padding: 32px 24px;
             box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            color: #efeff1;
           }
 
-          .sp-prof-hero {
-            background: linear-gradient(135deg, #1c1c20 0%, #121214 100%);
-            border: 1px solid #1c1c20;
-            border-radius: 16px;
-            overflow: hidden;
-            margin-bottom: 28px;
+          .sp-wd-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 40px;
           }
 
-          .sp-prof-banner {
-            height: 120px;
-            background: linear-gradient(90deg, var(--sp-accent) 0%, #1D4ED8 100%);
-            opacity: 0.85;
-          }
-
-          .sp-prof-identity {
-            display: flex;
-            align-items: flex-end;
-            padding: 0 32px 24px 32px;
-            margin-top: -48px;
-            gap: 24px;
-            flex-wrap: wrap;
-          }
-
-          .sp-prof-avatar-wrap {
-            border: 6px solid #08080a;
-            border-radius: 50%;
-            background-color: #08080a;
-            line-height: 0;
-          }
-
-          .sp-prof-details {
-            flex: 1;
-            min-width: 250px;
+          /* Left Column - Sidebar card with glassmorphism */
+          .sp-wd-sidebar {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 24px;
           }
 
-          .sp-prof-name {
-            font-size: 24px;
+          .sp-wd-profile-card {
+            background: linear-gradient(135deg, rgba(20, 20, 22, 0.6) 0%, rgba(12, 12, 14, 0.8) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+          }
+
+          .sp-wd-avatar-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin-bottom: 16px;
+            border-radius: 50%;
+            padding: 4px;
+            background: linear-gradient(135deg, var(--sp-accent) 0%, #7c3aed 100%);
+            box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+          }
+
+          .sp-wd-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #08080a;
+          }
+
+          .sp-wd-name {
+            font-size: 22px;
             font-weight: 800;
             color: #fff;
-            margin: 0;
+            margin: 0 0 4px 0;
             letter-spacing: -0.01em;
           }
 
-          .sp-prof-bio {
-            font-size: 13.5px;
+          .sp-wd-username {
+            font-size: 13px;
+            font-weight: 500;
             color: #8e8e93;
-            margin: 0;
-            line-height: 1.4;
+            margin: 0 0 20px 0;
           }
 
-          .sp-prof-meta {
+          .sp-wd-edit-btn {
             display: flex;
-            gap: 16px;
-            font-size: 12px;
-            color: #55555d;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--sp-accent);
+            background-color: rgba(245, 158, 11, 0.05);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+
+          .sp-wd-edit-btn:hover {
+            background-color: rgba(245, 158, 11, 0.1);
+            border-color: var(--sp-accent);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
+          }
+
+          .sp-wd-bio {
+            font-size: 13.5px;
+            line-height: 1.5;
+            color: #c9d1d9;
+            margin: 20px 0;
+            text-align: left;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 16px;
+          }
+
+          .sp-wd-meta-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            text-align: left;
+          }
+
+          .sp-wd-meta-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 13.5px;
+            color: #efeff1;
+          }
+
+          .sp-wd-meta-icon {
+            color: var(--sp-accent);
+            margin-top: 2px;
+            flex-shrink: 0;
+          }
+
+          .sp-wd-meta-item strong {
+            color: #fff;
             font-weight: 600;
           }
 
-          .sp-prof-meta-item {
+          /* Right Column - Main Area */
+          .sp-wd-main {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            gap: 28px;
+            min-width: 0;
+          }
+
+          /* Header Tabs styled with custom glass look */
+          .sp-wd-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 6px;
             gap: 6px;
           }
 
-          .sp-prof-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 28px;
-          }
-
-          .sp-prof-stat-card {
-            background-color: #121214;
-            border: 1px solid #1c1c20;
-            border-radius: 12px;
-            padding: 18px 20px;
+          .sp-wd-tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #8e8e93;
+            cursor: pointer;
             display: flex;
-            flex-direction: column;
-            gap: 4px;
+            align-items: center;
+            gap: 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
           }
 
-          .sp-prof-stat-val {
-            font-size: 24px;
-            font-weight: 800;
+          .sp-wd-tab-btn:hover {
             color: #fff;
+            background: rgba(255, 255, 255, 0.03);
           }
 
-          .sp-prof-stat-lbl {
+          .sp-wd-tab-btn.active {
+            background: #1c1c20;
+            color: var(--sp-accent);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          }
+
+          .sp-wd-counter {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--sp-accent);
+            border: 1px solid rgba(245, 158, 11, 0.15);
             font-size: 11px;
             font-weight: 700;
-            text-transform: uppercase;
-            color: #8e8e93;
-            letter-spacing: 0.05em;
+            padding: 2px 8px;
+            border-radius: 20px;
           }
 
-          .sp-prof-columns {
-            display: flex;
-            gap: 28px;
-            align-items: flex-start;
+          /* Grid layout for featured overview screenplays */
+          .sp-wd-pinned-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
           }
 
-          .sp-prof-col-left {
-            flex: 1.8;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            min-width: 0;
-          }
-
-          .sp-prof-col-right {
-            flex: 1.1;
+          .sp-wd-project-card {
+            background: rgba(20, 20, 22, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            min-width: 0;
-          }
-
-          .sp-prof-section-title {
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #8e8e93;
-            letter-spacing: 0.08em;
-            margin: 0 0 12px 0;
-          }
-
-          .sp-prof-project-card {
-            background-color: #121214;
-            border: 1px solid #1c1c20;
-            border-radius: 12px;
-            padding: 16px 20px;
-            display: flex;
             justify-content: space-between;
-            align-items: center;
+            min-height: 140px;
+            box-sizing: border-box;
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: all 0.2s ease;
           }
 
-          .sp-prof-project-card:hover {
-            border-color: rgba(var(--sp-accent-rgb), 0.25);
-            background-color: #16161a;
+          .sp-wd-project-card:hover {
+            border-color: rgba(245, 158, 11, 0.25);
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.02);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
           }
 
-          .sp-prof-badge-grid {
+          .sp-wd-project-top {
             display: flex;
             flex-direction: column;
             gap: 10px;
           }
 
-          .sp-prof-badge-card {
-            background-color: #121214;
-            border: 1px solid #1c1c20;
-            border-radius: 12px;
-            padding: 14px;
+          .sp-wd-project-header {
             display: flex;
             align-items: center;
-            gap: 14px;
-            opacity: 0.4;
-            transition: all 0.15s ease;
+            justify-content: space-between;
+            gap: 8px;
           }
 
-          .sp-prof-badge-card.unlocked {
-            opacity: 1;
-            border-color: rgba(var(--sp-accent-rgb), 0.15);
+          .sp-wd-project-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
           }
 
-          .sp-prof-badge-icon-box {
-            width: 36px;
-            height: 36px;
-            background-color: rgba(255, 255, 255, 0.02);
+          .sp-wd-project-badge {
+            font-size: 10px;
+            font-weight: 700;
+            color: #8e8e93;
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 8px;
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.01);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+
+          .sp-wd-project-desc {
+            font-size: 12.5px;
+            color: #8e8e93;
+            margin: 0;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+
+          .sp-wd-project-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #55555d;
+            margin-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.03);
+            padding-top: 12px;
+          }
+
+          .sp-wd-project-lang {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #8e8e93;
+            font-weight: 600;
+          }
+
+          .sp-wd-lang-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--sp-accent);
+          }
+
+          /* Contributions calendar matching WriterDesk amber theme */
+          .sp-wd-calendar-container {
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            background: rgba(20, 20, 22, 0.3);
+            backdrop-filter: blur(8px);
+          }
+
+          .sp-wd-calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #fff;
+          }
+
+          .sp-wd-calendar-scroll {
+            overflow-x: auto;
+            padding-bottom: 4px;
+          }
+
+          .sp-wd-calendar-grid {
+            display: grid;
+            grid-template-rows: repeat(7, 10px);
+            grid-auto-flow: column;
+            gap: 4px;
+          }
+
+          .sp-wd-calendar-cell {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            background-color: rgba(255, 255, 255, 0.02);
+            transition: all 0.2s ease;
+          }
+
+          .sp-wd-calendar-cell.level-1 { background-color: rgba(245, 158, 11, 0.15); }
+          .sp-wd-calendar-cell.level-2 { background-color: rgba(245, 158, 11, 0.35); }
+          .sp-wd-calendar-cell.level-3 { background-color: rgba(245, 158, 11, 0.65); }
+          .sp-wd-calendar-cell.level-4 { background-color: #f59e0b; }
+
+          .sp-wd-calendar-legend {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            font-size: 12px;
+            color: #55555d;
+            margin-top: 14px;
+          }
+
+          /* Projects List Tab */
+          .sp-wd-projects-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+          }
+
+          .sp-wd-project-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(20, 20, 22, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 14px;
+            gap: 20px;
+            transition: all 0.2s ease;
+          }
+
+          .sp-wd-project-row:hover {
+            border-color: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.01);
+          }
+
+          .sp-wd-row-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+          }
+
+          .sp-wd-row-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            cursor: pointer;
+            transition: color 0.15s ease;
+          }
+
+          .sp-wd-row-title:hover {
+            color: var(--sp-accent);
+          }
+
+          /* Achievements Grid */
+          .sp-wd-achievements-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+          }
+
+          .sp-wd-achievement-card {
+            background: rgba(20, 20, 22, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            opacity: 0.45;
+            transition: all 0.2s ease;
+          }
+
+          .sp-wd-achievement-card.unlocked {
+            opacity: 1;
+            border-color: rgba(245, 158, 11, 0.2);
+            background: linear-gradient(135deg, rgba(20, 20, 22, 0.5) 0%, rgba(245, 158, 11, 0.02) 100%);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+          }
+
+          .sp-wd-achievement-icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background-color: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -232,129 +557,290 @@ export function ProfilePage({
             flex-shrink: 0;
           }
 
-          .sp-prof-badge-card.unlocked .sp-prof-badge-icon-box {
-            background-color: rgba(var(--sp-accent-rgb), 0.08);
+          .sp-wd-achievement-card.unlocked .sp-wd-achievement-icon-box {
+            background-color: rgba(245, 158, 11, 0.08);
+            border-color: rgba(245, 158, 11, 0.15);
             color: var(--sp-accent);
-            border: 1px solid rgba(var(--sp-accent-rgb), 0.1);
           }
 
-          .sp-prof-badge-details {
+          .sp-wd-achievement-details {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
           }
 
-          .sp-prof-badge-title {
-            font-size: 13.5px;
+          .sp-wd-achievement-title {
+            font-size: 15px;
             font-weight: 700;
             color: #fff;
+            margin: 0;
           }
 
-          .sp-prof-badge-desc {
-            font-size: 11px;
+          .sp-wd-achievement-desc {
+            font-size: 12.5px;
             color: #8e8e93;
+            margin: 0;
+            line-height: 1.45;
+          }
+
+          /* Responsive Tweaks */
+          @media (max-width: 850px) {
+            .sp-wd-layout {
+              grid-template-columns: 1fr;
+              gap: 32px;
+            }
+            .sp-wd-sidebar {
+              width: 100%;
+            }
+            .sp-wd-profile-card {
+              max-width: 400px;
+              margin: 0 auto;
+              width: 100%;
+            }
+            .sp-wd-pinned-grid {
+              grid-template-columns: 1fr;
+            }
+            .sp-wd-achievements-grid {
+              grid-template-columns: 1fr;
+            }
           }
         ` }} />
 
-        {/* Identity Hero Panel */}
-        <div className="sp-prof-hero">
-          <div className="sp-prof-banner" />
-          <div className="sp-prof-identity">
-            <div className="sp-prof-avatar-wrap">
-              <img src={user.avatar} alt={user.name} style={{ width: 80, height: 80, borderRadius: "50%" }} />
-            </div>
-            <div className="sp-prof-details">
-              <h2 className="sp-prof-name">{user.name}</h2>
-              <p className="sp-prof-bio">
-                Screenwriter & storytelling developer. Working on feature screenplays and TV pilots.
-              </p>
-              <div className="sp-prof-meta">
-                <div className="sp-prof-meta-item">
-                  <Calendar size={12} />
-                  <span>Joined Jan 2026</span>
-                </div>
-                <div className="sp-prof-meta-item">
-                  <BarChart size={12} />
-                  <span>Rank: Level 4 Writer</span>
-                </div>
-              </div>
-            </div>
-            <button 
-              className="sp-ws-btn-share" 
-              style={{ alignSelf: "center", padding: "6px 14px", borderRadius: 8 }}
-              onClick={() => navigate("/settings")}
-            >
-              Edit Profile
-            </button>
-          </div>
-        </div>
-
-        {/* Statistic Cards Panel */}
-        <div className="sp-prof-stats-grid">
-          <div className="sp-prof-stat-card">
-            <span className="sp-prof-stat-val">{totalProjects}</span>
-            <span className="sp-prof-stat-lbl">Projects</span>
-          </div>
-          <div className="sp-prof-stat-card">
-            <span className="sp-prof-stat-val">{totalScripts}</span>
-            <span className="sp-prof-stat-lbl">Scripts</span>
-          </div>
-          <div className="sp-prof-stat-card">
-            <span className="sp-prof-stat-val">{totalWords.toLocaleString()}</span>
-            <span className="sp-prof-stat-lbl">Words Written</span>
-          </div>
-          <div className="sp-prof-stat-card">
-            <span className="sp-prof-stat-val">3</span>
-            <span className="sp-prof-stat-lbl">Collaborations</span>
-          </div>
-        </div>
-
-        {/* Column Splits */}
-        <div className="sp-prof-columns">
+        {/* Outer Layout wrapper */}
+        <div className="sp-wd-layout">
           
-          {/* Active Screenplays Directory */}
-          <div className="sp-prof-col-left">
-            <h3 className="sp-prof-section-title">Active Projects</h3>
-            {store.projects.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 16px", background: "#121214", borderRadius: 12, border: "1px solid #1c1c20", color: "#8e8e93", fontSize: 13 }}>
-                No active screenplays.
+          {/* Sidebar - Profile details column */}
+          <div className="sp-wd-sidebar">
+            <div className="sp-wd-profile-card">
+              <div className="sp-wd-avatar-container">
+                <img className="sp-wd-avatar" src={user.avatar} alt={user.name} />
               </div>
-            ) : (
-              store.projects.map((p) => (
-                <div key={p.id} className="sp-prof-project-card" onClick={() => navigate(`/project/${p.id}`)}>
-                  <div>
-                    <h4 style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 4px 0" }}>{p.title}</h4>
-                    <span style={{ fontSize: 12, color: "#8e8e93" }}>
-                      {p.type || "Feature Film"} • {p.files.length} script{p.files.length === 1 ? "" : "s"}
+
+              <h1 className="sp-wd-name">{user.name}</h1>
+              <h2 className="sp-wd-username">@{user.email?.split("@")[0] || "writer"}</h2>
+
+              <button 
+                className="sp-wd-edit-btn"
+                onClick={() => navigate("/settings")}
+              >
+                <Edit2 size={13} /> Edit Profile
+              </button>
+
+              <p className="sp-wd-bio">{dynamicBio}</p>
+
+              <ul className="sp-wd-meta-list">
+                {onboardingData?.roles && onboardingData.roles.length > 0 && (
+                  <li className="sp-wd-meta-item">
+                    <Briefcase size={16} className="sp-wd-meta-icon" />
+                    <span>Roles: <strong>{onboardingData.roles.join(", ")}</strong></span>
+                  </li>
+                )}
+                {onboardingData?.experienceLevel && (
+                  <li className="sp-wd-meta-item">
+                    <Award size={16} className="sp-wd-meta-icon" />
+                    <span>Exp: <strong>{onboardingData.experienceLevel}</strong></span>
+                  </li>
+                )}
+                {onboardingData?.productionHouseType && (
+                  <li className="sp-wd-meta-item">
+                    <Building size={16} className="sp-wd-meta-icon" />
+                    <span>
+                      Affiliation: <strong>
+                        {onboardingData.productionHouseType === "studio" 
+                          ? onboardingData.productionHouseName || "Production Studio" 
+                          : "Independent Writer"}
+                      </strong>
                     </span>
-                  </div>
-                  <span style={{ fontSize: 11, color: "#55555d", fontWeight: 600 }}>
-                    Edited {getFormattedDate(p.dateModified)}
-                  </span>
-                </div>
-              ))
-            )}
+                  </li>
+                )}
+                {onboardingData?.writeFrequency && (
+                  <li className="sp-wd-meta-item">
+                    <Clock size={16} className="sp-wd-meta-icon" />
+                    <span>Schedule: <strong>{onboardingData.writeFrequency}</strong></span>
+                  </li>
+                )}
+                {onboardingData?.favoriteStoryteller && (
+                  <li className="sp-wd-meta-item">
+                    <Heart size={16} className="sp-wd-meta-icon" />
+                    <span>Influence: <strong>{onboardingData.favoriteStoryteller}</strong></span>
+                  </li>
+                )}
+                <li className="sp-wd-meta-item" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: 16, marginTop: 4 }}>
+                  <Calendar size={16} className="sp-wd-meta-icon" />
+                  <span>Member since <strong>Jan 2026</strong></span>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          {/* Writer Milestones Achievements */}
-          <div className="sp-prof-col-right">
-            <h3 className="sp-prof-section-title">Writer Milestones</h3>
-            <div className="sp-prof-badge-grid">
-              {achievements.map((a) => {
-                const Icon = a.icon;
-                return (
-                  <div key={a.id} className={`sp-prof-badge-card ${a.unlocked ? "unlocked" : ""}`}>
-                    <div className="sp-prof-badge-icon-box">
-                      <Icon size={18} />
+          {/* Main Content Area */}
+          <div className="sp-wd-main">
+            
+            {/* Tabs Navigation Bar */}
+            <div className="sp-wd-tabs">
+              <button 
+                onClick={() => setActiveTab("overview")} 
+                className={`sp-wd-tab-btn ${activeTab === "overview" ? "active" : ""}`}
+              >
+                <BookOpen size={16} /> Overview
+              </button>
+              
+              <button 
+                onClick={() => setActiveTab("projects")} 
+                className={`sp-wd-tab-btn ${activeTab === "projects" ? "active" : ""}`}
+              >
+                <Folder size={16} /> Projects 
+                <span className="sp-wd-counter">{totalProjects}</span>
+              </button>
+              
+              <button 
+                onClick={() => setActiveTab("achievements")} 
+                className={`sp-wd-tab-btn ${activeTab === "achievements" ? "active" : ""}`}
+              >
+                <Award size={16} /> Milestones 
+                <span className="sp-wd-counter">{unlockedCount}</span>
+              </button>
+            </div>
+
+            {/* Render Overview Content Tab */}
+            {activeTab === "overview" && (
+              <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                <div>
+                  <h3 className="sp-prof-section-title" style={{ marginBottom: 16 }}>Pinned Projects</h3>
+                  
+                  {store.projects.length === 0 ? (
+                    <div style={{ padding: "32px 16px", border: "1px dashed rgba(255, 255, 255, 0.06)", borderRadius: 14, textAlign: "center", color: "#8e8e93", background: "rgba(20, 20, 22, 0.2)" }}>
+                      No screenplays pinned yet. Create a project to pin it here.
                     </div>
-                    <div className="sp-prof-badge-details">
-                      <span className="sp-prof-badge-title">{a.title}</span>
-                      <span className="sp-prof-badge-desc">{a.desc}</span>
+                  ) : (
+                    <div className="sp-wd-pinned-grid">
+                      {store.projects.slice(0, 4).map((p) => (
+                        <div key={p.id} className="sp-wd-project-card" onClick={() => navigate(`/project/${p.id}`)}>
+                          <div className="sp-wd-project-top">
+                            <div className="sp-wd-project-header">
+                              <h4 className="sp-wd-project-name">
+                                <Folder size={14} style={{ color: "var(--sp-accent)" }} />
+                                {p.title}
+                              </h4>
+                              <span className="sp-wd-project-badge">Private</span>
+                            </div>
+                            <p className="sp-wd-project-desc">
+                              {p.description || `A premium ${p.genre || "Drama"} ${p.type || "Feature Film"} screenplay written on WriterDesk.`}
+                            </p>
+                          </div>
+                          <div className="sp-wd-project-bottom">
+                            <span className="sp-wd-project-lang">
+                              <span className="sp-wd-lang-dot" />
+                              {p.type || "Screenplay"}
+                            </span>
+                            <span style={{ fontSize: 11 }}>Updated {getFormattedDate(p.dateModified)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Heatmap Contribution Graph */}
+                <div className="sp-wd-calendar-container">
+                  <div className="sp-wd-calendar-header">
+                    <span><strong>{totalWords.toLocaleString()}</strong> words written this year</span>
+                    <span style={{ fontSize: 12, color: "#8e8e93" }}>Writing Activity Calendar</span>
+                  </div>
+                  
+                  <div className="sp-wd-calendar-scroll">
+                    <div className="sp-wd-calendar-grid">
+                      {contributionGrid.map((row, rIdx) => 
+                        row.map((level, cIdx) => (
+                          <div 
+                            key={`${rIdx}-${cIdx}`} 
+                            className={`sp-wd-calendar-cell level-${level}`}
+                            title={`Contribution level: ${level}`}
+                          />
+                        ))
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  <div className="sp-wd-calendar-legend">
+                    <span>Less</span>
+                    <div className="sp-wd-calendar-cell" />
+                    <div className="sp-wd-calendar-cell level-1" />
+                    <div className="sp-wd-calendar-cell level-2" />
+                    <div className="sp-wd-calendar-cell level-3" />
+                    <div className="sp-wd-calendar-cell level-4" />
+                    <span>More</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Render Projects List Content Tab */}
+            {activeTab === "projects" && (
+              <div className="sp-wd-projects-list animate-fade-in">
+                {store.projects.length === 0 ? (
+                  <div style={{ padding: "48px 16px", textAlign: "center", color: "#8e8e93" }}>
+                    You don't have any projects in your workspace.
+                  </div>
+                ) : (
+                  store.projects.map((p) => (
+                    <div key={p.id} className="sp-wd-project-row">
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+                        <div className="sp-wd-row-title-wrap">
+                          <h3 className="sp-wd-row-title" onClick={() => navigate(`/project/${p.id}`)}>
+                            {p.title}
+                          </h3>
+                          <span className="sp-wd-project-badge">Private</span>
+                        </div>
+                        <p style={{ fontSize: 13.5, color: "#8e8e93", margin: 0, lineHeight: 1.45 }}>
+                          {p.description || `Creative ${p.genre || "Drama"} draft containing ${p.files.length} document files.`}
+                        </p>
+                        <div className="sp-wd-project-bottom" style={{ marginTop: 8, border: "none", paddingTop: 0 }}>
+                          <span className="sp-wd-project-lang">
+                            <span className="sp-wd-lang-dot" />
+                            {p.type || "Screenplay"}
+                          </span>
+                          <span style={{ marginLeft: 16 }}>{p.files.length} script files</span>
+                          <span style={{ marginLeft: 16 }}>Updated {getFormattedDate(p.dateModified)}</span>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        className="sp-wd-edit-btn" 
+                        style={{ width: "auto", fontSize: 12, padding: "8px 16px" }}
+                        onClick={() => navigate(`/project/${p.id}`)}
+                      >
+                        Open
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Render Achievements Content Tab */}
+            {activeTab === "achievements" && (
+              <div className="sp-wd-achievements-grid animate-fade-in">
+                {achievements.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <div key={a.id} className={`sp-wd-achievement-card ${a.unlocked ? "unlocked" : ""}`}>
+                      <div className="sp-wd-achievement-icon-box">
+                        <Icon size={24} />
+                      </div>
+                      <div className="sp-wd-achievement-details">
+                        <h4 className="sp-wd-achievement-title">
+                          {a.title}
+                          {a.unlocked && <Sparkles size={14} style={{ color: "var(--sp-accent)", display: "inline", marginLeft: 6 }} />}
+                        </h4>
+                        <p className="sp-wd-achievement-desc">{a.desc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
           </div>
 
         </div>
