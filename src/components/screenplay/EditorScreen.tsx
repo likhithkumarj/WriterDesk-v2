@@ -1780,9 +1780,11 @@ export function EditorScreen({
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
                 spellCheck={false}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
+                {...{
+                  autocomplete: "off",
+                  autocorrect: "off",
+                  autocapitalize: "off"
+                }}
                 onInput={handleContentInput}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}

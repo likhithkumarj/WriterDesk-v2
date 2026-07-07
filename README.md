@@ -6,12 +6,13 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 
 ## 🚀 Key Features
 
-* **Single-Text Screenplay Editor (Updated: July 2, 2026):**
+* **Single-Text Screenplay Editor (Updated: July 7, 2026):**
   * Replaced the slow block-by-block editor with a single continuous text canvas.
   * Supported **native copy-pasting, highlighting, selection, and line deletions** across multiple pages.
   * Incorporated a **smart paste interceptor** that parses Fountain screenplay text on-the-fly and splits them into flat sibling lines (no nested formatting staircase).
-  * Butter-smooth **60fps typing performance** via debounced state syncing (400ms delay), with instant syncing on explicit format changes.
-  * Reliable **Undo/Redo with Caret Memory** that restores the cursor precisely to the relative line index, with disabled toolbar button states.
+  * Butter-smooth **60fps typing performance** via debounced state syncing (400ms delay) with precise active-element detection (`getSelectionBlock`) to eliminate typing lag, cursor jumps, and character deletion.
+  * Reliable **Undo/Redo with Caret Memory** that restores focus and cursor position precisely to the editing block.
+  * Disabled native browser autocorrect, autocapitalize, and auto-suggestions on the editor canvas for a clean writing experience.
 * **Interactive Document Planners:**
   * *Shot List Editor (Added: July 1, 2026):* Spreadsheet-style table planner supporting Scene #, Shot #, Description, Camera Type, Angle, Movement, Lens, and Status. Responsive bi-directional scroll (frozen columns on mobile), automatic script scene generation, and CSV/PDF export.
   * *Idea Editor:* Notion-style rich-text note editor supporting headings, lists, checklists, links, and tags.
