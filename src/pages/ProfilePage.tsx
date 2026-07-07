@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { DashboardLayout } from "./DashboardLayout";
-import { 
-  Award, 
-  PenTool, 
-  Flame, 
-  Calendar, 
-  BookOpen, 
-  Layers, 
+import {
+  Award,
+  PenTool,
+  Flame,
+  Calendar,
+  BookOpen,
+  Layers,
   Building,
   Briefcase,
   Clock,
@@ -45,11 +45,11 @@ export function ProfilePage({
       if (saved) {
         try {
           const profile = JSON.parse(saved);
-          const hasEmptyField = 
-            !profile.roles || profile.roles.length === 0 || 
-            !profile.experienceLevel || 
-            !profile.productionHouseType || 
-            !profile.writeFrequency || 
+          const hasEmptyField =
+            !profile.roles || profile.roles.length === 0 ||
+            !profile.experienceLevel ||
+            !profile.productionHouseType ||
+            !profile.writeFrequency ||
             !profile.favoriteStoryteller;
           setProfileIncomplete(hasEmptyField);
         } catch (e) {
@@ -69,7 +69,7 @@ export function ProfilePage({
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {}
+      } catch (e) { }
     }
     return null;
   }, [user.id]);
@@ -77,40 +77,40 @@ export function ProfilePage({
   // Compute dynamic biography
   const dynamicBio = useMemo(() => {
     if (!onboardingData) return "Screenwriter & storytelling developer. Working on feature screenplays and TV pilots.";
-    
-    const roleText = onboardingData.roles?.length > 0 
-      ? onboardingData.roles.join(" / ") 
+
+    const roleText = onboardingData.roles?.length > 0
+      ? onboardingData.roles.join(" / ")
       : "Storyteller";
-      
-    const expText = onboardingData.experienceLevel 
-      ? `(${onboardingData.experienceLevel})` 
+
+    const expText = onboardingData.experienceLevel
+      ? `(${onboardingData.experienceLevel})`
       : "";
-      
+
     const houseText = onboardingData.productionHouseType === "studio" && onboardingData.productionHouseName
       ? `at ${onboardingData.productionHouseName}`
       : onboardingData.productionHouseType === "independent"
         ? "as an Independent Creator"
         : "";
-        
+
     const tellerText = onboardingData.favoriteStoryteller
       ? ` inspired by ${onboardingData.favoriteStoryteller}`
       : "";
-      
+
     return `${roleText} ${expText} ${houseText}${tellerText}. Planning to write ${onboardingData.writeFrequency?.toLowerCase() || "regularly"}.`;
   }, [onboardingData]);
 
   // Calculate statistics
   const totalProjects = store.projects.length;
   const totalScripts = store.projects.reduce((sum, p) => sum + p.files.length, 0);
-  
-  const totalWords = store.projects.reduce((sum, p) => 
-    sum + p.files.reduce((fSum, f) => 
+
+  const totalWords = store.projects.reduce((sum, p) =>
+    sum + p.files.reduce((fSum, f) =>
       fSum + f.blocks.reduce((bSum, b) => {
         const words = b.text ? b.text.trim().split(/\s+/).filter(Boolean).length : 0;
         return bSum + words;
       }, 0)
-    , 0)
-  , 0);
+      , 0)
+    , 0);
 
   const getFormattedDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -131,9 +131,10 @@ export function ProfilePage({
   return (
     <DashboardLayout title="Profile" user={user} onLogout={onLogout} projectsCount={store.projects.length}>
       <div className="sp-wd-container">
-        
+
         {/* Style block */}
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           .sp-wd-container {
             max-width: 1100px;
             margin: 0 auto;
@@ -678,7 +679,7 @@ export function ProfilePage({
 
         {/* Outer Layout wrapper */}
         <div className="sp-wd-layout">
-          
+
           {/* Sidebar - Profile details column */}
           <div className="sp-wd-sidebar">
             <div className="sp-wd-profile-card">
@@ -689,7 +690,7 @@ export function ProfilePage({
               <h1 className="sp-wd-name">{user.name}</h1>
               <h2 className="sp-wd-username">@{user.email?.split("@")[0] || "writer"}</h2>
 
-              <button 
+              <button
                 className="sp-wd-edit-btn"
                 onClick={() => navigate("/settings")}
               >
@@ -716,8 +717,8 @@ export function ProfilePage({
                     <Building size={16} className="sp-wd-meta-icon" />
                     <span>
                       Affiliation: <strong>
-                        {onboardingData.productionHouseType === "studio" 
-                          ? onboardingData.productionHouseName || "Production Studio" 
+                        {onboardingData.productionHouseType === "studio"
+                          ? onboardingData.productionHouseName || "Production Studio"
                           : "Independent Writer"}
                       </strong>
                     </span>
@@ -745,29 +746,29 @@ export function ProfilePage({
 
           {/* Main Content Area */}
           <div className="sp-wd-main">
-            
+
             {/* Tabs Navigation Bar */}
             <div className="sp-wd-tabs">
-              <button 
-                onClick={() => setActiveTab("overview")} 
+              <button
+                onClick={() => setActiveTab("overview")}
                 className={`sp-wd-tab-btn ${activeTab === "overview" ? "active" : ""}`}
               >
                 <BookOpen size={16} /> Overview
               </button>
-              
-              <button 
-                onClick={() => setActiveTab("projects")} 
+
+              <button
+                onClick={() => setActiveTab("projects")}
                 className={`sp-wd-tab-btn ${activeTab === "projects" ? "active" : ""}`}
               >
-                <Folder size={16} /> Projects 
+                <Folder size={16} /> Projects
                 <span className="sp-wd-counter">{totalProjects}</span>
               </button>
-              
-              <button 
-                onClick={() => setActiveTab("achievements")} 
+
+              <button
+                onClick={() => setActiveTab("achievements")}
                 className={`sp-wd-tab-btn ${activeTab === "achievements" ? "active" : ""}`}
               >
-                <Award size={16} /> Milestones 
+                <Award size={16} /> Milestones
                 <span className="sp-wd-counter">{unlockedCount}</span>
               </button>
             </div>
@@ -776,10 +777,10 @@ export function ProfilePage({
             {activeTab === "overview" && (
               <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                 {profileIncomplete && (
-                  <div style={{ 
-                    padding: "12px 18px", 
-                    borderRadius: 12, 
-                    border: "1px solid rgba(245, 158, 11, 0.4)", 
+                  <div style={{
+                    padding: "12px 18px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(245, 158, 11, 0.4)",
                     background: "rgba(245, 158, 11, 0.08)",
                     display: "flex",
                     alignItems: "center",
@@ -792,9 +793,9 @@ export function ProfilePage({
                         Complete your creative roles and writing habits to unlock full customizations!
                       </span>
                     </div>
-                    <button 
-                      className="sp-ws-btn-gold" 
-                      style={{ padding: "6px 14px", fontSize: 12, background: "var(--sp-accent)", color: "#000" }} 
+                    <button
+                      className="sp-ws-btn-gold"
+                      style={{ padding: "6px 14px", fontSize: 12, background: "var(--sp-accent)", color: "#000" }}
                       onClick={() => navigate("/settings")}
                     >
                       Complete Profile
@@ -804,7 +805,7 @@ export function ProfilePage({
 
                 <div>
                   <h3 className="sp-prof-section-title" style={{ marginBottom: 16 }}>Pinned Projects</h3>
-                  
+
                   {store.projects.length === 0 ? (
                     <div style={{ padding: "32px 16px", border: "1px dashed rgba(255, 255, 255, 0.06)", borderRadius: 14, textAlign: "center", color: "#8e8e93", background: "rgba(20, 20, 22, 0.2)" }}>
                       No screenplays pinned yet. Create a project to pin it here.
@@ -891,9 +892,9 @@ export function ProfilePage({
                           <span style={{ marginLeft: 16 }}>Updated {getFormattedDate(p.dateModified)}</span>
                         </div>
                       </div>
-                      
-                      <button 
-                        className="sp-wd-edit-btn" 
+
+                      <button
+                        className="sp-wd-edit-btn"
                         style={{ width: "auto", fontSize: 12, padding: "8px 16px" }}
                         onClick={() => navigate(`/project/${p.id}`)}
                       >

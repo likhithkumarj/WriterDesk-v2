@@ -36,11 +36,11 @@ export function ProjectsScreen({
       if (saved) {
         try {
           const profile = JSON.parse(saved);
-          const hasEmptyField = 
-            !profile.roles || profile.roles.length === 0 || 
-            !profile.experienceLevel || 
-            !profile.productionHouseType || 
-            !profile.writeFrequency || 
+          const hasEmptyField =
+            !profile.roles || profile.roles.length === 0 ||
+            !profile.experienceLevel ||
+            !profile.productionHouseType ||
+            !profile.writeFrequency ||
             !profile.favoriteStoryteller;
           setProfileIncomplete(hasEmptyField);
         } catch (e) {
@@ -940,10 +940,10 @@ export function ProjectsScreen({
 
               {/* Profile Incomplete Banner */}
               {profileIncomplete && (
-                <div style={{ 
-                  padding: "12px 18px", 
-                  borderRadius: 12, 
-                  border: "1px solid rgba(245, 158, 11, 0.4)", 
+                <div style={{
+                  padding: "12px 18px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(245, 158, 11, 0.4)",
                   background: "rgba(245, 158, 11, 0.08)",
                   display: "flex",
                   alignItems: "center",
@@ -957,9 +957,9 @@ export function ProjectsScreen({
                       Tell us more about your creative roles and habits to unlock full workspace customization!
                     </span>
                   </div>
-                  <button 
-                    className="sp-ws-btn-gold" 
-                    style={{ padding: "6px 14px", fontSize: 12, background: "var(--sp-accent)", color: "#000" }} 
+                  <button
+                    className="sp-ws-btn-gold"
+                    style={{ padding: "6px 14px", fontSize: 12, background: "var(--sp-accent)", color: "#000" }}
                     onClick={onEditProfile}
                   >
                     Complete Profile
@@ -1065,13 +1065,13 @@ export function ProjectsScreen({
                             <div className="sp-db-project-action" onClick={(e) => handleMenuToggle(p.id, e)}>
                               <button className="sp-db-project-action-btn">⋯</button>
                               {openMenu?.id === p.id && (
-                                <div 
-                                  className="sp-menu" 
-                                  style={{ 
-                                    right: 0, 
+                                <div
+                                  className="sp-menu"
+                                  style={{
+                                    right: 0,
                                     zIndex: 100,
                                     ...(openMenu.openAbove ? { bottom: "calc(100% + 4px)", top: "auto" } : { top: "calc(100% + 4px)" })
-                                  }} 
+                                  }}
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <button onClick={() => { renameProject(p.id); setOpenMenu(null); }}>Rename</button>
@@ -1187,10 +1187,10 @@ export function ProjectsScreen({
 
           {/* Profile Incomplete Banner Mobile */}
           {profileIncomplete && (
-            <div style={{ 
-              padding: "14px 16px", 
-              borderRadius: 12, 
-              border: "1px solid rgba(245, 158, 11, 0.4)", 
+            <div style={{
+              padding: "14px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(245, 158, 11, 0.4)",
               background: "rgba(245, 158, 11, 0.08)",
               display: "flex",
               flexDirection: "column",
@@ -1201,9 +1201,9 @@ export function ProjectsScreen({
               <span style={{ fontSize: 12, color: "#fff", lineHeight: 1.4 }}>
                 Fill out your role and writing habits to unlock full workspace customization!
               </span>
-              <button 
-                className="sp-ws-btn-gold" 
-                style={{ width: "100%", padding: "8px 12px", fontSize: 12, background: "var(--sp-accent)", color: "#000", justifyContent: "center" }} 
+              <button
+                className="sp-ws-btn-gold"
+                style={{ width: "100%", padding: "8px 12px", fontSize: 12, background: "var(--sp-accent)", color: "#000", justifyContent: "center" }}
                 onClick={onEditProfile}
               >
                 Complete Profile
@@ -1225,8 +1225,8 @@ export function ProjectsScreen({
 
           {/* Mobile Tab Switcher */}
           <div style={{ display: "flex", gap: 8, marginBottom: 20, borderBottom: "1px solid #1c1c20", paddingBottom: 8 }}>
-            <button 
-              onClick={() => setActiveMobileTab("projects")} 
+            <button
+              onClick={() => setActiveMobileTab("projects")}
               style={{
                 flex: 1,
                 background: activeMobileTab === "projects" ? "rgba(var(--sp-accent-rgb), 0.08)" : "transparent",
@@ -1241,8 +1241,8 @@ export function ProjectsScreen({
             >
               Projects
             </button>
-            <button 
-              onClick={() => setActiveMobileTab("recent")} 
+            <button
+              onClick={() => setActiveMobileTab("recent")}
               style={{
                 flex: 1,
                 background: activeMobileTab === "recent" ? "rgba(var(--sp-accent-rgb), 0.08)" : "transparent",
@@ -1301,13 +1301,13 @@ export function ProjectsScreen({
                         <div className="sp-db-project-action" onClick={(e) => handleMenuToggle(p.id, e)} style={{ position: "relative" }}>
                           <button className="sp-db-project-action-btn" style={{ padding: "4px 6px" }}>⋯</button>
                           {openMenu?.id === p.id && (
-                            <div 
-                              className="sp-menu" 
-                              style={{ 
-                                right: 0, 
+                            <div
+                              className="sp-menu"
+                              style={{
+                                right: 0,
                                 zIndex: 100,
                                 ...(openMenu.openAbove ? { bottom: "calc(100% + 4px)", top: "auto" } : { top: "calc(100% + 4px)" })
-                              }} 
+                              }}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <button onClick={() => { renameProject(p.id); setOpenMenu(null); }}>Rename</button>
@@ -1326,7 +1326,7 @@ export function ProjectsScreen({
           ) : (
             /* Recent Files List */
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-              
+
               {/* Mobile activity calendar widget */}
               {user?.id && (
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>

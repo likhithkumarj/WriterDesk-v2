@@ -11,7 +11,7 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ userId }) =>
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch (e) {}
+      } catch (e) { }
     }
     return {};
   }, [userId]);
@@ -36,27 +36,27 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ userId }) =>
     const rows = 7;
     const grid = [];
     const totalCells = cols * rows;
-    
+
     for (let r = 0; r < rows; r++) {
       const row = [];
       for (let c = 0; c < cols; c++) {
         const cellIndex = c * 7 + r;
         const daysAgo = totalCells - 1 - cellIndex;
-        
+
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() - daysAgo);
         const y = targetDate.getFullYear();
         const m = String(targetDate.getMonth() + 1).padStart(2, "0");
         const d = String(targetDate.getDate()).padStart(2, "0");
         const dateStr = `${y}-${m}-${d}`;
-        
+
         const count = activityMap[dateStr] || 0;
         let level = 0;
         if (count >= 10) level = 4;
         else if (count >= 6) level = 3;
         else if (count >= 3) level = 2;
         else if (count >= 1) level = 1;
-        
+
         row.push({
           level,
           date: targetDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
@@ -70,7 +70,8 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ userId }) =>
 
   return (
     <div className="sp-wd-calendar-container">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .sp-wd-calendar-container {
           border: 1px solid rgba(255, 255, 255, 0.05);
           border-radius: 12px;
@@ -88,7 +89,7 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ userId }) =>
           align-items: center;
           margin-bottom: 8px;
           font-family: 'Outfit', sans-serif;
-          font-size: 11.5px;
+          font-size: 15px;
           color: #fff;
           gap: 6px;
         }
@@ -100,19 +101,18 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ userId }) =>
 
         .sp-wd-calendar-grid {
           display: grid;
-          grid-template-columns: repeat(5, 12px);
-          grid-template-rows: repeat(7, 12px);
-          gap: 4px;
+            grid-template-rows: repeat(4, 15px);
+    grid-template-columns: repeat(10, 15px);
+    gap: 2px;
           width: max-content;
         }
 
         .sp-wd-calendar-cell {
           width: 12px;
           height: 12px;
-          border-radius: 3px;
+          border-radius: 2px;
           background-color: rgba(255, 255, 255, 0.07);
           transition: all 0.2s ease;
-          cursor: help;
         }
 
         .sp-wd-calendar-cell:hover {
@@ -146,15 +146,15 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ userId }) =>
 
       <div className="sp-wd-calendar-header">
         <span><strong>{monthlyActivityCount}</strong> edits in the last 30 days</span>
-        <span style={{ fontSize: 11.5, color: "#8e8e93" }}>Writing Activity</span>
+        <div style={{ fontSize: 11.5, color: "#8e8e93" }}>Writing Activity</div>
       </div>
-      
+
       <div className="sp-wd-calendar-scroll">
         <div className="sp-wd-calendar-grid">
-          {contributionGrid.map((row, rIdx) => 
+          {contributionGrid.map((row, rIdx) =>
             row.map((cell, cIdx) => (
-              <div 
-                key={`${rIdx}-${cIdx}`} 
+              <div
+                key={`${rIdx}-${cIdx}`}
                 className={`sp-wd-calendar-cell level-${cell.level}`}
                 title={`${cell.count} save${cell.count === 1 ? "" : "s"} on ${cell.date}`}
               />

@@ -738,7 +738,7 @@ export function EditorScreen({
       editorRef.current.setAttribute("data-active-file-id", activeFile.id);
       
       // Save caret position if it was focused before rebuild
-      const activeEl = document.activeElement;
+      const activeEl = getSelectionBlock();
       const activeId = activeEl?.getAttribute("data-id");
       const cursorOffset = window.getSelection()?.rangeCount 
         ? window.getSelection()?.getRangeAt(0).startOffset 
@@ -783,10 +783,11 @@ export function EditorScreen({
     }
 
     // 2. Sync incoming edits/local formatting changes for lines the user is NOT currently focusing/editing
+    const activeBlockEl = getSelectionBlock();
     blocks.forEach((b) => {
       const el = editorRef.current?.querySelector(`[data-id="${b.id}"]`) as HTMLElement | null;
       if (el) {
-        const isActive = document.activeElement === el || el.contains(document.activeElement);
+        const isActive = activeBlockEl === el;
         if (!isActive) {
           if (el.innerHTML !== (b.text || "<br>")) {
             el.innerHTML = b.text || "<br>";
@@ -797,7 +798,7 @@ export function EditorScreen({
         }
       } else {
         // Safe full rebuild if blocks were added/deleted externally by a collaborator
-        const isEditing = document.activeElement === editorRef.current || (editorRef.current && editorRef.current.contains(document.activeElement));
+        const isEditing = activeBlockEl !== null;
         if (!isEditing && editorRef.current) {
           editorRef.current.innerHTML = blocks.map(b => 
             `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
@@ -1778,6 +1779,10 @@ export function EditorScreen({
                 className="sp-page sp-script-editor-canvas"
                 contentEditable={!readOnly}
                 suppressContentEditableWarning
+                spellCheck={false}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
                 onInput={handleContentInput}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
