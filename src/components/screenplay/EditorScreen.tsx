@@ -259,9 +259,35 @@ export function EditorScreen({
   }, []);
 
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem("writerdesk_autosave");
+    return saved !== "false"; // default to true
+  });
+
+  const toggleAutoSave = () => {
+    setAutoSaveEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem("writerdesk_autosave", String(next));
+      return next;
+    });
+  };
+
+  const activeFileRef = useRef(activeFile);
+  useEffect(() => { activeFileRef.current = activeFile; }, [activeFile]);
+
+  const blocksRef = useRef(blocks);
+  useEffect(() => { blocksRef.current = blocks; }, [blocks]);
+
+  const lastSavedBlocksRef = useRef<string>(JSON.stringify(activeFile.blocks));
+
+  // Reset lastSavedBlocksRef when file switches
+  useEffect(() => {
+    lastSavedBlocksRef.current = JSON.stringify(activeFile.blocks);
+  }, [activeFile.id, activeFile.blocks]);
 
   const saveManually = useCallback(() => {
     setSaveState("saving");
+    lastSavedBlocksRef.current = JSON.stringify(blocks);
     persistFile({ ...activeFile, blocks, dateModified: Date.now() });
     setSaveState("saved");
     const t = setTimeout(() => setSaveState("idle"), 2000);
@@ -270,9 +296,11 @@ export function EditorScreen({
 
   // Auto-save on block changes
   useEffect(() => {
+    if (!autoSaveEnabled) return;
     if (blocks === activeFile.blocks) return;
     setSaveState("saving");
     const timer = setTimeout(() => {
+      lastSavedBlocksRef.current = JSON.stringify(blocks);
       persistFile({ ...activeFile, blocks, dateModified: Date.now() });
       setSaveState("saved");
       const clearTimer = setTimeout(() => setSaveState("idle"), 2000);
@@ -280,13 +308,21 @@ export function EditorScreen({
     }, 2000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocks]);
+  }, [blocks, autoSaveEnabled]);
 
   // Real-time listener for file updates by other collaborators
   useEffect(() => {
     if (!supabaseService.isConfigured()) return;
     const channel = supabaseService.subscribeToFileChanges(activeFile.id, (newBlocks) => {
-      if (JSON.stringify(newBlocks) !== JSON.stringify(blocksRef.current)) {
+      const incomingStr = JSON.stringify(newBlocks);
+      
+      // 1. If the incoming blocks match what we just saved, it's our own echoed update -> IGNORE
+      if (incomingStr === lastSavedBlocksRef.current) {
+        return;
+      }
+
+      // 2. If it's different from our current local state, update it (remote collaborator update)
+      if (incomingStr !== JSON.stringify(blocksRef.current)) {
         dispatch({ type: "set", blocks: newBlocks });
         setSaveState("saved");
         setTimeout(() => setSaveState("idle"), 2000);
@@ -296,13 +332,6 @@ export function EditorScreen({
   }, [activeFile.id]);
 
   const setBlocks = useCallback((next: Block[]) => dispatch({ type: "set", blocks: next }), [dispatch]);
-
-  // ─── Flush current file to storage & switch in-place ───────────────────────
-  const activeFileRef = useRef(activeFile);
-  useEffect(() => { activeFileRef.current = activeFile; }, [activeFile]);
-
-  const blocksRef = useRef(blocks);
-  useEffect(() => { blocksRef.current = blocks; }, [blocks]);
 
   const switchFile = useCallback((fileId: string) => {
     if (fileId === activeFileId) return;
@@ -1112,7 +1141,12 @@ export function EditorScreen({
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {/* Save Status indicator */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-            {saveState === "saving" ? (
+            {!autoSaveEnabled && saveState === "idle" ? (
+              <>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#71717a" }} />
+                <span style={{ color: "var(--sp-muted)" }}>Manual Save Mode</span>
+              </>
+            ) : saveState === "saving" ? (
               <>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b" }} />
                 <span style={{ color: "var(--sp-muted)" }}>Saving...</span>
@@ -1211,6 +1245,40 @@ export function EditorScreen({
                 </button>
                 <div style={{ height: 1, background: "var(--sp-border)", margin: "4px 0" }} />
                 <button
+                  onClick={toggleAutoSave}
+                  style={{ justifyContent: "space-between" }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{
+                      display: "inline-block",
+                      width: 3,
+                      height: 14,
+                      borderRadius: 2,
+                      background: autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-border)",
+                      flexShrink: 0
+                    }} />
+                    Auto-Save Changes
+                  </span>
+                  <span style={{
+                    width: 16,
+                    height: 16,
+                    border: `2px solid ${autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-muted)"}`,
+                    borderRadius: 4,
+                    background: autoSaveEnabled ? "var(--sp-accent)" : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0
+                  }}>
+                    {autoSaveEnabled && (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </span>
+                </button>
+                <div style={{ height: 1, background: "var(--sp-border)", margin: "4px 0" }} />
+                <button
                   onClick={() => setShowBlockBars(v => !v)}
                   style={{ justifyContent: "space-between" }}
                 >
@@ -1300,6 +1368,10 @@ export function EditorScreen({
               <button className="sp-mobile-save-btn saving">
                 <span className="dot" /> Saving
               </button>
+            ) : !autoSaveEnabled && saveState === "idle" ? (
+              <button className="sp-mobile-save-btn" onClick={saveManually} style={{ background: "#2e2e38", color: "#fff" }}>
+                <span className="dot" style={{ background: "#71717a" }} /> Manual Save
+              </button>
             ) : (
               <button className="sp-mobile-save-btn saved" onClick={saveManually}>
                 <span className="dot" /> Saved
@@ -1326,6 +1398,40 @@ export function EditorScreen({
                   </button>
                   <button onClick={() => { setShowExport(true); setShowMenu(false); }}>
                     <Download size={14} /> Export Screenplay
+                  </button>
+                  <div style={{ height: 1, background: "var(--sp-border)", margin: "4px 0" }} />
+                  <button
+                    onClick={() => { toggleAutoSave(); setShowMenu(false); }}
+                    style={{ justifyContent: "space-between" }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        display: "inline-block",
+                        width: 3,
+                        height: 14,
+                        borderRadius: 2,
+                        background: autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-border)",
+                        flexShrink: 0
+                      }} />
+                      Auto-Save Changes
+                    </span>
+                    <span style={{
+                      width: 16,
+                      height: 16,
+                      border: `2px solid ${autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-muted)"}`,
+                      borderRadius: 4,
+                      background: autoSaveEnabled ? "var(--sp-accent)" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0
+                    }}>
+                      {autoSaveEnabled && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </span>
                   </button>
                 </div>
               )}
