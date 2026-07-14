@@ -467,6 +467,7 @@ export function EditorScreen({
       if (!editorRef.current) return;
       const nextBlocks: Block[] = [];
       const children = Array.from(editorRef.current.children);
+      const seenIds = new Set<string>();
       
       children.forEach((child) => {
         const el = child as HTMLElement;
@@ -476,11 +477,13 @@ export function EditorScreen({
           el.classList.add("sp-block");
         }
         
-        const id = el.getAttribute("data-id") || uid();
-        if (!el.getAttribute("data-id")) {
+        let id = el.getAttribute("data-id");
+        if (!id || seenIds.has(id)) {
+          id = uid();
           el.setAttribute("data-id", id);
           el.setAttribute("data-block-id", id);
         }
+        seenIds.add(id);
         
         let type = el.getAttribute("data-type") as BlockType || "action";
         let text = el.innerHTML || "";
