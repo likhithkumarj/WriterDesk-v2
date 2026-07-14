@@ -86,14 +86,27 @@ export function renderTitlePageHtml(tp: TitlePage) {
 export function printPDF(project: Project, files: FileDoc[], combined: boolean) {
   const w = window.open("", "_blank", "width=900,height=1200");
   if (!w) return;
-  const renderPages = (blocks: Block[]) => paginate(blocks).map((pageBlocks, pi) => `
-    <div class="sp-page">
-      ${pi > 0 ? `<div class="sp-page-number">${pi + 1}.</div>` : ""}
-      <div class="sp-page-inner">
-        ${pageBlocks.map((b) => `<div class="sp-block" data-type="${b.type}">${b.text}</div>`).join("")}
+
+  const cleanBlocks = (bl: Block[]) => {
+    let end = bl.length - 1;
+    while (end >= 0 && (!bl[end].text || !bl[end].text.trim())) {
+      end--;
+    }
+    return bl.slice(0, end + 1);
+  };
+
+  const renderPages = (blocks: Block[]) => {
+    const trimmed = cleanBlocks(blocks);
+    const paginated = paginate(trimmed.length > 0 ? trimmed : [{ id: uid(), type: "action" as BlockType, text: "" }]);
+    return paginated.map((pageBlocks, pi) => `
+      <div class="sp-page">
+        ${pi > 0 ? `<div class="sp-page-number">${pi + 1}.</div>` : ""}
+        <div class="sp-page-inner">
+          ${pageBlocks.map((b) => `<div class="sp-block" data-type="${b.type}">${b.text}</div>`).join("")}
+        </div>
       </div>
-    </div>
-  `).join("");
+    `).join("");
+  };
 
   let body = "";
   if (combined) {
@@ -105,10 +118,14 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
     body = files.map((f) => {
       const tp = f.titlePage?.title.trim() ? renderTitlePageHtml(f.titlePage) : "";
       return tp + renderPages(f.blocks);
-    }).join('<div style="page-break-after:always"></div>');
+    }).join('');
   }
 
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"/><title>${escapeHtml(project.title)}</title>
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <title>${escapeHtml(project.title)}</title>
     <style>
       ${GLOBAL_STYLE}
       /* Override any viewport media queries to force standard A4 layout */
@@ -116,17 +133,19 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
         background: #ffffff !important;
         padding: 0 !important;
         gap: 0 !important;
+        display: block !important;
+        height: auto !important;
       }
       .sp-page-wrapper {
-        width: 794px !important;
-        height: 1123px !important;
+        width: 210mm !important;
+        height: 297mm !important;
         display: block !important;
         page-break-after: always !important;
         transform: none !important;
       }
       .sp-page {
-        width: 794px !important;
-        height: 1123px !important;
+        width: 210mm !important;
+        height: 297mm !important;
         transform: none !important;
         border: none !important;
         box-shadow: none !important;
@@ -137,30 +156,31 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
       }
       .sp-page-inner {
         position: absolute !important;
-        top: 72px !important;
-        left: 108px !important;
-        right: 72px !important;
-        bottom: 54px !important;
+        top: 19mm !important;
+        left: 28.5mm !important;
+        right: 19mm !important;
+        bottom: 14mm !important;
         padding: 0 !important;
         background: transparent !important;
       }
       .sp-block {
+        font-family: 'Courier Prime', 'Courier New', Courier, monospace !important;
         font-size: 16px !important;
         padding: 2px 4px !important;
-        border-left: 3px solid transparent !important;
-        margin-left: -7px !important;
+        border-left: none !important;
+        margin-left: 0 !important;
       }
-      .sp-block.no-bars {
-        border-left-color: transparent !important;
+      .sp-block[data-type="scene"]        { font-weight: 700 !important; text-transform: uppercase !important; margin-top: 1.5em !important; margin-left: 0 !important; }
+      .sp-block[data-type="action"]       { margin-left: 4ch !important; margin-top: 0.75em !important; }
+      .sp-block[data-type="character"]    { margin-left: 24ch !important; text-transform: uppercase !important; margin-top: 1em !important; }
+      .sp-block[data-type="parenthetical"]{ margin-left: 18ch !important; }
+      .sp-block[data-type="dialogue"]     { margin-left: 10ch !important; max-width: 35ch !important; }
+      .sp-page:last-child {
+        page-break-after: avoid !important;
       }
-      .sp-block[data-type="scene"]        { border-left-color: var(--sp-accent) !important; font-weight: 700 !important; text-transform: uppercase !important; margin-top: 1.5em !important; margin-left: -7px !important; }
-      .sp-block[data-type="action"]       { border-left-color: #9CA3AF !important; margin-left: calc(4ch - 7px) !important; margin-top: 0.75em !important; }
-      .sp-block[data-type="character"]    { border-left-color: #60A5FA !important; margin-left: calc(24ch - 7px) !important; text-transform: uppercase !important; margin-top: 1em !important; }
-      .sp-block[data-type="parenthetical"]{ border-left-color: #34D399 !important; margin-left: calc(18ch - 7px) !important; }
-      .sp-block[data-type="dialogue"]     { border-left-color: #E5E7EB !important; margin-left: calc(10ch - 7px) !important; max-width: 35ch !important; }
     </style>
   </head><body><div class="sp-canvas">${body}</div>
-  <script>setTimeout(()=>{window.print();},300);</script>
+  <script>setTimeout(()=>{window.print();},600);</script>
   </body></html>`);
   w.document.close();
 }

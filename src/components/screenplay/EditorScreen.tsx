@@ -17,7 +17,7 @@ import { supabaseService } from "../../utils/supabaseService";
 import { 
   ChevronLeft, Undo2, Redo2, Search, Maximize2, Minimize2, Eye, EyeOff, 
   Film, FileText, User, MessageSquare, AlertCircle, Trash2, Mail, CheckCircle, Clock, 
-  Share2, Download, MoreHorizontal, Save, Check, Loader2, Bold, Italic, Underline, MessageCircle, Users, Menu, Settings, List, X, Send, Lightbulb
+  Share2, Download, MoreHorizontal, Save, Check, Loader2, Bold, Italic, Underline, MessageCircle, Users, Menu, Settings, List, X, Send, Lightbulb, Pencil
 } from "lucide-react";
 import { Avatar } from "./Avatar";
 
@@ -364,6 +364,58 @@ export function EditorScreen({
     setBlocks(blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)));
   };
 
+  const handleRenameCharacter = async (oldName: string, newName: string | null) => {
+    if (readOnly || !newName) return;
+    const cleanOld = oldName.trim().toUpperCase();
+    const cleanNew = newName.trim().toUpperCase();
+    if (!cleanNew || cleanOld === cleanNew) return;
+
+    let confirmed = false;
+    const msg = `Are you sure you want to rename character "${cleanOld}" to "${cleanNew}" across the entire script?`;
+    if ((window as any).customConfirm) {
+      confirmed = await (window as any).customConfirm(msg, "Rename Character");
+    } else {
+      confirmed = window.confirm(msg);
+    }
+    if (!confirmed) return;
+
+    const updatedBlocks = blocks.map((b) => {
+      if (b.type === "character") {
+        const text = b.text || "";
+        const match = text.match(/^([^(]+)(\(.*\))?$/);
+        if (match) {
+          const cleanName = match[1].trim().toUpperCase();
+          const paren = match[2] || "";
+          if (cleanName === cleanOld) {
+            const separator = paren ? " " : "";
+            return { ...b, text: `${cleanNew}${separator}${paren}`.trim() };
+          }
+        }
+      }
+      return b;
+    });
+
+    const children = Array.from(editorRef.current?.children || []);
+    children.forEach((child) => {
+      const el = child as HTMLElement;
+      if (el.getAttribute("data-type") === "character") {
+        const text = el.innerText || "";
+        const match = text.match(/^([^(]+)(\(.*\))?$/);
+        if (match) {
+          const cleanName = match[1].trim().toUpperCase();
+          const paren = match[2] || "";
+          if (cleanName === cleanOld) {
+            const separator = paren ? " " : "";
+            el.innerText = `${cleanNew}${separator}${paren}`.trim();
+          }
+        }
+      }
+    });
+
+    setBlocks(updatedBlocks);
+    handleContentInput(true);
+  };
+
   const applyFormat = (command: "bold" | "italic" | "underline") => {
     if (readOnly) return;
     document.execCommand(command);
@@ -433,13 +485,19 @@ export function EditorScreen({
   const isUndoRedoRef = useRef(false);
 
   const handleUndo = () => {
-    handleContentInput(true);
+    if (debouncedInputSync.current) {
+      clearTimeout(debouncedInputSync.current);
+      debouncedInputSync.current = null;
+    }
     isUndoRedoRef.current = true;
     dispatch({ type: "undo" });
   };
 
   const handleRedo = () => {
-    handleContentInput(true);
+    if (debouncedInputSync.current) {
+      clearTimeout(debouncedInputSync.current);
+      debouncedInputSync.current = null;
+    }
     isUndoRedoRef.current = true;
     dispatch({ type: "redo" });
   };
@@ -536,6 +594,18 @@ export function EditorScreen({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (readOnly) {
       e.preventDefault();
+      return;
+    }
+
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) {
+      e.preventDefault();
+      handleUndo();
+      return;
+    }
+    if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) {
+      e.preventDefault();
+      handleRedo();
       return;
     }
 
@@ -768,6 +838,15 @@ export function EditorScreen({
     
     const children = Array.from(editorRef.current.children);
     
+    // Calculate page start block IDs
+    const pagesList = paginate(blocks);
+    const pageStartIds = new Map<string, number>();
+    pagesList.forEach((pageBlocks, pi) => {
+      if (pi > 0 && pageBlocks.length > 0) {
+        pageStartIds.set(pageBlocks[0].id, pi + 1);
+      }
+    });
+
     // 1. Rebuild editor DOM on file switch, initial render, or explicit undo/redo
     if (children.length === 0 || 
         activeFile.id !== editorRef.current.getAttribute("data-active-file-id") ||
@@ -782,9 +861,11 @@ export function EditorScreen({
         ? window.getSelection()?.getRangeAt(0).startOffset 
         : 0;
       
-      editorRef.current.innerHTML = blocks.map(b => 
-        `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
-      ).join("");
+      editorRef.current.innerHTML = blocks.map(b => {
+        const pageNum = pageStartIds.get(b.id);
+        const pageAttr = pageNum ? ` data-page-start="${pageNum}"` : "";
+        return `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}"${pageAttr}>${b.text || "<br>"}</div>`;
+      }).join("");
 
       isUndoRedoRef.current = false;
 
@@ -826,9 +907,34 @@ export function EditorScreen({
     }
 
     const activeBlockEl = getSelectionBlock();
+    const stateIds = new Set(blocks.map((b) => b.id));
+    const domMap = new Map<string, HTMLElement>();
+
+    // Clean up DOM elements that were deleted in state, and index the rest
+    const currentChildren = Array.from(editorRef.current.children);
+    currentChildren.forEach((child) => {
+      const el = child as HTMLElement;
+      const id = el.getAttribute("data-id");
+      if (id) {
+        if (!stateIds.has(id)) {
+          el.remove();
+        } else {
+          domMap.set(id, el);
+        }
+      }
+    });
+
     blocks.forEach((b) => {
-      const el = editorRef.current?.querySelector(`[data-id="${b.id}"]`) as HTMLElement | null;
+      const el = domMap.get(b.id);
       if (el) {
+        // Enforce page start attributes
+        const pageNum = pageStartIds.get(b.id);
+        if (pageNum) {
+          el.setAttribute("data-page-start", pageNum.toString());
+        } else {
+          el.removeAttribute("data-page-start");
+        }
+
         const isActive = activeBlockEl === el;
         if (!isActive) {
           if (el.innerHTML !== (b.text || "<br>")) {
@@ -842,9 +948,11 @@ export function EditorScreen({
         // Safe full rebuild if blocks were added/deleted externally by a collaborator
         const isEditing = activeBlockEl !== null;
         if (!isEditing && editorRef.current) {
-          editorRef.current.innerHTML = blocks.map(b => 
-            `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
-          ).join("");
+          editorRef.current.innerHTML = blocks.map(b => {
+            const pageNum = pageStartIds.get(b.id);
+            const pageAttr = pageNum ? ` data-page-start="${pageNum}"` : "";
+            return `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}"${pageAttr}>${b.text || "<br>"}</div>`;
+          }).join("");
         }
       }
     });
@@ -1892,7 +2000,7 @@ export function EditorScreen({
 
           {/* C. Physical sheet pagination canvas */}
           <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, overflowY: "auto", padding: "24px 0", ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
-            <div className="sp-page-wrapper" style={{ margin: "0 auto 40px auto", width: "794px" }}>
+            <div className="sp-page-wrapper" style={{ margin: "0 auto 40px auto", width: "794px", height: "auto" }}>
               <div
                 ref={editorRef}
                 className="sp-page sp-script-editor-canvas"
@@ -2062,15 +2170,43 @@ export function EditorScreen({
                         <div key={name} style={{ 
                           display: "flex", 
                           alignItems: "center", 
-                          gap: 8, 
+                          justifyContent: "space-between",
                           padding: "8px 12px", 
                           border: "1px solid var(--sp-border)", 
                           borderRadius: 8, 
                           background: "#16161a", 
                           marginBottom: 6 
                         }}>
-                          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#60A5FA" }} />
-                          <span style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", color: "#fff" }}>{name}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#60A5FA" }} />
+                            <span style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", color: "#fff" }}>{name}</span>
+                          </div>
+                          {!readOnly && (
+                            <button
+                              onClick={() => {
+                                const newName = window.prompt(`Rename character "${name}" to:`, name);
+                                if (newName) {
+                                  handleRenameCharacter(name, newName);
+                                }
+                              }}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "var(--sp-muted)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: "4px",
+                                borderRadius: 4,
+                                transition: "all 0.15s ease",
+                              }}
+                              className="sp-char-edit-btn"
+                              title="Rename character across script"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>

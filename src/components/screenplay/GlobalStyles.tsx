@@ -85,6 +85,60 @@ body {
 /* When vertical bars are toggled off */
 .sp-block.no-bars { border-left-color: transparent !important; }
 
+/* Visual page breaks inside editor */
+.sp-block[data-page-start] {
+  margin-top: 48px !important;
+  position: relative !important;
+}
+.sp-block[data-page-start]::before {
+  content: "PAGE " attr(data-page-start);
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #18181c;
+  color: #efeff1;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid #232329;
+  z-index: 10;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+.sp-block[data-page-start]::after {
+  content: "";
+  position: absolute;
+  top: -36px;
+  width: 794px !important;
+  height: 24px;
+  background: var(--sp-bg, #0f0f11) !important;
+  border-top: 1px solid var(--sp-border, #232329);
+  border-bottom: 1px solid var(--sp-border, #232329);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Offset left positions for visual page gap depending on block type indentation */
+.sp-block[data-page-start][data-type="scene"]::after {
+  left: -102px !important;
+}
+.sp-block[data-page-start][data-type="action"]::after {
+  left: calc(-102px - 4ch) !important;
+}
+.sp-block[data-page-start][data-type="character"]::after {
+  left: calc(-102px - 24ch) !important;
+}
+.sp-block[data-page-start][data-type="parenthetical"]::after {
+  left: calc(-102px - 18ch) !important;
+}
+.sp-block[data-page-start][data-type="dialogue"]::after {
+  left: calc(-102px - 10ch) !important;
+}
+
 .sp-more { margin-left: 20ch; }
 
 .sp-type-pill {
@@ -1003,15 +1057,15 @@ body {
 @media print {
   body { background: #fff !important; }
   .sp-no-print { display: none !important; }
-  .sp-canvas { padding: 0 !important; gap: 0 !important; background: #fff !important; }
+  .sp-canvas { padding: 0 !important; gap: 0 !important; background: #fff !important; display: block !important; height: auto !important; }
   .sp-page-wrapper {
-    width: 794px !important;
-    height: 1123px !important;
+    width: 210mm !important;
+    height: 297mm !important;
   }
   .sp-page {
-    width: 794px !important;
-    height: 1123px !important;
-    min-height: 1123px !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
     box-shadow: none !important; border: none !important;
     page-break-after: always; margin: 0 !important;
     transform: none !important;
@@ -1019,10 +1073,10 @@ body {
   }
   .sp-page-inner {
     position: absolute !important;
-    top: 72px !important;
-    left: 108px !important;
-    right: 72px !important;
-    bottom: 54px !important;
+    top: 19mm !important;
+    left: 28.5mm !important;
+    right: 19mm !important;
+    bottom: 14mm !important;
     padding: 0 !important;
     min-height: auto !important;
     display: block !important;
@@ -1036,6 +1090,16 @@ body {
   .sp-block[data-type="character"]    { margin-left: calc(24ch - 7px) !important; max-width: 100% !important; }
   .sp-block[data-type="parenthetical"]{ margin-left: calc(18ch - 7px) !important; max-width: 100% !important; }
   .sp-block[data-type="dialogue"]     { margin-left: calc(10ch - 7px) !important; max-width: 35ch !important; }
+  .sp-block[data-page-start]::before,
+  .sp-block[data-page-start]::after {
+    display: none !important;
+  }
+  .sp-block[data-page-start] {
+    margin-top: 0 !important;
+  }
+  .sp-page:last-child {
+    page-break-after: avoid !important;
+  }
   @page { size: A4; margin: 0; }
 }
 `;
