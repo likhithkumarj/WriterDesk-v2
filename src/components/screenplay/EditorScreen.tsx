@@ -336,6 +336,7 @@ export function EditorScreen({
   const switchFile = useCallback((fileId: string) => {
     if (fileId === activeFileId) return;
     // 1. Flush pending edits for current file
+    handleContentInput(true);
     const cur = activeFileRef.current;
     persistFile({ ...cur, blocks: blocksRef.current, dateModified: Date.now() });
     // 2. Find target file
@@ -432,11 +433,13 @@ export function EditorScreen({
   const isUndoRedoRef = useRef(false);
 
   const handleUndo = () => {
+    handleContentInput(true);
     isUndoRedoRef.current = true;
     dispatch({ type: "undo" });
   };
 
   const handleRedo = () => {
+    handleContentInput(true);
     isUndoRedoRef.current = true;
     dispatch({ type: "redo" });
   };
@@ -446,6 +449,7 @@ export function EditorScreen({
     if (el) {
       const id = el.getAttribute("data-id");
       if (id && id !== focusedId) {
+        handleContentInput(true);
         setFocusedId(id);
       }
     }
@@ -508,8 +512,10 @@ export function EditorScreen({
       
       // Save stringify comparison CPU time
       if (JSON.stringify(blocksRef.current) !== JSON.stringify(finalBlocks)) {
+        blocksRef.current = finalBlocks;
         setBlocks(finalBlocks);
       }
+      debouncedInputSync.current = null;
     };
 
     if (debouncedInputSync.current) {
@@ -812,6 +818,10 @@ export function EditorScreen({
     }
 
     // 2. Sync incoming edits/local formatting changes for lines the user is NOT currently focusing/editing
+    if (debouncedInputSync.current !== null) {
+      return;
+    }
+
     const activeBlockEl = getSelectionBlock();
     blocks.forEach((b) => {
       const el = editorRef.current?.querySelector(`[data-id="${b.id}"]`) as HTMLElement | null;
@@ -1892,6 +1902,7 @@ export function EditorScreen({
                   autocapitalize: "off"
                 }}
                 onInput={handleContentInput}
+                onBlur={() => handleContentInput(true)}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 onKeyUp={handleSelectionUpdate}
