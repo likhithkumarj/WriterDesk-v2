@@ -2,10 +2,12 @@ import { Block, BlockType } from "../types/screenplay";
 import { uid } from "./uid";
 
 const SCENE_RE = /^(INT|EXT|EST|INT\.?\/EXT|I\/E)[\.\s]/i;
+const TITLE_PAGE_KEYS = /^(title|author|authors|source|credit|draft date|contact|notes):\s/i;
+
 export function parseFountain(src: string): Block[] {
   const lines = src.replace(/\r\n/g, "\n").split("\n");
   let i = 0;
-  if (lines[0] && /^[A-Za-z][A-Za-z ]*:\s/.test(lines[0])) {
+  if (lines[0] && TITLE_PAGE_KEYS.test(lines[0])) {
     while (i < lines.length && lines[i].trim() !== "") i++;
     while (i < lines.length && lines[i].trim() === "") i++;
   }
@@ -22,6 +24,20 @@ export function parseFountain(src: string): Block[] {
       out.push({ id: uid(), type: "scene", text: line.toUpperCase() });
       lastType = "scene"; prevBlank = false; i++; continue;
     }
+    
+    // Parse character name and dialogue format (e.g. Likhith: Hello)
+    const colonMatch = line.match(/^([A-Za-z][A-Za-z0-9\s()]*):\s*(.*)$/);
+    if (colonMatch) {
+      const charName = colonMatch[1].trim().toUpperCase();
+      const dialogueText = colonMatch[2].trim();
+      out.push({ id: uid(), type: "character", text: charName });
+      out.push({ id: uid(), type: "dialogue", text: dialogueText });
+      lastType = "dialogue";
+      prevBlank = false;
+      i++;
+      continue;
+    }
+
     if ((lastType === "character" || lastType === "dialogue") && line.startsWith("(") && line.endsWith(")")) {
       out.push({ id: uid(), type: "parenthetical", text: line });
       lastType = "parenthetical"; prevBlank = false; i++; continue;

@@ -46,6 +46,46 @@ body {
   transform: scale(var(--page-scale, 1));
   transform-origin: top left;
 }
+.sp-script-editor-canvas {
+  height: auto !important;
+  background-color: transparent !important;
+  background-image: 
+    /* Top border of page sheet */
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+    /* Left border of page sheet */
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 1123px, transparent 1123px),
+    /* Right border of page sheet */
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 1123px, transparent 1123px),
+    /* Bottom shadow of page sheet */
+    linear-gradient(to bottom, transparent 1115px, rgba(0, 0, 0, 0.08) 1120px, rgba(0, 0, 0, 0.18) 1123px, transparent 1123px),
+    /* Bottom border of page sheet */
+    linear-gradient(to bottom, transparent 1122px, rgba(0, 0, 0, 0.08) 1123px, transparent 1123px),
+    /* White page background */
+    linear-gradient(to bottom, #ffffff 1123px, transparent 1123px) !important;
+  background-size: 
+    794px 1163px, /* Top border */
+    1px 1163px,   /* Left border */
+    1px 1163px,   /* Right border */
+    794px 1163px, /* Bottom shadow */
+    794px 1163px, /* Bottom border */
+    794px 1163px  /* Page background */ !important;
+  background-repeat: 
+    repeat-y, 
+    repeat-y, 
+    repeat-y, 
+    repeat-y, 
+    repeat-y, 
+    repeat-y !important;
+  background-position: 
+    0px 0px, 
+    0px 0px, 
+    793px 0px, 
+    0px 0px, 
+    0px 0px, 
+    0px 0px !important;
+  box-shadow: none !important;
+  border: none !important;
+}
 .sp-page-inner {
   position: absolute;
   top: 72px;
@@ -87,7 +127,6 @@ body {
 
 /* Visual page breaks inside editor */
 .sp-block[data-page-start] {
-  margin-top: 48px !important;
   position: relative !important;
 }
 .sp-block[data-page-start]::before {
@@ -105,16 +144,7 @@ body {
   z-index: 10;
 }
 .sp-block[data-page-start]::after {
-  content: "";
-  position: absolute;
-  top: -36px;
-  width: 794px !important;
-  height: 24px;
-  background: var(--sp-bg, #0f0f11) !important;
-  border-top: 1px solid var(--sp-border, #232329);
-  border-bottom: 1px solid var(--sp-border, #232329);
-  z-index: 5;
-  pointer-events: none;
+  display: none !important;
 }
 
 /* Offset left positions for visual page gap and page number depending on block type indentation */

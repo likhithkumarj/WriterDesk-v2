@@ -166,15 +166,20 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
     });
 
     const blockEls = Array.from(measureDiv.querySelectorAll(".sp-print-block")) as HTMLElement[];
-    const maxHeight = 979; // A4 height content area: 1123px - (72px padding top + 72px padding bottom) = 979px
+    const maxHeight = 931; // A4 height content area: 1123px - (96px padding top + 96px padding bottom) = 931px
     let currentHeight = 0;
     const pageGroupings: HTMLElement[][] = [[]];
 
     for (let i = 0; i < blockEls.length; i++) {
       const el = blockEls[i];
       const type = el.getAttribute("data-type") || "action";
-      const h = el.offsetHeight;
-
+      
+      let marginTop = 0;
+      if (type === "scene") marginTop = 24;
+      else if (type === "action") marginTop = 12;
+      else if (type === "character") marginTop = 16;
+      
+      const h = el.offsetHeight + marginTop;
       let neededHeight = h;
 
       // Protection rules
@@ -182,24 +187,45 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
         const nextEl = blockEls[i + 1];
         const afterNextEl = blockEls[i + 2];
         if (nextEl) {
-          const nextType = nextEl.getAttribute("data-type");
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 24;
+          else if (nextType === "action") nextMargin = 12;
+          else if (nextType === "character") nextMargin = 16;
+
           if (nextType === "parenthetical" && afterNextEl) {
-            neededHeight += nextEl.offsetHeight + afterNextEl.offsetHeight;
+            const afterNextType = afterNextEl.getAttribute("data-type") || "action";
+            let afterNextMargin = 0;
+            if (afterNextType === "scene") afterNextMargin = 24;
+            else if (afterNextType === "action") afterNextMargin = 12;
+            else if (afterNextType === "character") afterNextMargin = 16;
+
+            neededHeight += (nextEl.offsetHeight + nextMargin) + (afterNextEl.offsetHeight + afterNextMargin);
           } else {
-            neededHeight += nextEl.offsetHeight;
+            neededHeight += (nextEl.offsetHeight + nextMargin);
           }
         }
       }
       if (type === "parenthetical") {
         const nextEl = blockEls[i + 1];
         if (nextEl) {
-          neededHeight += nextEl.offsetHeight;
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 24;
+          else if (nextType === "action") nextMargin = 12;
+          else if (nextType === "character") nextMargin = 16;
+          neededHeight += (nextEl.offsetHeight + nextMargin);
         }
       }
       if (type === "scene") {
         const nextEl = blockEls[i + 1];
         if (nextEl) {
-          neededHeight += nextEl.offsetHeight;
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 24;
+          else if (nextType === "action") nextMargin = 12;
+          else if (nextType === "character") nextMargin = 16;
+          neededHeight += (nextEl.offsetHeight + nextMargin);
         }
       }
 
@@ -222,7 +248,7 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
           }
 
           pageGroupings.push([el]);
-          currentHeight = h;
+          currentHeight = 0; // Dialogue split, next block starts fresh on the next page
         } else {
           pageGroupings.push([el]);
           currentHeight = h;
@@ -292,13 +318,14 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
     }
     
     .sp-print-page {
-      width: 794px;
-      height: 1123px;
-      padding: 72px 72px 72px 108px;
+      width: 210mm;
+      height: 297mm;
+      padding: 25.4mm 25.4mm 25.4mm 38.1mm;
       box-sizing: border-box;
       position: relative;
       page-break-after: always;
       background: #ffffff;
+      overflow: hidden;
     }
     
     .sp-print-page:last-child {
@@ -307,16 +334,16 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
     
     .sp-print-page-number {
       position: absolute;
-      top: 36px;
-      right: 72px;
+      top: 12.7mm;
+      right: 25.4mm;
       font-size: 16px;
       color: #000000;
     }
     
     .sp-print-tp {
-      width: 794px;
-      height: 1123px;
-      padding: 72px 108px;
+      width: 210mm;
+      height: 297mm;
+      padding: 25.4mm 38.1mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
@@ -325,6 +352,7 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
       position: relative;
       page-break-after: always;
       background: #ffffff;
+      overflow: hidden;
     }
     
     .sp-print-tp-title {
@@ -333,7 +361,7 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
       font-size: 20px;
       font-weight: bold;
       text-decoration: underline;
-      margin-top: 250px;
+      margin-top: 75mm;
       margin-bottom: 24px;
     }
     
@@ -363,7 +391,7 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
       width: 100%;
       font-size: 14px;
       margin-top: auto;
-      padding-bottom: 50px;
+      padding-bottom: 15mm;
     }
     
     .sp-print-block {

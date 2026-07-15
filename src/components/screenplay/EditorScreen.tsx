@@ -647,11 +647,19 @@ export function EditorScreen({
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
     const text = e.clipboardData.getData("text/plain");
     if (!text) return;
 
-    // Parse the pasted text using parseFountain
+    // If it's a single-line paste (no newlines), let the browser handle it natively inline!
+    if (!text.includes("\n") && !text.includes("\r")) {
+      // Do not prevent default, let browser insert it at the cursor caret
+      return;
+    }
+
+    // Otherwise, it's a multi-line paste (Fountain or multi-line text).
+    // Prevent default so we can parse and split into screenplay blocks.
+    e.preventDefault();
+
     const parsedBlocks = parseFountain(text);
     if (parsedBlocks.length === 0) return;
 
@@ -744,19 +752,29 @@ export function EditorScreen({
       }
     } else {
       // Split the current block's content at the cursor
-      const preRange = range.cloneRange();
-      preRange.selectNodeContents(currentBlock);
-      preRange.setEnd(range.startContainer, range.startOffset);
-      const preHtml = document.createElement("div");
-      preHtml.appendChild(preRange.cloneContents());
-      const beforeText = preHtml.innerHTML;
+      let beforeText = "";
+      let afterText = "";
 
-      const postRange = range.cloneRange();
-      postRange.selectNodeContents(currentBlock);
-      postRange.setStart(range.endContainer, range.endOffset);
-      const postHtml = document.createElement("div");
-      postHtml.appendChild(postRange.cloneContents());
-      const afterText = postHtml.innerHTML;
+      try {
+        const preRange = range.cloneRange();
+        preRange.selectNodeContents(currentBlock);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        const preHtml = document.createElement("div");
+        preHtml.appendChild(preRange.cloneContents());
+        beforeText = preHtml.innerHTML;
+
+        const postRange = range.cloneRange();
+        postRange.selectNodeContents(currentBlock);
+        postRange.setStart(range.endContainer, range.endOffset);
+        const postHtml = document.createElement("div");
+        postHtml.appendChild(postRange.cloneContents());
+        afterText = postHtml.innerHTML;
+      } catch (err) {
+        // Fallback if range selection splitting fails
+        console.error("Range split error, using fallback paste", err);
+        beforeText = currentBlock.innerHTML;
+        afterText = "";
+      }
 
       // Update the current block with the first part of the text
       currentBlock.innerHTML = beforeText || "<br>";
@@ -842,17 +860,26 @@ export function EditorScreen({
       el.removeAttribute("data-page-start");
       el.removeAttribute("data-split-more");
       el.removeAttribute("data-split-contd");
+      el.style.marginTop = "";
     });
 
-    const maxHeight = 931; // A4 page usable height at 96 DPI: 1123px - (96px top + 96px bottom padding) = 931px
+    const maxHeight = 931; // A4 height content area: 1123px - (96px padding top + 96px padding bottom) = 931px
     let currentHeight = 0;
     let pageCount = 1;
 
     for (let i = 0; i < children.length; i++) {
       const el = children[i];
       const type = el.getAttribute("data-type") || "action";
-      const h = el.offsetHeight;
+      const isPageStart = i === 0 || el.hasAttribute("data-page-start");
 
+      let marginTop = 0;
+      if (!isPageStart) {
+        if (type === "scene") marginTop = 24;
+        else if (type === "action") marginTop = 12;
+        else if (type === "character") marginTop = 16;
+      }
+
+      const h = el.offsetHeight + marginTop;
       let neededHeight = h;
 
       // Protection Rule 1: Never break a character node from the dialogue/parenthetical node that follows it
@@ -860,11 +887,22 @@ export function EditorScreen({
         const nextEl = children[i + 1];
         const afterNextEl = children[i + 2];
         if (nextEl) {
-          const nextType = nextEl.getAttribute("data-type");
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 24;
+          else if (nextType === "action") nextMargin = 12;
+          else if (nextType === "character") nextMargin = 16;
+
           if (nextType === "parenthetical" && afterNextEl) {
-            neededHeight += nextEl.offsetHeight + afterNextEl.offsetHeight;
+            const afterNextType = afterNextEl.getAttribute("data-type") || "action";
+            let afterNextMargin = 0;
+            if (afterNextType === "scene") afterNextMargin = 24;
+            else if (afterNextType === "action") afterNextMargin = 12;
+            else if (afterNextType === "character") afterNextMargin = 16;
+
+            neededHeight += (nextEl.offsetHeight + nextMargin) + (afterNextEl.offsetHeight + afterNextMargin);
           } else {
-            neededHeight += nextEl.offsetHeight;
+            neededHeight += (nextEl.offsetHeight + nextMargin);
           }
         }
       }
@@ -873,7 +911,12 @@ export function EditorScreen({
       if (type === "parenthetical") {
         const nextEl = children[i + 1];
         if (nextEl) {
-          neededHeight += nextEl.offsetHeight;
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 24;
+          else if (nextType === "action") nextMargin = 12;
+          else if (nextType === "character") nextMargin = 16;
+          neededHeight += (nextEl.offsetHeight + nextMargin);
         }
       }
 
@@ -881,7 +924,12 @@ export function EditorScreen({
       if (type === "scene") {
         const nextEl = children[i + 1];
         if (nextEl) {
-          neededHeight += nextEl.offsetHeight;
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 24;
+          else if (nextType === "action") nextMargin = 12;
+          else if (nextType === "character") nextMargin = 16;
+          neededHeight += (nextEl.offsetHeight + nextMargin);
         }
       }
 
@@ -903,14 +951,20 @@ export function EditorScreen({
           const nextEl = children[i + 1];
           if (nextEl) {
             nextEl.setAttribute("data-page-start", pageCount.toString());
+            // Align next element with top of next page in repeating background grid
+            const marginOffset = 1123 - (currentHeight + h) + 40;
+            nextEl.style.marginTop = `${marginOffset}px`;
             if (nextEl.getAttribute("data-type") === "dialogue") {
               nextEl.setAttribute("data-split-contd", charName);
             }
           }
-          currentHeight = h;
+          currentHeight = 0; // Dialogue split, nextEl is page start, resets height track
         } else {
           pageCount++;
           el.setAttribute("data-page-start", pageCount.toString());
+          // Align this element with top of next page in repeating background grid
+          const marginOffset = 1123 - currentHeight + 40;
+          el.style.marginTop = `${marginOffset}px`;
           currentHeight = h;
         }
       } else {
@@ -2095,7 +2149,7 @@ export function EditorScreen({
                   outline: "none",
                   height: "auto",
                   minHeight: "1123px",
-                  padding: "72px 72px 72px 108px",
+                  padding: "96px 96px 96px 144px",
                   boxSizing: "border-box"
                 }}
               />
