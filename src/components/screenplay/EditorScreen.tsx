@@ -14,9 +14,9 @@ import { TitlePageModal } from "../modals/TitlePageModal";
 import { ShareModal } from "../modals/ShareModal";
 import { supabase } from "../../utils/supabaseClient";
 import { supabaseService } from "../../utils/supabaseService";
-import { 
-  ChevronLeft, Undo2, Redo2, Search, Maximize2, Minimize2, Eye, EyeOff, 
-  Film, FileText, User, MessageSquare, AlertCircle, Trash2, Mail, CheckCircle, Clock, 
+import {
+  ChevronLeft, Undo2, Redo2, Search, Maximize2, Minimize2, Eye, EyeOff,
+  Film, FileText, User, MessageSquare, AlertCircle, Trash2, Mail, CheckCircle, Clock,
   Share2, Download, MoreHorizontal, Save, Check, Loader2, Bold, Italic, Underline, MessageCircle, Users, Menu, Settings, List, X, Send, Lightbulb, Pencil
 } from "lucide-react";
 import { Avatar } from "./Avatar";
@@ -60,12 +60,12 @@ interface Comment {
 
 export function EditorScreen({
   project, initialFileId, user, back, persistFile, addFiles, readOnly = false,
-}: { 
-  project: Project; 
+}: {
+  project: Project;
   initialFileId: string;
-  user: { name: string; email: string; avatar: string }; 
-  back: () => void; 
-  persistFile: (f: FileDoc) => void; 
+  user: { name: string; email: string; avatar: string };
+  back: () => void;
+  persistFile: (f: FileDoc) => void;
   addFiles: (newFiles: FileDoc[], openId?: string) => void;
   readOnly?: boolean;
 }) {
@@ -121,7 +121,7 @@ export function EditorScreen({
       }]);
       return;
     }
-    
+
     // 1. Load initial collaborators
     supabaseService.fetchCollaborators(project.id).then(({ data }) => {
       if (data) setProjectCollaborators(data);
@@ -143,7 +143,7 @@ export function EditorScreen({
 
     // 3. Realtime Presence for active status tracking
     const presenceChannel = supabase.channel(`presence:project:${project.id}`);
-    
+
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
@@ -179,12 +179,12 @@ export function EditorScreen({
 
   const uniqueMembers = useMemo(() => {
     const members: { email: string; name: string; avatar: string; isOnline: boolean; role: string }[] = [];
-    
+
     // Add current user
     const curEmail = user.email || "";
     const curName = user.name || "You";
     const curAvatar = user.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${curName}`;
-    
+
     members.push({
       email: curEmail,
       name: `${curName} (You)`,
@@ -235,7 +235,7 @@ export function EditorScreen({
   const ZOOM_MIN = 0.3;
   const ZOOM_MAX = 2.0;
 
-  const zoomIn  = () => setUserZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10));
+  const zoomIn = () => setUserZoom((z) => Math.min(ZOOM_MAX, Math.round((z + ZOOM_STEP) * 10) / 10));
   const zoomOut = () => setUserZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 10) / 10));
   const zoomReset = () => setUserZoom(1);
 
@@ -307,7 +307,7 @@ export function EditorScreen({
       return () => clearTimeout(clearTimer);
     }, 2000);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocks, autoSaveEnabled]);
 
   // Real-time listener for file updates by other collaborators
@@ -315,7 +315,7 @@ export function EditorScreen({
     if (!supabaseService.isConfigured()) return;
     const channel = supabaseService.subscribeToFileChanges(activeFile.id, (newBlocks) => {
       const incomingStr = JSON.stringify(newBlocks);
-      
+
       // 1. If the incoming blocks match what we just saved, it's our own echoed update -> IGNORE
       if (incomingStr === lastSavedBlocksRef.current) {
         return;
@@ -356,7 +356,7 @@ export function EditorScreen({
     if (urlFileId && urlFileId !== activeFileId) {
       switchFile(urlFileId);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlFileId]);
 
   const updateBlock = (id: string, patch: Partial<Block>) => {
@@ -420,8 +420,8 @@ export function EditorScreen({
     if (readOnly) return;
     document.execCommand(command);
     if (focusedId) {
-      const el = (document.querySelector(`[data-id="${focusedId}"]`) || 
-                  document.querySelector(`[data-block-id="${focusedId}"]`)) as HTMLDivElement | null;
+      const el = (document.querySelector(`[data-id="${focusedId}"]`) ||
+        document.querySelector(`[data-block-id="${focusedId}"]`)) as HTMLDivElement | null;
       if (el) {
         updateBlock(focusedId, { text: el.innerHTML });
       }
@@ -457,13 +457,13 @@ export function EditorScreen({
   const setType = (id: string, type: BlockType) => {
     if (readOnly) return;
     const b = blocks.find((x) => x.id === id); if (!b) return;
-    
+
     // Snappy DOM attribute update
     const el = document.querySelector(`[data-id="${id}"]`) as HTMLElement | null;
     if (el) {
       el.setAttribute("data-type", type);
     }
-    
+
     updateBlock(id, { type, text: normalizeText(type, b.text) });
   };
 
@@ -518,7 +518,7 @@ export function EditorScreen({
   // DOM to Blocks parser: runs on native user text inputs
   const handleContentInput = (immediate: boolean | React.FormEvent<HTMLDivElement> = false) => {
     if (!editorRef.current) return;
-    
+
     const isImmediate = immediate === true;
 
     const sync = () => {
@@ -526,15 +526,15 @@ export function EditorScreen({
       const nextBlocks: Block[] = [];
       const children = Array.from(editorRef.current.children);
       const seenIds = new Set<string>();
-      
+
       children.forEach((child) => {
         const el = child as HTMLElement;
-        
+
         // Enforce correct block className
         if (!el.classList.contains("sp-block")) {
           el.classList.add("sp-block");
         }
-        
+
         let id = el.getAttribute("data-id");
         if (!id || seenIds.has(id)) {
           id = uid();
@@ -542,17 +542,17 @@ export function EditorScreen({
           el.setAttribute("data-block-id", id);
         }
         seenIds.add(id);
-        
+
         let type = el.getAttribute("data-type") as BlockType || "action";
         let text = el.innerHTML || "";
-        
+
         // Cleanup browser placeholder line breaks
         if (text === "<br>" || text === "\n") text = "";
-        
+
         // Auto-detect Scene Heading type based on Fountain formatting
         const cleanText = el.innerText?.trim() || "";
         const SCENE_RE = /^(INT|EXT|EST|INT\.?\/EXT|I\/E)[\.\s]/i;
-        
+
         if (cleanText.startsWith(".") && !cleanText.startsWith("..")) {
           type = "scene";
           text = cleanText.slice(1).trim();
@@ -561,16 +561,16 @@ export function EditorScreen({
           type = "scene";
           el.setAttribute("data-type", "scene");
         }
-        
+
         nextBlocks.push({
           id,
           type,
           text,
         });
       });
-      
+
       const finalBlocks = nextBlocks.length > 0 ? nextBlocks : [{ id: uid(), type: "action" as BlockType, text: "" }];
-      
+
       // Save stringify comparison CPU time
       if (JSON.stringify(blocksRef.current) !== JSON.stringify(finalBlocks)) {
         blocksRef.current = finalBlocks;
@@ -629,7 +629,7 @@ export function EditorScreen({
         const currentType = el.getAttribute("data-type") as BlockType || "action";
         const text = el.innerText || "";
         const nextType = nextTypeOnEnter(currentType, text);
-        
+
         // Let the browser perform Enter key splits natively to preserve caretaker placement.
         // Update the formatting rules on the newly created line right after in the event loop tick.
         setTimeout(() => {
@@ -664,7 +664,7 @@ export function EditorScreen({
     if (isEmptyEditor && editorRef.current) {
       const fragment = document.createDocumentFragment();
       const pastedElements: HTMLElement[] = [];
-      
+
       parsedBlocks.forEach((b) => {
         const div = document.createElement("div");
         div.className = "sp-block";
@@ -706,11 +706,11 @@ export function EditorScreen({
       const firstBlock = parsedBlocks[0];
       currentBlock.setAttribute("data-type", firstBlock.type);
       currentBlock.innerHTML = firstBlock.text || "<br>";
-      
+
       // Create DOM elements for the rest of the pasted blocks
       const fragment = document.createDocumentFragment();
       const pastedElements: HTMLElement[] = [currentBlock];
-      
+
       parsedBlocks.slice(1).forEach((b) => {
         const div = document.createElement("div");
         div.className = "sp-block";
@@ -764,7 +764,7 @@ export function EditorScreen({
       // Create DOM elements for the pasted blocks
       const fragment = document.createDocumentFragment();
       const pastedElements: HTMLElement[] = [];
-      
+
       parsedBlocks.forEach((b) => {
         const div = document.createElement("div");
         div.className = "sp-block";
@@ -816,7 +816,7 @@ export function EditorScreen({
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       setFocusedId(id);
-      
+
       // Place caret natively at the beginning of the block
       try {
         el.focus();
@@ -832,40 +832,119 @@ export function EditorScreen({
     }
   };
 
+  const recalculatePageBreaks = () => {
+    if (!editorRef.current) return;
+    const children = Array.from(editorRef.current.children) as HTMLElement[];
+    if (children.length === 0) return;
+
+    // Reset all visual page break and split attributes
+    children.forEach((el) => {
+      el.removeAttribute("data-page-start");
+      el.removeAttribute("data-split-more");
+      el.removeAttribute("data-split-contd");
+    });
+
+    const maxHeight = 931; // A4 page usable height at 96 DPI: 1123px - (96px top + 96px bottom padding) = 931px
+    let currentHeight = 0;
+    let pageCount = 1;
+
+    for (let i = 0; i < children.length; i++) {
+      const el = children[i];
+      const type = el.getAttribute("data-type") || "action";
+      const h = el.offsetHeight;
+
+      let neededHeight = h;
+
+      // Protection Rule 1: Never break a character node from the dialogue/parenthetical node that follows it
+      if (type === "character") {
+        const nextEl = children[i + 1];
+        const afterNextEl = children[i + 2];
+        if (nextEl) {
+          const nextType = nextEl.getAttribute("data-type");
+          if (nextType === "parenthetical" && afterNextEl) {
+            neededHeight += nextEl.offsetHeight + afterNextEl.offsetHeight;
+          } else {
+            neededHeight += nextEl.offsetHeight;
+          }
+        }
+      }
+
+      // Protection Rule 2: Never break a parenthetical from the dialogue immediately following it
+      if (type === "parenthetical") {
+        const nextEl = children[i + 1];
+        if (nextEl) {
+          neededHeight += nextEl.offsetHeight;
+        }
+      }
+
+      // Protection Rule 3: Never break a scene heading from the block immediately following it
+      if (type === "scene") {
+        const nextEl = children[i + 1];
+        if (nextEl) {
+          neededHeight += nextEl.offsetHeight;
+        }
+      }
+
+      // Compute breaks
+      if (currentHeight + neededHeight > maxHeight) {
+        if (type === "dialogue" && currentHeight + 40 < maxHeight) {
+          // Dialogue splitting: append (MORE) at bottom, (CONT'D) at top of next page
+          el.setAttribute("data-split-more", "true");
+
+          let charName = "CHARACTER";
+          for (let j = i - 1; j >= 0; j--) {
+            if (children[j].getAttribute("data-type") === "character") {
+              charName = children[j].textContent?.trim().replace(/\s*\(.*\)/g, "") || "CHARACTER";
+              break;
+            }
+          }
+
+          pageCount++;
+          const nextEl = children[i + 1];
+          if (nextEl) {
+            nextEl.setAttribute("data-page-start", pageCount.toString());
+            if (nextEl.getAttribute("data-type") === "dialogue") {
+              nextEl.setAttribute("data-split-contd", charName);
+            }
+          }
+          currentHeight = h;
+        } else {
+          pageCount++;
+          el.setAttribute("data-page-start", pageCount.toString());
+          currentHeight = h;
+        }
+      } else {
+        currentHeight += h;
+      }
+    }
+  };
+
   // Sync state blocks to DOM safely without resetting cursor caretaker
   useEffect(() => {
     if (!editorRef.current) return;
-    
+
     const children = Array.from(editorRef.current.children);
-    
-    // Calculate page start block IDs
-    const pagesList = paginate(blocks);
-    const pageStartIds = new Map<string, number>();
-    pagesList.forEach((pageBlocks, pi) => {
-      if (pi > 0 && pageBlocks.length > 0) {
-        pageStartIds.set(pageBlocks[0].id, pi + 1);
-      }
-    });
 
     // 1. Rebuild editor DOM on file switch, initial render, or explicit undo/redo
-    if (children.length === 0 || 
-        activeFile.id !== editorRef.current.getAttribute("data-active-file-id") ||
-        isUndoRedoRef.current) {
-      
+    if (children.length === 0 ||
+      activeFile.id !== editorRef.current.getAttribute("data-active-file-id") ||
+      isUndoRedoRef.current) {
+
       editorRef.current.setAttribute("data-active-file-id", activeFile.id);
-      
+
       // Save caret position if it was focused before rebuild
       const activeEl = getSelectionBlock();
       const activeId = activeEl?.getAttribute("data-id");
-      const cursorOffset = window.getSelection()?.rangeCount 
-        ? window.getSelection()?.getRangeAt(0).startOffset 
+      const cursorOffset = window.getSelection()?.rangeCount
+        ? window.getSelection()?.getRangeAt(0).startOffset
         : 0;
-      
-      editorRef.current.innerHTML = blocks.map(b => {
-        const pageNum = pageStartIds.get(b.id);
-        const pageAttr = pageNum ? ` data-page-start="${pageNum}"` : "";
-        return `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}"${pageAttr}>${b.text || "<br>"}</div>`;
-      }).join("");
+
+      editorRef.current.innerHTML = blocks.map(b =>
+        `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
+      ).join("");
+
+      // Calculate breaks immediately after DOM rebuild
+      recalculatePageBreaks();
 
       isUndoRedoRef.current = false;
 
@@ -876,7 +955,7 @@ export function EditorScreen({
           try {
             target.focus();
             const range = document.createRange();
-            
+
             // Try to set caret precisely in the text node
             let textNode = target.firstChild;
             while (textNode && textNode.nodeType !== Node.TEXT_NODE) {
@@ -927,14 +1006,6 @@ export function EditorScreen({
     blocks.forEach((b) => {
       const el = domMap.get(b.id);
       if (el) {
-        // Enforce page start attributes
-        const pageNum = pageStartIds.get(b.id);
-        if (pageNum) {
-          el.setAttribute("data-page-start", pageNum.toString());
-        } else {
-          el.removeAttribute("data-page-start");
-        }
-
         const isActive = activeBlockEl === el;
         if (!isActive) {
           if (el.innerHTML !== (b.text || "<br>")) {
@@ -948,14 +1019,15 @@ export function EditorScreen({
         // Safe full rebuild if blocks were added/deleted externally by a collaborator
         const isEditing = activeBlockEl !== null;
         if (!isEditing && editorRef.current) {
-          editorRef.current.innerHTML = blocks.map(b => {
-            const pageNum = pageStartIds.get(b.id);
-            const pageAttr = pageNum ? ` data-page-start="${pageNum}"` : "";
-            return `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}"${pageAttr}>${b.text || "<br>"}</div>`;
-          }).join("");
+          editorRef.current.innerHTML = blocks.map(b =>
+            `<div class="sp-block" data-id="${b.id}" data-block-id="${b.id}" data-type="${b.type || "action"}">${b.text || "<br>"}</div>`
+          ).join("");
         }
       }
     });
+
+    // Run real measurement-based A4 page breaks calculation on dynamic sync updates
+    recalculatePageBreaks();
   }, [blocks, activeFile.id]);
 
   // Global key bindings for shortcuts
@@ -1215,275 +1287,275 @@ export function EditorScreen({
 
   return (
     <div className="sp-app" style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--sp-bg)" }}>
-      
+
       {/* 1. Redesigned Premium Main Header */}
       {!isMobile && (
-        <header className="sp-desktop-only sp-no-print" style={{ 
-          height: 64, 
-          background: "var(--sp-toolbar)", 
-          borderBottom: "1px solid var(--sp-border)", 
-          display: "flex", 
-          alignItems: "center", 
-          padding: "0 20px", 
+        <header className="sp-desktop-only sp-no-print" style={{
+          height: 64,
+          background: "var(--sp-toolbar)",
+          borderBottom: "1px solid var(--sp-border)",
+          display: "flex",
+          alignItems: "center",
+          padding: "0 20px",
           justifyContent: "space-between",
           zIndex: 30
         }}>
-        
-        {/* Left Area: Brand & Document Meta */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ color: "var(--sp-accent)", fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>WriterDute</span>
-          
-          <button 
-            onClick={back} 
-            style={{ 
-              background: "#1e1e24", 
-              border: "1px solid var(--sp-border)", 
-              borderRadius: 8, 
-              width: 32, 
-              height: 32, 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              color: "var(--sp-text)",
-              cursor: "pointer"
-            }}
-            title="Back to projects"
-          >
-            <ChevronLeft size={16} />
-          </button>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{activeFile.title}</span>
-            <span style={{ fontSize: 11, color: "var(--sp-muted)", fontWeight: 500 }}>{project.title} • Feature Film</span>
-          </div>
-        </div>
+          {/* Left Area: Brand & Document Meta */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ color: "var(--sp-accent)", fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>WriterDute</span>
 
-        {/* Right Area: Save indicators, users list, and controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* Save Status indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-            {!autoSaveEnabled && saveState === "idle" ? (
-              <>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#71717a" }} />
-                <span style={{ color: "var(--sp-muted)" }}>Manual Save Mode</span>
-              </>
-            ) : saveState === "saving" ? (
-              <>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b" }} />
-                <span style={{ color: "var(--sp-muted)" }}>Saving...</span>
-              </>
-            ) : (
-              <>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
-                <span style={{ color: "var(--sp-muted)" }}>Saved</span>
-              </>
-            )}
+            <button
+              onClick={back}
+              style={{
+                background: "#1e1e24",
+                border: "1px solid var(--sp-border)",
+                borderRadius: 8,
+                width: 32,
+                height: 32,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--sp-text)",
+                cursor: "pointer"
+              }}
+              title="Back to projects"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{activeFile.title}</span>
+              <span style={{ fontSize: 11, color: "var(--sp-muted)", fontWeight: 500 }}>{project.title} • Feature Film</span>
+            </div>
           </div>
 
-          {/* Active Collaborator Avatars */}
-          <div style={{ display: "flex", alignItems: "center" }}>
-            {onlineUsers.map((u, idx) => (
-              <Avatar 
-                key={u.email || idx} 
-                src={u.avatar} 
-                name={u.name || u.email || "User"} 
-                size={28}
-                style={{ 
-                  border: "1px solid #ffffff5b", 
-                  marginRight: idx < onlineUsers.length - 1 ? -8 : 0,
-                  zIndex: onlineUsers.length - idx,
-                }} 
-              />
-            ))}
-          </div>
+          {/* Right Area: Save indicators, users list, and controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Save Status indicator */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+              {!autoSaveEnabled && saveState === "idle" ? (
+                <>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#71717a" }} />
+                  <span style={{ color: "var(--sp-muted)" }}>Manual Save Mode</span>
+                </>
+              ) : saveState === "saving" ? (
+                <>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f59e0b" }} />
+                  <span style={{ color: "var(--sp-muted)" }}>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
+                  <span style={{ color: "var(--sp-muted)" }}>Saved</span>
+                </>
+              )}
+            </div>
 
-          {/* Collaborators Count Badge */}
-          <div style={{
-            fontSize: 11,
-            color: "#10b981",
-            background: "rgba(16, 185, 129, 0.08)",
-            border: "1px solid rgba(16, 185, 129, 0.2)",
-            padding: "4px 10px",
-            borderRadius: 20,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 5
-          }}>
-            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#10b981" }} />
-            {Math.max(1, onlineUsers.length)} live
-          </div>
+            {/* Active Collaborator Avatars */}
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {onlineUsers.map((u, idx) => (
+                <Avatar
+                  key={u.email || idx}
+                  src={u.avatar}
+                  name={u.name || u.email || "User"}
+                  size={28}
+                  style={{
+                    border: "1px solid #ffffff5b",
+                    marginRight: idx < onlineUsers.length - 1 ? -8 : 0,
+                    zIndex: onlineUsers.length - idx,
+                  }}
+                />
+              ))}
+            </div>
 
-          {/* Share button */}
-          <button 
-            className="sp-btn sp-btn-ghost sp-btn-icon" 
-            onClick={() => setShowShare(true)} 
-            title="Invite & Share"
-            style={{ padding: 8, color: "var(--sp-muted)" }}
-          >
-            <Share2 size={16} />
-          </button>
+            {/* Collaborators Count Badge */}
+            <div style={{
+              fontSize: 11,
+              color: "#10b981",
+              background: "rgba(16, 185, 129, 0.08)",
+              border: "1px solid rgba(16, 185, 129, 0.2)",
+              padding: "4px 10px",
+              borderRadius: 20,
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: 5
+            }}>
+              <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#10b981" }} />
+              {Math.max(1, onlineUsers.length)} live
+            </div>
 
-          {/* Save Draft primary button */}
-          <button 
-            className="sp-btn sp-btn-ghost sp-btn-icon" 
-            onClick={saveManually}
-            style={{ padding: 8, color: "var(--sp-muted)" }}
-          >
-            <Save size={14} />
-          </button>
-
-          {/* Download button */}
-          <button 
-            className="sp-btn sp-btn-primary " 
-            onClick={() => setShowExport(true)} 
-            title="Download screenplay"
-            style={{display: "flex", alignItems: "center", gap: 6, padding: "8px 16px"  }}
-          >
-            <Download size={16} /> Export
-          </button>
-
-          {/* More options menu */}
-          <div style={{ position: "relative" }}>
-            <button 
-              className="sp-btn sp-btn-ghost sp-btn-icon" 
-              onClick={() => setShowMenu(!showMenu)} 
-              title="More options"
+            {/* Share button */}
+            <button
+              className="sp-btn sp-btn-ghost sp-btn-icon"
+              onClick={() => setShowShare(true)}
+              title="Invite & Share"
               style={{ padding: 8, color: "var(--sp-muted)" }}
             >
-              <MoreHorizontal size={16} />
+              <Share2 size={16} />
             </button>
-            {showMenu && (
-              <div className="sp-menu" style={{ right: 0, top: 40 }}>
-                <button onClick={() => { setShowTitlePage(true); setShowMenu(false); }}>
-                  <FileText size={14} /> Title Page Settings
-                </button>
-                <button onClick={() => { setShowHelp(true); setShowMenu(false); }}>
-                  <AlertCircle size={14} /> Help & Shortcuts
-                </button>
-                <button onClick={() => { setShowExport(true); setShowMenu(false); }}>
-                  <Download size={14} /> Export Screenplay
-                </button>
-                <div style={{ height: 1, background: "var(--sp-border)", margin: "4px 0" }} />
-                <button
-                  onClick={toggleAutoSave}
-                  style={{ justifyContent: "space-between" }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
+            {/* Save Draft primary button */}
+            <button
+              className="sp-btn sp-btn-ghost sp-btn-icon"
+              onClick={saveManually}
+              style={{ padding: 8, color: "var(--sp-muted)" }}
+            >
+              <Save size={14} />
+            </button>
+
+            {/* Download button */}
+            <button
+              className="sp-btn sp-btn-primary "
+              onClick={() => setShowExport(true)}
+              title="Download screenplay"
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px" }}
+            >
+              <Download size={16} /> Export
+            </button>
+
+            {/* More options menu */}
+            <div style={{ position: "relative" }}>
+              <button
+                className="sp-btn sp-btn-ghost sp-btn-icon"
+                onClick={() => setShowMenu(!showMenu)}
+                title="More options"
+                style={{ padding: 8, color: "var(--sp-muted)" }}
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              {showMenu && (
+                <div className="sp-menu" style={{ right: 0, top: 40 }}>
+                  <button onClick={() => { setShowTitlePage(true); setShowMenu(false); }}>
+                    <FileText size={14} /> Title Page Settings
+                  </button>
+                  <button onClick={() => { setShowHelp(true); setShowMenu(false); }}>
+                    <AlertCircle size={14} /> Help & Shortcuts
+                  </button>
+                  <button onClick={() => { setShowExport(true); setShowMenu(false); }}>
+                    <Download size={14} /> Export Screenplay
+                  </button>
+                  <div style={{ height: 1, background: "var(--sp-border)", margin: "4px 0" }} />
+                  <button
+                    onClick={toggleAutoSave}
+                    style={{ justifyContent: "space-between" }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        display: "inline-block",
+                        width: 3,
+                        height: 14,
+                        borderRadius: 2,
+                        background: autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-border)",
+                        flexShrink: 0
+                      }} />
+                      Auto-Save Changes
+                    </span>
                     <span style={{
-                      display: "inline-block",
-                      width: 3,
-                      height: 14,
-                      borderRadius: 2,
-                      background: autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-border)",
+                      width: 16,
+                      height: 16,
+                      border: `2px solid ${autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-muted)"}`,
+                      borderRadius: 4,
+                      background: autoSaveEnabled ? "var(--sp-accent)" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       flexShrink: 0
-                    }} />
-                    Auto-Save Changes
-                  </span>
-                  <span style={{
-                    width: 16,
-                    height: 16,
-                    border: `2px solid ${autoSaveEnabled ? "var(--sp-accent)" : "var(--sp-muted)"}`,
-                    borderRadius: 4,
-                    background: autoSaveEnabled ? "var(--sp-accent)" : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0
-                  }}>
-                    {autoSaveEnabled && (
-                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                        <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </span>
-                </button>
-                <div style={{ height: 1, background: "var(--sp-border)", margin: "4px 0" }} />
-                <button
-                  onClick={() => setShowBlockBars(v => !v)}
-                  style={{ justifyContent: "space-between" }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    }}>
+                      {autoSaveEnabled && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                  </button>
+                  <div style={{ height: 1, background: "var(--sp-border)", margin: "4px 0" }} />
+                  <button
+                    onClick={() => setShowBlockBars(v => !v)}
+                    style={{ justifyContent: "space-between" }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        display: "inline-block",
+                        width: 3,
+                        height: 14,
+                        borderRadius: 2,
+                        background: showBlockBars ? "var(--sp-accent)" : "var(--sp-border)",
+                        flexShrink: 0
+                      }} />
+                      Block Type Bars
+                    </span>
                     <span style={{
-                      display: "inline-block",
-                      width: 3,
-                      height: 14,
-                      borderRadius: 2,
-                      background: showBlockBars ? "var(--sp-accent)" : "var(--sp-border)",
+                      width: 16,
+                      height: 16,
+                      border: `2px solid ${showBlockBars ? "var(--sp-accent)" : "var(--sp-muted)"}`,
+                      borderRadius: 4,
+                      background: showBlockBars ? "var(--sp-accent)" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       flexShrink: 0
-                    }} />
-                    Block Type Bars
-                  </span>
-                  <span style={{
-                    width: 16,
-                    height: 16,
-                    border: `2px solid ${showBlockBars ? "var(--sp-accent)" : "var(--sp-muted)"}`,
-                    borderRadius: 4,
-                    background: showBlockBars ? "var(--sp-accent)" : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0
-                  }}>
-                    {showBlockBars && (
-                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                        <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </span>
-                </button>
-              </div>
-            )}
+                    }}>
+                      {showBlockBars && (
+                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
       )}
 
       {/* Mobile-only Header */}
       {isMobile && (
         <header className="sp-mobile-only sp-header sp-no-print">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button 
-              onClick={back} 
+            <button
+              onClick={back}
               className="sp-mobile-bar-icon-btn"
               style={{ width: 32, height: 32, borderRadius: 8, background: "#1e1e24", border: "1px solid var(--sp-border)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", cursor: "pointer" }}
               title="Back"
             >
               <ChevronLeft size={16} />
             </button>
-            
-            <button 
-              onClick={() => setShowScenes(v => !v)} 
+
+            <button
+              onClick={() => setShowScenes(v => !v)}
               className="sp-mobile-bar-icon-btn"
               style={{ width: 32, height: 32, borderRadius: 8, background: "#1e1e24", border: "1px solid var(--sp-border)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", cursor: "pointer" }}
             >
               <Menu size={16} />
             </button>
-            
+
             <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{activeFile.title}</span>
               <span style={{ fontSize: 10, color: "var(--sp-muted)", fontWeight: 500 }}>{project.title} • Feature Film</span>
             </div>
           </div>
-          
+
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* Active Collaborator Avatars */}
             <div style={{ display: "flex", alignItems: "center" }}>
               {onlineUsers.slice(0, 3).map((u, idx) => (
-                <Avatar 
-                  key={u.email || idx} 
-                  src={u.avatar} 
-                  name={u.name || u.email || "User"} 
+                <Avatar
+                  key={u.email || idx}
+                  src={u.avatar}
+                  name={u.name || u.email || "User"}
                   size={22}
-                  style={{ 
-                    border: "1px solid #ffffff5b", 
+                  style={{
+                    border: "1px solid #ffffff5b",
                     marginRight: idx < Math.min(3, onlineUsers.length) - 1 ? -6 : 0,
                     zIndex: onlineUsers.length - idx,
-                  }} 
+                  }}
                 />
               ))}
             </div>
-            
+
             {/* Yellow Saved Button Status */}
             {saveState === "saving" ? (
               <button className="sp-mobile-save-btn saving">
@@ -1501,9 +1573,9 @@ export function EditorScreen({
 
             {/* Options menu vertical three dots */}
             <div style={{ position: "relative" }}>
-              <button 
-                className="sp-mobile-bar-icon-btn" 
-                onClick={() => setShowMenu(!showMenu)} 
+              <button
+                className="sp-mobile-bar-icon-btn"
+                onClick={() => setShowMenu(!showMenu)}
                 title="More options"
                 style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "#1e1e24" }}
               >
@@ -1549,7 +1621,7 @@ export function EditorScreen({
                     }}>
                       {autoSaveEnabled && (
                         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                          <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M1 4L3.5 6.5L9 1" stroke="#0f0f11" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </span>
@@ -1562,54 +1634,54 @@ export function EditorScreen({
       )}
 
       {/* Main Workspace Frame split into left-sidebar, center-canvas, and right-sidebar */}
-      <div 
-        className="sp-workspace-frame" 
-        style={{ 
-          display: "flex", 
-          flex: 1, 
-          minHeight: 0, 
-          position: isMobile ? undefined : "relative" 
+      <div
+        className="sp-workspace-frame"
+        style={{
+          display: "flex",
+          flex: 1,
+          minHeight: 0,
+          position: isMobile ? undefined : "relative"
         }}
       >
-        
+
         {/* Mobile Left Sidebar Backdrop */}
         {isMobile && showScenes && (
-          <div 
-            className="sp-sidebar-backdrop" 
+          <div
+            className="sp-sidebar-backdrop"
             onClick={() => setShowScenes(false)}
           />
         )}
 
         {/* 2. Redesigned Left Sidebar: Files, Scenes & Collaborators list */}
         {!focusMode && showScenes && (
-          <aside className="sp-sidebar sp-sidebar-left sp-no-print" style={{ 
-            width: 250, 
-            borderRight: "1px solid var(--sp-border)", 
-            display: "flex", 
+          <aside className="sp-sidebar sp-sidebar-left sp-no-print" style={{
+            width: 250,
+            borderRight: "1px solid var(--sp-border)",
+            display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
             padding: "16px 14px",
             background: "var(--sp-sidebar)"
           }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 24, overflowY: "auto", flex: 1 }}>
-              
+
               {isMobile && (
                 <div style={{ borderBottom: "1px solid var(--sp-border)", paddingBottom: 12, marginBottom: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>WriterDesk</span>
-                    <button 
+                    <button
                       onClick={() => setShowScenes(false)}
-                      style={{ 
-                        width: 32, 
-                        height: 32, 
-                        borderRadius: 8, 
-                        background: "#1e1e24", 
-                        border: "1px solid var(--sp-border)", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center", 
-                        color: "#fff", 
-                        cursor: "pointer" 
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        background: "#1e1e24",
+                        border: "1px solid var(--sp-border)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        cursor: "pointer"
                       }}
                     >
                       <X size={16} />
@@ -1631,7 +1703,7 @@ export function EditorScreen({
                 <div className="sp-sidebar-header">FILES</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {project.files.map((f) => (
-                    <button 
+                    <button
                       key={f.id}
                       onClick={() => switchFile(f.id)}
                       className={`sp-file-item ${f.id === activeFileId ? "active" : ""}`}
@@ -1670,7 +1742,7 @@ export function EditorScreen({
                     })}
                   </div>
                 )}
-                <button 
+                <button
                   onClick={handleAddSceneBlock}
                   style={{
                     display: "flex",
@@ -1702,13 +1774,13 @@ export function EditorScreen({
                       <Avatar src={m.avatar} name={m.name} size={24} style={{ background: "#2e2e34" }} />
                       <span style={{ fontSize: 12, fontWeight: 500, color: m.isOnline ? "var(--sp-text)" : "var(--sp-muted)" }}>{m.name}</span>
                     </div>
-                    <span style={{ 
-                      width: 6, 
-                      height: 6, 
-                      borderRadius: "50%", 
+                    <span style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
                       background: m.isOnline ? "#10b981" : "transparent",
                       border: m.isOnline ? "none" : "1px solid var(--sp-border)",
-                      marginLeft: "auto" 
+                      marginLeft: "auto"
                     }} />
                   </div>
                 ))}
@@ -1720,7 +1792,7 @@ export function EditorScreen({
 
         {/* 3. Center Screenplay Editor Workspace */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--sp-bg)", position: "relative" }}>
-          
+
           {/* A. Floating formatting and text toolbar */}
           {!isMobile && (
             <div className="sp-desktop-only sp-no-print" style={{
@@ -1733,12 +1805,12 @@ export function EditorScreen({
               justifyContent: "space-between",
               zIndex: 10
             }}>
-              
+
               {/* Element blocks selector tabs */}
               <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
                 {(["scene", "action", "character", "dialogue", "parenthetical"] as BlockType[]).map((t) => {
                   const active = activeBlockType === t;
-                  
+
                   const elementLabels: Record<BlockType, string> = {
                     scene: "Scene Heading",
                     action: "Action",
@@ -1746,7 +1818,7 @@ export function EditorScreen({
                     dialogue: "Dialogue",
                     parenthetical: "Parenthetical"
                   };
-  
+
                   return (
                     <button
                       key={t}
@@ -1763,59 +1835,59 @@ export function EditorScreen({
                   );
                 })}
               </div>
-  
+
               {/* Formatting tools divider & buttons */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
-                
-                <button 
-                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+
+                <button
+                  className="sp-btn sp-btn-ghost sp-btn-icon"
                   onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
-                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
+                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }}
                   title="Bold"
                 >
                   <Bold size={13} />
                 </button>
-                <button 
-                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                <button
+                  className="sp-btn sp-btn-ghost sp-btn-icon"
                   onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
-                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
+                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }}
                   title="Italic"
                 >
                   <Italic size={13} />
                 </button>
-                <button 
-                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                <button
+                  className="sp-btn sp-btn-ghost sp-btn-icon"
                   onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
-                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }} 
+                  style={{ width: 32, height: 32, padding: 6, color: "var(--sp-text)" }}
                   title="Underline"
                 >
                   <Underline size={13} />
                 </button>
-  
+
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
-  
-                <button 
-                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+
+                <button
+                  className="sp-btn sp-btn-ghost sp-btn-icon"
                   disabled={state.past.length === 0}
-                  onMouseDown={(e) => { e.preventDefault(); if (state.past.length > 0) handleUndo(); }} 
-                  style={{ width: 32, height: 32, padding: 6, opacity: state.past.length === 0 ? 0.4 : 1, cursor: state.past.length === 0 ? "not-allowed" : "pointer" }} 
+                  onMouseDown={(e) => { e.preventDefault(); if (state.past.length > 0) handleUndo(); }}
+                  style={{ width: 32, height: 32, padding: 6, opacity: state.past.length === 0 ? 0.4 : 1, cursor: state.past.length === 0 ? "not-allowed" : "pointer" }}
                   title="Undo (Ctrl+Z)"
                 >
                   <Undo2 size={13} />
                 </button>
-                <button 
-                  className="sp-btn sp-btn-ghost sp-btn-icon" 
+                <button
+                  className="sp-btn sp-btn-ghost sp-btn-icon"
                   disabled={state.future.length === 0}
-                  onMouseDown={(e) => { e.preventDefault(); if (state.future.length > 0) handleRedo(); }} 
-                  style={{ width: 32, height: 32, padding: 6, opacity: state.future.length === 0 ? 0.4 : 1, cursor: state.future.length === 0 ? "not-allowed" : "pointer" }} 
+                  onMouseDown={(e) => { e.preventDefault(); if (state.future.length > 0) handleRedo(); }}
+                  style={{ width: 32, height: 32, padding: 6, opacity: state.future.length === 0 ? 0.4 : 1, cursor: state.future.length === 0 ? "not-allowed" : "pointer" }}
                   title="Redo (Ctrl+Y)"
                 >
                   <Redo2 size={13} />
                 </button>
-  
+
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", margin: "0 8px" }} />
-  
+
                 <button className="sp-btn sp-btn-ghost sp-btn-icon" style={{ width: 32, height: 32, padding: 6 }} title="Search / Find"><Search size={13} /></button>
                 <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={() => setShowScenes(v => !v)} style={{ width: 32, height: 32, padding: 6 }} title="Toggle outline layout"><Maximize2 size={13} /></button>
               </div>
@@ -1845,47 +1917,47 @@ export function EditorScreen({
                   };
                   return (
                     <button
-                       key={t}
-                       onMouseDown={(e) => { e.preventDefault(); if (focusedId) setType(focusedId, t); }}
-                       className={`sp-btn ${active ? "sp-btn-active" : ""}`}
-                       style={{ padding: "4px 10px", fontSize: 12, height: 30, flexShrink: 0 }}
+                      key={t}
+                      onMouseDown={(e) => { e.preventDefault(); if (focusedId) setType(focusedId, t); }}
+                      className={`sp-btn ${active ? "sp-btn-active" : ""}`}
+                      style={{ padding: "4px 10px", fontSize: 12, height: 30, flexShrink: 0 }}
                     >
                       {elementLabelsMobile[t]}
                     </button>
                   );
                 })}
-                
+
                 {/* Divider */}
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", alignSelf: "center", margin: "0 4px", flexShrink: 0 }} />
-                
+
                 {/* B I U */}
-                <button 
+                <button
                   onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
                   className="sp-mobile-bar-icon-btn"
                   style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
                 >
                   <Bold size={12} />
                 </button>
-                <button 
+                <button
                   onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
                   className="sp-mobile-bar-icon-btn"
                   style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
                 >
                   <Italic size={12} />
                 </button>
-                <button 
+                <button
                   onMouseDown={(e) => { e.preventDefault(); applyFormat('underline'); }}
                   className="sp-mobile-bar-icon-btn"
                   style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
                 >
                   <Underline size={12} />
                 </button>
-                
+
                 {/* Divider */}
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", alignSelf: "center", margin: "0 4px", flexShrink: 0 }} />
-                
+
                 {/* Undo / Redo */}
-                <button 
+                <button
                   disabled={state.past.length === 0}
                   onMouseDown={(e) => { e.preventDefault(); if (state.past.length > 0) handleUndo(); }}
                   className="sp-mobile-bar-icon-btn"
@@ -1893,7 +1965,7 @@ export function EditorScreen({
                 >
                   <Undo2 size={12} />
                 </button>
-                <button 
+                <button
                   disabled={state.future.length === 0}
                   onMouseDown={(e) => { e.preventDefault(); if (state.future.length > 0) handleRedo(); }}
                   className="sp-mobile-bar-icon-btn"
@@ -1901,12 +1973,12 @@ export function EditorScreen({
                 >
                   <Redo2 size={12} />
                 </button>
-                
+
                 {/* Divider */}
                 <div style={{ width: 1, height: 20, background: "var(--sp-border)", alignSelf: "center", margin: "0 4px", flexShrink: 0 }} />
-                
+
                 {/* Search */}
-                <button 
+                <button
                   className="sp-mobile-bar-icon-btn"
                   style={{ width: 30, height: 30, padding: 0, flexShrink: 0 }}
                 >
@@ -1937,18 +2009,18 @@ export function EditorScreen({
                 <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--sp-border)" }} />
                 <span>~{Math.max(1, Math.round(pages.length * 1.2))} min read</span>
               </div>
-  
+
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 {/* Focus mode switch toggle */}
-                <button 
+                <button
                   onClick={() => setFocusMode(!focusMode)}
-                  style={{ 
-                    background: "transparent", 
-                    border: "none", 
-                    color: focusMode ? "var(--sp-accent)" : "var(--sp-muted)", 
-                    cursor: "pointer", 
-                    display: "flex", 
-                    alignItems: "center", 
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: focusMode ? "var(--sp-accent)" : "var(--sp-muted)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
                     gap: 6,
                     fontWeight: 600
                   }}
@@ -1956,9 +2028,9 @@ export function EditorScreen({
                   {focusMode ? <EyeOff size={13} /> : <Eye size={13} />}
                   Focus Mode
                 </button>
-  
+
                 <span style={{ width: 1, height: 16, background: "var(--sp-border)" }} />
-  
+
                 {/* Zoom controls inline */}
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <button className="sp-btn sp-btn-ghost sp-btn-icon" onClick={zoomOut} style={{ padding: 2, height: 20, width: 20 }} disabled={userZoom <= ZOOM_MIN}>-</button>
@@ -1990,7 +2062,7 @@ export function EditorScreen({
                 <span>•</span>
                 <span>~{Math.max(1, Math.round(pages.length * 1.2))} min read</span>
               </div>
-              
+
               <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#10b981", fontWeight: 500 }}>
                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#10b981" }} />
                 Auto-saved
@@ -2043,16 +2115,16 @@ export function EditorScreen({
             background: "var(--sp-sidebar)",
             padding: 0
           }}>
-            
+
             {/* Header Tabs switcher */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--sp-border)", background: "#16161a" }}>
-              <button 
+              <button
                 onClick={() => setActiveRightTab("comments")}
-                style={{ 
-                  flex: 1, 
-                  padding: "14px 0", 
-                  background: "transparent", 
-                  border: "none", 
+                style={{
+                  flex: 1,
+                  padding: "14px 0",
+                  background: "transparent",
+                  border: "none",
                   color: activeRightTab === "comments" ? "var(--sp-accent)" : "var(--sp-muted)",
                   borderBottom: activeRightTab === "comments" ? "2px solid var(--sp-accent)" : "2px solid transparent",
                   fontSize: 12,
@@ -2062,13 +2134,13 @@ export function EditorScreen({
               >
                 Comments
               </button>
-              <button 
+              <button
                 onClick={() => setActiveRightTab("characters")}
-                style={{ 
-                  flex: 1, 
-                  padding: "14px 0", 
-                  background: "transparent", 
-                  border: "none", 
+                style={{
+                  flex: 1,
+                  padding: "14px 0",
+                  background: "transparent",
+                  border: "none",
                   color: activeRightTab === "characters" ? "var(--sp-accent)" : "var(--sp-muted)",
                   borderBottom: activeRightTab === "characters" ? "2px solid var(--sp-accent)" : "2px solid transparent",
                   fontSize: 12,
@@ -2082,7 +2154,7 @@ export function EditorScreen({
 
             {/* Content pane depending on active tab selection */}
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, minHeight: 0 }}>
-              
+
               {activeRightTab === "comments" ? (
                 /* Tab content: Comments List */
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1, minHeight: 0 }}>
@@ -2090,7 +2162,7 @@ export function EditorScreen({
                     <div style={{ fontSize: 11, fontWeight: 700, color: "var(--sp-muted)", letterSpacing: "0.08em", marginBottom: 12 }}>
                       {comments.length} COMMENTS
                     </div>
-                    
+
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       {comments.map((c) => (
                         <div key={c.id} className="sp-comment-card">
@@ -2132,7 +2204,7 @@ export function EditorScreen({
 
                   {/* Add comment input form */}
                   <form onSubmit={handlePostComment} style={{ padding: 14, borderTop: "1px solid var(--sp-border)", background: "#16161a" }}>
-                    <textarea 
+                    <textarea
                       required
                       rows={2}
                       value={newCommentText}
@@ -2167,15 +2239,15 @@ export function EditorScreen({
                   ) : (
                     <div>
                       {characterNames.map((name) => (
-                        <div key={name} style={{ 
-                          display: "flex", 
-                          alignItems: "center", 
+                        <div key={name} style={{
+                          display: "flex",
+                          alignItems: "center",
                           justifyContent: "space-between",
-                          padding: "8px 12px", 
-                          border: "1px solid var(--sp-border)", 
-                          borderRadius: 8, 
-                          background: "#16161a", 
-                          marginBottom: 6 
+                          padding: "8px 12px",
+                          border: "1px solid var(--sp-border)",
+                          borderRadius: 8,
+                          background: "#16161a",
+                          marginBottom: 6
                         }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#60A5FA" }} />
@@ -2238,7 +2310,7 @@ export function EditorScreen({
         <div className="sp-mobile-bottom-bar sp-no-print">
           <div className="sp-mobile-bottom-left-icons">
             {/* Save Icon (disk) */}
-            <button 
+            <button
               onClick={saveManually}
               className="sp-mobile-bar-icon-btn"
               title="Save screenplay"
@@ -2246,7 +2318,7 @@ export function EditorScreen({
               <Save size={18} />
             </button>
             {/* Share Icon */}
-            <button 
+            <button
               onClick={() => setShowShare(true)}
               className="sp-mobile-bar-icon-btn"
               title="Share project"
@@ -2254,7 +2326,7 @@ export function EditorScreen({
               <Share2 size={18} />
             </button>
             {/* Collaborators / Sidebar Toggle Icon */}
-            <button 
+            <button
               onClick={() => setShowScenes(v => !v)}
               className="sp-mobile-bar-icon-btn"
               title="Outline & files"
@@ -2262,17 +2334,17 @@ export function EditorScreen({
               <Users size={18} />
             </button>
           </div>
-          
+
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {/* Export Button */}
-            <button 
-              onClick={() => setShowExport(true)} 
+            <button
+              onClick={() => setShowExport(true)}
               className="sp-mobile-export-btn"
             >
               <Download size={14} /> Export
             </button>
             {/* Comments trigger Button */}
-            <button 
+            <button
               onClick={() => setActiveMobileTab("comments")}
               className="sp-mobile-comments-trigger-btn"
             >
@@ -2291,41 +2363,41 @@ export function EditorScreen({
       {isMobile && activeMobileTab && (
         <>
           {/* Backdrop */}
-          <div 
+          <div
             className="sp-sidebar-backdrop"
             onClick={() => setActiveMobileTab(null)}
           />
-          
+
           {/* Bottom Sheet container */}
           <div className="sp-mobile-bottom-sheet">
             {/* Grab handle */}
             <div className="sp-mobile-sheet-handle" />
-            
+
             {/* Sheet Tabs Header */}
             <div className="sp-mobile-sheet-header">
               <div className="sp-mobile-sheet-tabs">
-                <button 
+                <button
                   onClick={() => setActiveMobileTab("comments")}
                   className={`sp-mobile-sheet-tab ${activeMobileTab === "comments" ? "active" : ""}`}
                 >
                   Comments <span className="sp-tab-badge">{comments.length}</span>
                 </button>
-                <button 
+                <button
                   onClick={() => setActiveMobileTab("characters")}
                   className={`sp-mobile-sheet-tab ${activeMobileTab === "characters" ? "active" : ""}`}
                 >
                   Characters
                 </button>
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => setActiveMobileTab(null)}
                 className="sp-mobile-sheet-close"
               >
                 <X size={18} />
               </button>
             </div>
-            
+
             {/* Sheet Content Pane */}
             <div className="sp-mobile-sheet-content">
               {activeMobileTab === "comments" && (
@@ -2360,10 +2432,10 @@ export function EditorScreen({
                     )}
                     <div ref={commentsEndRef} />
                   </div>
-                  
+
                   {/* Post comment form */}
                   <form onSubmit={handlePostComment} className="sp-mobile-comment-form">
-                    <textarea 
+                    <textarea
                       required
                       rows={1}
                       value={newCommentText}
@@ -2377,7 +2449,7 @@ export function EditorScreen({
                   </form>
                 </div>
               )}
-              
+
               {activeMobileTab === "characters" && (
                 <div style={{ overflowY: "auto", height: "100%", padding: "12px 0" }}>
                   {characterNames.length === 0 ? (
@@ -2385,13 +2457,13 @@ export function EditorScreen({
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       {characterNames.map((name) => (
-                        <div key={name} style={{ 
-                          display: "flex", 
-                          alignItems: "center", 
-                          gap: 8, 
-                          padding: "8px 12px", 
-                          border: "1px solid var(--sp-border)", 
-                          borderRadius: 8, 
+                        <div key={name} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "8px 12px",
+                          border: "1px solid var(--sp-border)",
+                          borderRadius: 8,
                           background: "#16161a"
                         }}>
                           <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#60A5FA" }} />

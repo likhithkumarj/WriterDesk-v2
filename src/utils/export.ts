@@ -4,6 +4,8 @@ import { paginate } from "./pagination";
 import { uid } from "./uid";
 import { GLOBAL_STYLE } from "../components/screenplay/GlobalStyles";
 
+
+
 export function blocksToTxt(blocks: Block[]): string {
   const pad = (n: number) => " ".repeat(n);
   return blocks
@@ -84,104 +86,341 @@ export function renderTitlePageHtml(tp: TitlePage) {
 }
 
 export function printPDF(project: Project, files: FileDoc[], combined: boolean) {
-  const w = window.open("", "_blank", "width=900,height=1200");
-  if (!w) return;
+  // 1. Build the HTML content for each file
+  const filesToPrint = combined ? files : [files[0]];
+  
+  let pagesHtml = "";
 
-  const cleanBlocks = (bl: Block[]) => {
-    let end = bl.length - 1;
-    while (end >= 0 && (!bl[end].text || !bl[end].text.trim())) {
-      end--;
-    }
-    return bl.slice(0, end + 1);
-  };
-
-  const renderPages = (blocks: Block[]) => {
-    const trimmed = cleanBlocks(blocks);
-    const paginated = paginate(trimmed.length > 0 ? trimmed : [{ id: uid(), type: "action" as BlockType, text: "" }]);
-    return paginated.map((pageBlocks, pi) => `
-      <div class="sp-page">
-        ${pi > 0 ? `<div class="sp-page-number">${pi + 1}.</div>` : ""}
-        <div class="sp-page-inner">
-          ${pageBlocks.map((b) => `<div class="sp-block" data-type="${b.type}">${b.text}</div>`).join("")}
+  filesToPrint.forEach((f) => {
+    // A. Render Title Page if configured
+    const tp = f.titlePage;
+    const hasTitlePage = !!(tp?.title && tp.title.trim());
+    if (hasTitlePage && tp) {
+      pagesHtml += `
+        <div class="sp-print-tp">
+          <div style="flex: 2.5;"></div>
+          <div style="width: 100%;">
+            <div class="sp-print-tp-title">${escapeHtml(tp.title)}</div>
+            ${tp.credit ? `<div class="sp-print-tp-credit">${escapeHtml(tp.credit)}</div>` : ""}
+            ${tp.author ? `<div class="sp-print-tp-author">${escapeHtml(tp.author)}</div>` : ""}
+            ${tp.source ? `<div class="sp-print-tp-source">${escapeHtml(tp.source)}</div>` : ""}
+          </div>
+          <div style="flex: 3.5;"></div>
+          <div class="sp-print-tp-footer">
+            <div style="white-space: pre-wrap;">${escapeHtml(tp.contact || "")}</div>
+            <div>${escapeHtml(tp.draftDate || "")}</div>
+          </div>
         </div>
-      </div>
-    `).join("");
-  };
+      `;
+    }
 
-  let body = "";
-  if (combined) {
-    const first = files[0];
-    if (first?.titlePage?.title.trim()) body += renderTitlePageHtml(first.titlePage);
-    const blocks = files.flatMap((f, i) => i === 0 ? f.blocks : [{ id: uid(), type: "action" as BlockType, text: "" }, ...f.blocks]);
-    body += renderPages(blocks);
-  } else {
-    body = files.map((f) => {
-      const tp = f.titlePage?.title.trim() ? renderTitlePageHtml(f.titlePage) : "";
-      return tp + renderPages(f.blocks);
-    }).join('');
+    // B. Calculate screenplay pages dynamically using measured heights
+    const measureDiv = document.createElement("div");
+    measureDiv.className = "sp-print-container";
+    measureDiv.style.width = "794px";
+    measureDiv.style.padding = "72px 72px 72px 108px";
+    measureDiv.style.boxSizing = "border-box";
+    measureDiv.style.position = "absolute";
+    measureDiv.style.left = "0";
+    measureDiv.style.top = "0";
+    measureDiv.style.zIndex = "-9999";
+    measureDiv.style.opacity = "0";
+    measureDiv.style.pointerEvents = "none";
+    measureDiv.style.background = "#ffffff";
+    
+    // Inject stylesheet directly into measureDiv so offsetHeight works accurately
+    measureDiv.innerHTML = `
+      <style>
+        .sp-print-block {
+          white-space: pre-wrap;
+          word-break: break-word;
+          margin-left: 0;
+          min-height: 1.5em;
+          padding: 2px 0;
+          font-family: 'Courier Prime', 'Courier New', Courier, monospace !important;
+          font-size: 16px;
+          line-height: 1.25;
+        }
+        .sp-print-block[data-type="scene"]        { font-weight: 700; text-transform: uppercase; margin-top: 1.5em; }
+        .sp-print-block[data-type="action"]       { margin-left: 4ch !important; margin-top: 0.75em; }
+        .sp-print-block[data-type="character"]    { margin-left: 24ch !important; text-transform: uppercase; margin-top: 1em; }
+        .sp-print-block[data-type="parenthetical"]{ margin-left: 18ch !important; }
+        .sp-print-block[data-type="dialogue"]     { margin-left: 10ch !important; max-width: 35ch; }
+      </style>
+    `;
+    document.body.appendChild(measureDiv);
+
+    // Filter empty trailing blocks
+    let endIdx = f.blocks.length - 1;
+    while (endIdx >= 0 && (!f.blocks[endIdx].text || !f.blocks[endIdx].text.trim())) {
+      endIdx--;
+    }
+    const activeBlocks = f.blocks.slice(0, endIdx + 1);
+
+    activeBlocks.forEach((b) => {
+      const el = document.createElement("div");
+      el.className = "sp-print-block";
+      el.setAttribute("data-type", b.type || "action");
+      el.innerHTML = b.text || "<br>";
+      measureDiv.appendChild(el);
+    });
+
+    const blockEls = Array.from(measureDiv.querySelectorAll(".sp-print-block")) as HTMLElement[];
+    const maxHeight = 979; // A4 height content area: 1123px - (72px padding top + 72px padding bottom) = 979px
+    let currentHeight = 0;
+    const pageGroupings: HTMLElement[][] = [[]];
+
+    for (let i = 0; i < blockEls.length; i++) {
+      const el = blockEls[i];
+      const type = el.getAttribute("data-type") || "action";
+      const h = el.offsetHeight;
+
+      let neededHeight = h;
+
+      // Protection rules
+      if (type === "character") {
+        const nextEl = blockEls[i + 1];
+        const afterNextEl = blockEls[i + 2];
+        if (nextEl) {
+          const nextType = nextEl.getAttribute("data-type");
+          if (nextType === "parenthetical" && afterNextEl) {
+            neededHeight += nextEl.offsetHeight + afterNextEl.offsetHeight;
+          } else {
+            neededHeight += nextEl.offsetHeight;
+          }
+        }
+      }
+      if (type === "parenthetical") {
+        const nextEl = blockEls[i + 1];
+        if (nextEl) {
+          neededHeight += nextEl.offsetHeight;
+        }
+      }
+      if (type === "scene") {
+        const nextEl = blockEls[i + 1];
+        if (nextEl) {
+          neededHeight += nextEl.offsetHeight;
+        }
+      }
+
+      if (currentHeight + neededHeight > maxHeight) {
+        if (type === "dialogue" && currentHeight + 40 < maxHeight) {
+          // split dialogue
+          el.setAttribute("data-split-more", "true");
+          
+          let charName = "CHARACTER";
+          for (let j = i - 1; j >= 0; j--) {
+            if (blockEls[j].getAttribute("data-type") === "character") {
+              charName = blockEls[j].textContent?.trim().replace(/\s*\(.*\)/g, "") || "CHARACTER";
+              break;
+            }
+          }
+
+          const nextEl = blockEls[i + 1];
+          if (nextEl && nextEl.getAttribute("data-type") === "dialogue") {
+            nextEl.setAttribute("data-split-contd", charName);
+          }
+
+          pageGroupings.push([el]);
+          currentHeight = h;
+        } else {
+          pageGroupings.push([el]);
+          currentHeight = h;
+        }
+      } else {
+        pageGroupings[pageGroupings.length - 1].push(el);
+        currentHeight += h;
+      }
+    }
+
+    // Now build pages HTML
+    const validGroupings = pageGroupings.filter((group) => group.length > 0);
+    validGroupings.forEach((group, pi) => {
+      const pageNum = pi + 1;
+      pagesHtml += `
+        <div class="sp-print-page">
+          ${pageNum > 1 ? `<div class="sp-print-page-number">${pageNum}.</div>` : ""}
+          <div class="sp-print-page-content">
+            ${group.map((el) => {
+              const type = el.getAttribute("data-type") || "action";
+              const splitMore = el.getAttribute("data-split-more");
+              const splitContd = el.getAttribute("data-split-contd");
+              
+              let blockHtml = `<div class="sp-print-block" data-type="${type}">${el.innerHTML}</div>`;
+              if (splitMore) {
+                blockHtml += `<div class="sp-print-split-more">(MORE)</div>`;
+              }
+              if (splitContd) {
+                blockHtml = `<div class="sp-print-split-contd">${splitContd} (CONT'D)</div>` + blockHtml;
+              }
+              return blockHtml;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    });
+
+    measureDiv.remove();
+  });
+
+  const w = window.open("", "_blank", "width=850,height=1100");
+  if (!w) {
+    alert("Popup blocked! Please allow popups to export PDFs.");
+    return;
   }
 
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"/>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-    <title>${escapeHtml(project.title)}</title>
-    <style>
-      ${GLOBAL_STYLE}
-      /* Override any viewport media queries to force standard A4 layout */
-      body, .sp-canvas {
-        background: #ffffff !important;
-        padding: 0 !important;
-        gap: 0 !important;
-        display: block !important;
-        height: auto !important;
+  w.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>${escapeHtml(project.title)} - Script</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #000000;
+      font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+    
+    .sp-print-container {
+      background: #ffffff;
+    }
+    
+    .sp-print-page {
+      width: 794px;
+      height: 1123px;
+      padding: 72px 72px 72px 108px;
+      box-sizing: border-box;
+      position: relative;
+      page-break-after: always;
+      background: #ffffff;
+    }
+    
+    .sp-print-page:last-child {
+      page-break-after: avoid;
+    }
+    
+    .sp-print-page-number {
+      position: absolute;
+      top: 36px;
+      right: 72px;
+      font-size: 16px;
+      color: #000000;
+    }
+    
+    .sp-print-tp {
+      width: 794px;
+      height: 1123px;
+      padding: 72px 108px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      page-break-after: always;
+      background: #ffffff;
+    }
+    
+    .sp-print-tp-title {
+      text-align: center;
+      text-transform: uppercase;
+      font-size: 20px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin-top: 250px;
+      margin-bottom: 24px;
+    }
+    
+    .sp-print-tp-credit {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+    
+    .sp-print-tp-author {
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+    
+    .sp-print-tp-source {
+      text-align: center;
+      font-size: 16px;
+      width: 80%;
+      margin: 0 auto;
+    }
+    
+    .sp-print-tp-footer {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      font-size: 14px;
+      margin-top: auto;
+      padding-bottom: 50px;
+    }
+    
+    .sp-print-block {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-left: 0;
+      min-height: 1.5em;
+      padding: 2px 0;
+    }
+    
+    .sp-print-block[data-type="scene"]        { font-weight: 700; text-transform: uppercase; margin-top: 1.5em; }
+    .sp-print-block[data-type="action"]       { margin-left: 4ch !important; margin-top: 0.75em; }
+    .sp-print-block[data-type="character"]    { margin-left: 24ch !important; text-transform: uppercase; margin-top: 1em; }
+    .sp-print-block[data-type="parenthetical"]{ margin-left: 18ch !important; }
+    .sp-print-block[data-type="dialogue"]     { margin-left: 10ch !important; max-width: 35ch; }
+    
+    .sp-print-split-more {
+      text-align: center;
+      font-size: 16px;
+      margin-left: 10ch;
+      margin-top: 4px;
+    }
+    
+    .sp-print-split-contd {
+      font-size: 16px;
+      margin-left: 24ch;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    
+    @media print {
+      @page {
+        size: A4;
+        margin: 0;
       }
-      .sp-page-wrapper {
-        width: 210mm !important;
-        height: 297mm !important;
-        display: block !important;
-        page-break-after: always !important;
-        transform: none !important;
+      body {
+        background: #ffffff;
       }
-      .sp-page {
-        width: 210mm !important;
-        height: 297mm !important;
-        transform: none !important;
-        border: none !important;
-        box-shadow: none !important;
-        margin: 0 !important;
-        background: #ffffff !important;
-        display: block !important;
-        position: relative !important;
+      .sp-print-page, .sp-print-tp {
+        box-shadow: none;
+        border: none;
       }
-      .sp-page-inner {
-        position: absolute !important;
-        top: 19mm !important;
-        left: 28.5mm !important;
-        right: 19mm !important;
-        bottom: 14mm !important;
-        padding: 0 !important;
-        background: transparent !important;
-      }
-      .sp-block {
-        font-family: 'Courier Prime', 'Courier New', Courier, monospace !important;
-        font-size: 16px !important;
-        padding: 2px 4px !important;
-        border-left: none !important;
-        margin-left: 0 !important;
-      }
-      .sp-block[data-type="scene"]        { font-weight: 700 !important; text-transform: uppercase !important; margin-top: 1.5em !important; margin-left: 0 !important; }
-      .sp-block[data-type="action"]       { margin-left: 4ch !important; margin-top: 0.75em !important; }
-      .sp-block[data-type="character"]    { margin-left: 24ch !important; text-transform: uppercase !important; margin-top: 1em !important; }
-      .sp-block[data-type="parenthetical"]{ margin-left: 18ch !important; }
-      .sp-block[data-type="dialogue"]     { margin-left: 10ch !important; max-width: 35ch !important; }
-      .sp-page:last-child {
-        page-break-after: avoid !important;
-      }
-    </style>
-  </head><body><div class="sp-canvas">${body}</div>
-  <script>setTimeout(()=>{window.print();},600);</script>
-  </body></html>`);
+    }
+  </style>
+</head>
+<body>
+  <div class="sp-print-container">
+    ${pagesHtml}
+  </div>
+  <script>
+    setTimeout(() => {
+      window.print();
+    }, 500);
+  </script>
+</body>
+</html>`);
+
   w.document.close();
 }
 
