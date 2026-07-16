@@ -279,6 +279,7 @@ export function EditorScreen({
   useEffect(() => { blocksRef.current = blocks; }, [blocks]);
 
   const lastSavedBlocksRef = useRef<string>(JSON.stringify(activeFile.blocks));
+  const lastTypingTimeRef = useRef<number>(0);
 
   // Reset lastSavedBlocksRef when file switches
   useEffect(() => {
@@ -318,6 +319,11 @@ export function EditorScreen({
 
       // 1. If the incoming blocks match what we just saved, it's our own echoed update -> IGNORE
       if (incomingStr === lastSavedBlocksRef.current) {
+        return;
+      }
+
+      // Ignore updates if the user typed in the last 5 seconds to prevent caret jump and cursor glitches
+      if (Date.now() - lastTypingTimeRef.current < 5000) {
         return;
       }
 
@@ -518,6 +524,8 @@ export function EditorScreen({
   // DOM to Blocks parser: runs on native user text inputs
   const handleContentInput = (immediate: boolean | React.FormEvent<HTMLDivElement> = false) => {
     if (!editorRef.current) return;
+    
+    lastTypingTimeRef.current = Date.now();
 
     const isImmediate = immediate === true;
 

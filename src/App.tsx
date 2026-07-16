@@ -336,10 +336,40 @@ function AppContent() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const syncQueueRef = useRef<Store[]>([]);
+  const isSyncingRef = useRef(false);
+
+  const processSyncQueue = async () => {
+    if (isSyncingRef.current || syncQueueRef.current.length === 0) return;
+    isSyncingRef.current = true;
+
+    try {
+      while (syncQueueRef.current.length > 0) {
+        // Grab the latest queued store state, discarding intermediate updates
+        const targetStore = syncQueueRef.current[syncQueueRef.current.length - 1];
+        syncQueueRef.current = [];
+
+        const success = await supabaseService.syncStore(targetStore, targetStore);
+        if (!success) {
+          console.warn("Supabase sync failed. Falling back to local storage backup.");
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(targetStore));
+        }
+      }
+    } catch (err) {
+      console.error("Error syncing with Supabase, saving to local storage fallback:", err);
+    } finally {
+      isSyncingRef.current = false;
+    }
+  };
+
   const persist = async (newStore: Store) => {
-    // Optimistic update
+    // 1. Optimistic update
     setStore(newStore);
 
+    // 2. Immediate local cache write (synchronous, 0ms lag)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
+
+    // 3. Track activity
     if (user?.id) {
       const todayStr = getTodayDateString();
       try {
@@ -360,20 +390,12 @@ function AppContent() {
     }
 
     if (!supabaseService.isConfigured()) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
       return;
     }
 
-    try {
-      const success = await supabaseService.syncStore(newStore, store);
-      if (!success) {
-        console.warn("Supabase sync failed. Falling back to local storage backup.");
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
-      }
-    } catch (err) {
-      console.error("Error syncing with Supabase, saving to local storage fallback:", err);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newStore));
-    }
+    // 4. Queue the sync to Supabase to run sequentially
+    syncQueueRef.current.push(newStore);
+    processSyncQueue();
   };
 
   const handleLogin = (profile: UserProfile) => {
