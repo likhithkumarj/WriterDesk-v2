@@ -58,7 +58,7 @@ export const supabaseService = {
     return supabase
       .from("profiles")
       .select("id")
-      .eq("email", email)
+      .eq("email", email.toLowerCase())
       .maybeSingle();
   },
 
@@ -405,12 +405,13 @@ export const supabaseService = {
   },
 
   async inviteCollaborator(projectId: string, email: string, userId: string | null, role: "Editor" | "Viewer" = "Viewer", productionRole: string = "Writer") {
+    const lowerEmail = email.trim().toLowerCase();
     if (!this.isConfigured()) {
       const raw = localStorage.getItem(`collaborators:${projectId}`);
       const list = raw ? JSON.parse(raw) : [];
       const newCollab = {
         id: "local_" + Math.random().toString(36).substr(2, 9),
-        invited_email: email,
+        invited_email: lowerEmail,
         status: "accepted",
         user_id: userId || "local_user",
         role,
@@ -424,7 +425,7 @@ export const supabaseService = {
       .from("collaborators")
       .insert({
         project_id: projectId,
-        invited_email: email,
+        invited_email: lowerEmail,
         user_id: userId,
         status: "pending",
         role,

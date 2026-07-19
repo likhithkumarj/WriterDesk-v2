@@ -46,7 +46,7 @@ USING (
   OR id IN (
     SELECT project_id FROM public.collaborators
     WHERE user_id = auth.uid()
-       OR invited_email = (SELECT email FROM public.profiles WHERE id = auth.uid())
+       OR LOWER(invited_email) = (SELECT LOWER(email) FROM public.profiles WHERE id = auth.uid())
   )
 );
 
@@ -125,7 +125,7 @@ USING (
     SELECT project_id FROM public.collaborators
     WHERE status = 'accepted'
       AND (user_id = auth.uid()
-           OR invited_email = (SELECT email FROM public.profiles WHERE id = auth.uid()))
+           OR LOWER(invited_email) = (SELECT LOWER(email) FROM public.profiles WHERE id = auth.uid()))
   )
 );
 
@@ -180,7 +180,7 @@ USING (
         SELECT project_id FROM public.collaborators
         WHERE status = 'accepted'
           AND (user_id = auth.uid()
-               OR invited_email = (SELECT email FROM public.profiles WHERE id = auth.uid()))
+               OR LOWER(invited_email) = (SELECT LOWER(email) FROM public.profiles WHERE id = auth.uid()))
       )
   )
 );
