@@ -325,12 +325,49 @@ export function FilesScreen({
   const [collaborators, setCollaborators] = useState<any[]>(() => supabaseService.isConfigured() ? [] : mockCollaboratorsList);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
+  const getDefaultTitleForType = (type: "script" | "idea" | "character" | "outline" | "shotlist") => {
+    let baseName = "Draft";
+    if (type === "script") baseName = "Draft";
+    else if (type === "shotlist") baseName = "shotList";
+    else if (type === "idea") baseName = "Idea Note";
+    else if (type === "character") baseName = "Character Profile";
+    else if (type === "outline") baseName = "Script Outline";
+
+    const existingTitles = new Set((localProject.files || []).map((f) => f.title.trim().toLowerCase()));
+
+    let candidate = type === "script" ? `${baseName} 1` : baseName;
+    let counter = 1;
+
+    while (existingTitles.has(candidate.toLowerCase())) {
+      counter++;
+      candidate = `${baseName} ${counter}`;
+    }
+
+    return candidate;
+  };
+
   const [selectedFilter, setSelectedFilter] = useState<"all" | "script" | "idea" | "character" | "outline" | "shotlist">("all");
   const [showAddFileModal, setShowAddFileModal] = useState(false);
   const [newFileType, setNewFileType] = useState<"script" | "idea" | "character" | "outline" | "shotlist">("script");
-  const [newFileTitle, setNewFileTitle] = useState("");
+  const [newFileTitle, setNewFileTitle] = useState("Draft 1");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "date" | "words">("date");
+
+  const openAddFileModal = (type: "script" | "idea" | "character" | "outline" | "shotlist" = "script") => {
+    setNewFileType(type);
+    setNewFileTitle(getDefaultTitleForType(type));
+    setShowAddFileModal(true);
+  };
+
+  const handleSelectFileType = (type: "script" | "idea" | "character" | "outline" | "shotlist") => {
+    setNewFileType(type);
+    const isAutoDefault = /^(Draft|shotList|Idea Note|Character Profile|Script Outline)(\s+\d+)?$/i.test(newFileTitle.trim()) ||
+                          newFileTitle.trim() === "Untitled" ||
+                          newFileTitle.trim() === "";
+    if (isAutoDefault) {
+      setNewFileTitle(getDefaultTitleForType(type));
+    }
+  };
 
   useEffect(() => {
     setLocalProject(project);
@@ -845,7 +882,7 @@ export function FilesScreen({
     });
 
     setShowAddFileModal(false);
-    setNewFileTitle("");
+    setNewFileTitle("Draft 1");
     setNewFileType("script");
 
     // Open file immediately
@@ -1909,11 +1946,7 @@ export function FilesScreen({
                   }} 
                 />
                 
-                <button className="sp-ws-btn-gold" onClick={() => {
-                  setNewFileType("script");
-                  setNewFileTitle("");
-                  setShowAddFileModal(true);
-                }}>
+                <button className="sp-ws-btn-gold" onClick={() => openAddFileModal("script")}>
                   <Plus size={13} /> New File
                 </button>
               </>
@@ -2550,11 +2583,7 @@ export function FilesScreen({
                         fontSize: "13px", 
                         fontWeight: 700 
                       }} 
-                      onClick={() => {
-                        setNewFileType("script");
-                        setNewFileTitle("");
-                        setShowAddFileModal(true);
-                      }}
+                      onClick={() => openAddFileModal("script")}
                     >
                       <Plus size={15} /> Add File
                     </button>
@@ -2843,11 +2872,7 @@ export function FilesScreen({
             <span>Scripts</span>
           </button>
           {hasWriteAccess && (
-            <button className="sp-ws-mobile-nav-fab" onClick={() => {
-              setNewFileType("script");
-              setNewFileTitle("");
-              setShowAddFileModal(true);
-            }}>
+            <button className="sp-ws-mobile-nav-fab" onClick={() => openAddFileModal("script")}>
               <Plus size={24} />
             </button>
           )}
@@ -2910,7 +2935,7 @@ export function FilesScreen({
               {/* Script selector */}
               <div
                 className={`sp-newfile-type-card ${newFileType === "script" ? "selected" : ""}`}
-                onClick={() => setNewFileType("script")}
+                onClick={() => handleSelectFileType("script")}
               >
                 <div className="sp-newfile-card-header">
                   <div className="sp-newfile-card-icon" style={{ background: "rgba(168, 85, 247, 0.12)", color: "#c084fc" }}>
@@ -2931,7 +2956,7 @@ export function FilesScreen({
               {/* Idea selector */}
               <div
                 className={`sp-newfile-type-card ${newFileType === "idea" ? "selected" : ""}`}
-                onClick={() => setNewFileType("idea")}
+                onClick={() => handleSelectFileType("idea")}
               >
                 <div className="sp-newfile-card-header">
                   <div className="sp-newfile-card-icon" style={{ background: "rgba(234, 179, 8, 0.12)", color: "#fde047" }}>
@@ -2952,7 +2977,7 @@ export function FilesScreen({
               {/* Outline selector */}
               <div
                 className={`sp-newfile-type-card ${newFileType === "outline" ? "selected" : ""}`}
-                onClick={() => setNewFileType("outline")}
+                onClick={() => handleSelectFileType("outline")}
               >
                 <div className="sp-newfile-card-header">
                   <div className="sp-newfile-card-icon" style={{ background: "rgba(34, 197, 94, 0.12)", color: "#86efac" }}>
@@ -2973,7 +2998,7 @@ export function FilesScreen({
               {/* Shot List selector */}
               <div
                 className={`sp-newfile-type-card ${newFileType === "shotlist" ? "selected" : ""}`}
-                onClick={() => setNewFileType("shotlist")}
+                onClick={() => handleSelectFileType("shotlist")}
               >
                 <div className="sp-newfile-card-header">
                   <div className="sp-newfile-card-icon" style={{ background: "rgba(249, 115, 22, 0.12)", color: "#fb923c" }}>
@@ -2994,7 +3019,7 @@ export function FilesScreen({
               {/* Character selector */}
               <div
                 className={`sp-newfile-type-card ${newFileType === "character" ? "selected" : ""}`}
-                onClick={() => setNewFileType("character")}
+                onClick={() => handleSelectFileType("character")}
               >
                 <div className="sp-newfile-card-header">
                   <div className="sp-newfile-card-icon" style={{ background: "rgba(var(--sp-accent-rgb), 0.12)", color: "#93c5fd" }}>

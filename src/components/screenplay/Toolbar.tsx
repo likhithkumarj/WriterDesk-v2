@@ -125,7 +125,14 @@ export function Toolbar({
         <span className="sp-badge"><FileText size={11} /> ~{pagesCount}p</span>
         <span className="sp-badge">{stats.wordCount}w</span>
         <button className="sp-btn" onClick={() => {
-          const t = window.prompt("File title", "Untitled");
+          const existingTitles = new Set((project?.files || []).map((f) => f.title.trim().toLowerCase()));
+          let counter = 1;
+          let candidate = `Draft ${counter}`;
+          while (existingTitles.has(candidate.toLowerCase())) {
+            counter++;
+            candidate = `Draft ${counter}`;
+          }
+          const t = window.prompt("File title", candidate);
           if (!t) return;
           const nf: FileDoc = { id: uid(), title: t, dateModified: Date.now(), blocks: [{ id: uid(), type: "scene", text: "INT. NEW LOCATION - DAY" }] };
           addFiles([nf], nf.id);
