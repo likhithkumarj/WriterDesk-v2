@@ -135,6 +135,7 @@ export const supabaseService = {
       const { data: ownedData, error: ownedError } = await supabase
         .from("projects")
         .select("*, files(*)")
+        .eq("user_id", userId)
         .order("date_modified", { ascending: false });
 
       if (ownedError) throw ownedError;
@@ -279,7 +280,7 @@ export const supabaseService = {
       let syncSuccess = true;
 
       for (const p of newStore.projects) {
-        const isOwner = !p.ownerId || p.ownerId === supabaseUser.id;
+        const isOwner = Boolean(p.ownerId) && p.ownerId === supabaseUser.id;
         
         if (isOwner) {
           // Upsert project metadata
@@ -287,7 +288,7 @@ export const supabaseService = {
             id: p.id,
             title: p.title,
             description: p.description,
-            user_id: p.ownerId || supabaseUser.id,
+            user_id: p.ownerId,
             date_created: new Date(p.dateCreated).toISOString(),
             date_modified: new Date(p.dateModified).toISOString(),
             type: p.type || null,
