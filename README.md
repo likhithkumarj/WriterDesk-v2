@@ -6,24 +6,27 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 
 ## 🚀 Key Features
 
-* **Single-Text Screenplay Editor (Updated: July 7, 2026):**
-  * Replaced the slow block-by-block editor with a single continuous text canvas.
-  * Supported **native copy-pasting, highlighting, selection, and line deletions** across multiple pages.
-  * Incorporated a **smart paste interceptor** that parses Fountain screenplay text on-the-fly and splits them into flat sibling lines (no nested formatting staircase).
-  * Butter-smooth **60fps typing performance** via debounced state syncing (400ms delay) with precise active-element detection (`getSelectionBlock`) to eliminate typing lag, cursor jumps, and character deletion.
-  * Reliable **Undo/Redo with Caret Memory** that restores focus and cursor position precisely to the editing block.
-  * Disabled native browser autocorrect, autocapitalize, and auto-suggestions on the editor canvas for a clean writing experience.
+* **Single-Text Screenplay Editor (Updated: July 2026):**
+  * **Visual Page Breaks (MS Word Style):** Renders repeating A4 pages (`794px x 1123px`) with drop-shadows and page spacing. Pages dynamically recalculate margins so elements push clean layout shifts.
+  * **Physical Screenplay Margins:** Conformed the editor and print styles to standard screenplay layouts using physical measurements: `25.4mm` (1 inch) top, bottom, and right margins; and `38.1mm` (1.5 inch) left binding margins.
+  * **Native Copy-Pasting & Auto-Formatting:** Features smooth inline text pasting. Clipboard parser automatically detects standard colon dialog formatting (e.g. `CharacterName: Dialog Text`) and formats them into Character and Dialogue blocks.
+  * **Reliable Pagination:** Fixed page-cutting algorithms to account for element heights *plus* their CSS margin-top offsets (e.g., scene headings margins), resolving overlaps and page bleed.
+  * **Undo/Redo with Caret Memory:** Focuses precisely on editing blocks upon state undo.
+* **Glitch-Free Auto-Save Pipeline:**
+  * **Immediate Local Saves (0ms Delay):** Changes write to memory and `localStorage` instantly.
+  * **Sequential Background Sync Queue:** State changes are pushed to a single-flight background sync queue (`syncQueueRef`). Intermediate updates are collapsed, preventing parallel database sync requests and data race conditions.
+  * **Active Typing Protection Lock:** Implements a keystroke lock (`lastTypingTimeRef`). Real-time incoming database updates are ignored for 5 seconds after typing, preventing cursor jumps, state echo loops, and caret reverts.
 * **Interactive Document Planners:**
-  * *Shot List Editor (Added: July 1, 2026):* Spreadsheet-style table planner supporting Scene #, Shot #, Description, Camera Type, Angle, Movement, Lens, and Status. Responsive bi-directional scroll (frozen columns on mobile), automatic script scene generation, and CSV/PDF export.
-  * *Idea Editor:* Notion-style rich-text note editor supporting headings, lists, checklists, links, and tags.
-  * *Character Worksheet:* Structured profile card forms and a tabular side-by-side comparison grid.
-  * *Outline Tree:* Hierarchical tree planner (Acts ➔ Sequences ➔ Beats ➔ Notes) with collapsing nodes and sibling reordering.
-* **Redesigned Multi-File Workspace:** Organize acts, treatments, outlines, and character bibles in a single interface with live project word counts.
-* **Import & Export Systems:** Import from `.fountain`, `.txt`, or `.md` drafts; export to industry-standard PDFs, CSVs, `.fountain` files, or `.json` backups.
-* **Writers Lounge Feed:** Social community feed to post updates, share Courier-formatted script snippets, and discuss screenplay structures.
-* **Script Explorer:** Browse, search, and read public screenplays written by community authors.
-* **Collaborator Custom Avatars:** Displays actual uploaded user profiles in the authors/collaborators listing rather than random seeded icons.
-* **Custom Themes & Zoom:** Midnight Gold, Cyberpunk Purple, Forest Green, and Classic Dark layouts with scalable editor zoom.
+  * *Shot List Editor:* Spreadsheet-style camera planner supporting Scene #, Shot #, Description, Camera Type, Angle, Movement, Lens, and Status. Supports responsive columns, automatic script scene generation, and CSV/PDF export.
+  * *Idea Editor:* Notion-style note editor supporting headings, lists, checklists, links, and tags.
+  * *Character Worksheet:* Structured profile cards and a comparison grid.
+  * *Outline Tree:* Collapsible hierarchical outline trees (Acts ➔ Sequences ➔ Beats ➔ Notes).
+* **Multi-File Workspace & Database Security:**
+  * **Case-Insensitive Collaborations:** SQL database policy checks use case-insensitive matching (`LOWER(invited_email)`), resolving login access issues for collaborators with casing discrepancies.
+  * **Ownership Protection Sync:** Enforces strict owner IDs so collaborator sync operations cannot overwrite project ownership metadata.
+  * **Smart Auto-Incrementing Titles:** Suggests next available default file titles (e.g., `Draft 1` ➔ `Draft 2`, `shotList` ➔ `shotList 2`) based on existing files in the project.
+* **High-Performance PDF Export:**
+  * Switched from heavy, blocking `html2pdf.js` libraries to the browser's native vector print engine (`window.print()`) in an isolated print window. Exports are instant, producing searchable vector PDFs without blocking the editor UI thread.
 
 ---
 
