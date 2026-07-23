@@ -20,7 +20,7 @@ export interface TitlePage {
   contact: string;
 }
 
-export type FileType = "script" | "idea" | "character" | "outline" | "shotlist";
+export type FileType = "script" | "idea" | "character" | "shotlist";
 
 export interface CharacterRecord {
   id: string;
@@ -34,15 +34,6 @@ export interface CharacterRecord {
   relationships: string;
   actions: string;
   summary: string;
-}
-
-export interface OutlineNode {
-  id: string;
-  title: string;
-  type: "act" | "sequence" | "beat" | "note";
-  content?: string;
-  collapsed?: boolean;
-  children?: OutlineNode[];
 }
 
 export interface Shot {
@@ -73,7 +64,6 @@ export interface FileDoc {
   titlePage?: TitlePage; // used if type === "script"
   content?: string; // used if type === "idea" (rich text HTML/Markdown)
   characters?: CharacterRecord[]; // used if type === "character"
-  outlineTree?: OutlineNode[]; // used if type === "outline"
   shotList?: Shot[]; // used if type === "shotlist"
   shotListCreationMode?: "manual" | "generated" | "empty"; // creation mode metadata
   author?: string; // name of user who created the file

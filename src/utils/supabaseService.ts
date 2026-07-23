@@ -184,7 +184,6 @@ export const supabaseService = {
           titlePage: f.title_page || undefined,
           content: f.content || "",
           characters: f.characters || [],
-          outlineTree: f.outline_tree || [],
           shotList: f.shot_list ? (Array.isArray(f.shot_list) ? f.shot_list : (f.shot_list.shots || [])) : [],
           shotListCreationMode: f.shot_list ? (Array.isArray(f.shot_list) ? "empty" : (f.shot_list.creationMode || "empty")) : "empty",
           author: f.author || undefined,
@@ -232,7 +231,6 @@ export const supabaseService = {
             title_page: f.titlePage || null,
             content: f.content || null,
             characters: f.characters || null,
-            outline_tree: f.outlineTree || null,
             shot_list: f.shotList ? { creationMode: f.shotListCreationMode || "empty", shots: f.shotList } : null,
           });
           if (fileErr) {
@@ -317,7 +315,6 @@ export const supabaseService = {
             title_page: f.titlePage || null,
             content: f.content || null,
             characters: f.characters || null,
-            outline_tree: f.outlineTree || null,
             shot_list: f.shotList ? { creationMode: f.shotListCreationMode || "empty", shots: f.shotList } : null,
             author: f.author || null,
           };

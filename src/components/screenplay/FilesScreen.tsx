@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Project, FileDoc, OutlineNode } from "../../types/screenplay";
+import { Project, FileDoc } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { parseFountain } from "../../utils/import";
 import { paginate } from "../../utils/pagination";
@@ -325,13 +325,12 @@ export function FilesScreen({
   const [collaborators, setCollaborators] = useState<any[]>(() => supabaseService.isConfigured() ? [] : mockCollaboratorsList);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
-  const getDefaultTitleForType = (type: "script" | "idea" | "character" | "outline" | "shotlist") => {
+  const getDefaultTitleForType = (type: "script" | "idea" | "character" | "shotlist") => {
     let baseName = "Draft";
     if (type === "script") baseName = "Draft";
     else if (type === "shotlist") baseName = "shotList";
     else if (type === "idea") baseName = "Idea Note";
     else if (type === "character") baseName = "Character Profile";
-    else if (type === "outline") baseName = "Script Outline";
 
     const existingTitles = new Set((localProject.files || []).map((f) => f.title.trim().toLowerCase()));
 
@@ -346,22 +345,22 @@ export function FilesScreen({
     return candidate;
   };
 
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "script" | "idea" | "character" | "outline" | "shotlist">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "script" | "idea" | "character" | "shotlist">("all");
   const [showAddFileModal, setShowAddFileModal] = useState(false);
-  const [newFileType, setNewFileType] = useState<"script" | "idea" | "character" | "outline" | "shotlist">("script");
+  const [newFileType, setNewFileType] = useState<"script" | "idea" | "character" | "shotlist">("script");
   const [newFileTitle, setNewFileTitle] = useState("Draft 1");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "date" | "words">("date");
 
-  const openAddFileModal = (type: "script" | "idea" | "character" | "outline" | "shotlist" = "script") => {
+  const openAddFileModal = (type: "script" | "idea" | "character" | "shotlist" = "script") => {
     setNewFileType(type);
     setNewFileTitle(getDefaultTitleForType(type));
     setShowAddFileModal(true);
   };
 
-  const handleSelectFileType = (type: "script" | "idea" | "character" | "outline" | "shotlist") => {
+  const handleSelectFileType = (type: "script" | "idea" | "character" | "shotlist") => {
     setNewFileType(type);
-    const isAutoDefault = /^(Draft|shotList|Idea Note|Character Profile|Script Outline)(\s+\d+)?$/i.test(newFileTitle.trim()) ||
+    const isAutoDefault = /^(Draft|shotList|Idea Note|Character Profile)(\s+\d+)?$/i.test(newFileTitle.trim()) ||
                           newFileTitle.trim() === "Untitled" ||
                           newFileTitle.trim() === "";
     if (isAutoDefault) {
@@ -419,7 +418,6 @@ export function FilesScreen({
             titlePage: f.title_page || undefined,
             content: f.content || "",
             characters: f.characters || [],
-            outlineTree: f.outline_tree || [],
           })),
         };
         setLocalProject(updatedProject);
@@ -662,9 +660,6 @@ export function FilesScreen({
     if (f.type === "character") {
       return Math.max(1, Math.ceil((f.characters || []).length / 2));
     }
-    if (f.type === "outline") {
-      return Math.max(1, Math.ceil((f.outlineTree || []).length / 3));
-    }
     if (f.type === "shotlist") {
       return Math.max(1, Math.ceil((f.shotList || []).length / 10));
     }
@@ -684,16 +679,6 @@ export function FilesScreen({
         return sum + [char.name, char.role, char.personality, char.goals, char.fears, char.motivations, char.backstory, char.relationships, char.actions, char.summary]
           .join(" ").split(/\s+/).filter(Boolean).length;
       }, 0);
-    }
-    if (f.type === "outline") {
-      const sumNodeWords = (node: OutlineNode): number => {
-        let count = (node.title || "").split(/\s+/).filter(Boolean).length + (node.content || "").split(/\s+/).filter(Boolean).length;
-        if (node.children) {
-          count += node.children.reduce((sum: number, child: OutlineNode) => sum + sumNodeWords(child), 0);
-        }
-        return count;
-      };
-      return (f.outlineTree || []).reduce((sum, n) => sum + sumNodeWords(n), 0);
     }
     if (f.type === "shotlist") {
       return (f.shotList || []).reduce((sum, s) => {
@@ -758,7 +743,6 @@ export function FilesScreen({
   const scriptCount = localProject.files.filter(f => !f.type || f.type === "script").length;
   const ideaCount = localProject.files.filter(f => f.type === "idea").length;
   const characterCount = localProject.files.filter(f => f.type === "character").length;
-  const outlineCount = localProject.files.filter(f => f.type === "outline").length;
   const shotlistCount = localProject.files.filter(f => f.type === "shotlist").length;
   const totalFilesCount = localProject.files.length;
 
@@ -824,7 +808,7 @@ export function FilesScreen({
           }
         ]
       };
-    } else if (newFileType === "shotlist") {
+    } else { // shotlist
       newFile = {
         id: uid(),
         title,
@@ -834,42 +818,6 @@ export function FilesScreen({
         wordCount: 0,
         blocks: [],
         shotList: [],
-      };
-    } else { // outline
-      newFile = {
-        id: uid(),
-        title,
-        type: "outline",
-        dateModified: Date.now(),
-        status: "Draft",
-        wordCount: 0,
-        blocks: [],
-        outlineTree: [
-          {
-            id: uid(),
-            title: "Act I: Setup",
-            type: "act",
-            collapsed: false,
-            content: "Set the stage, characters, and initial situation.",
-            children: [
-              {
-                id: uid(),
-                title: "Sequence A: Introduction",
-                type: "sequence",
-                collapsed: false,
-                content: "Introduce the main players.",
-                children: [
-                  {
-                    id: uid(),
-                    title: "First Beat",
-                    type: "beat",
-                    content: "The story begins here."
-                  }
-                ]
-              }
-            ]
-          }
-        ]
       };
     }
 
@@ -897,7 +845,7 @@ export function FilesScreen({
 
   const duplicateFile = (id: string) => {
     const f = localProject.files.find((x) => x.id === id); if (!f) return;
-    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks ? f.blocks.map(b => ({ ...b, id: uid() })) : [], characters: f.characters ? f.characters.map(c => ({ ...c, id: uid() })) : undefined, outlineTree: f.outlineTree ? JSON.parse(JSON.stringify(f.outlineTree)) : undefined, shotList: f.shotList ? JSON.parse(JSON.stringify(f.shotList)) : undefined, author: user?.name || f.author || "Ben Carter" }] });
+    persist({ ...localProject, files: [...localProject.files, { ...f, id: uid(), title: f.title + " (copy)", dateModified: Date.now(), blocks: f.blocks ? f.blocks.map(b => ({ ...b, id: uid() })) : [], characters: f.characters ? f.characters.map(c => ({ ...c, id: uid() })) : undefined, shotList: f.shotList ? JSON.parse(JSON.stringify(f.shotList)) : undefined, author: user?.name || f.author || "Ben Carter" }] });
   };
 
   const deleteFile = async (id: string) => {
@@ -2143,12 +2091,6 @@ export function FilesScreen({
                         Characters
                       </button>
                       <button
-                        className={`sp-ws-filter-tab ${selectedFilter === "outline" ? "active" : ""}`}
-                        onClick={() => setSelectedFilter("outline")}
-                      >
-                        Outlines
-                      </button>
-                      <button
                         className={`sp-ws-filter-tab ${selectedFilter === "shotlist" ? "active" : ""}`}
                         onClick={() => setSelectedFilter("shotlist")}
                       >
@@ -2222,7 +2164,6 @@ export function FilesScreen({
                                 {displayType === "script" && <FileText size={15} color={fileIconColor} />}
                                 {displayType === "idea" && <Lightbulb size={15} color={fileIconColor} />}
                                 {displayType === "character" && <User size={15} color={fileIconColor} />}
-                                {displayType === "outline" && <List size={15} color={fileIconColor} />}
                                 {displayType === "shotlist" && <Film size={15} color={fileIconColor} />}
                               </div>
                               <div style={{ minWidth: 0 }}>
@@ -2235,7 +2176,7 @@ export function FilesScreen({
                               <span
                                 className="sp-ws-badge-type"
                                 style={{
-                                  background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(var(--sp-accent-rgb), 0.12)" : displayType === "outline" ? "rgba(34, 197, 94, 0.12)" : "rgba(249, 115, 22, 0.12)",
+                                  background: displayType === "script" ? "rgba(168, 85, 247, 0.12)" : displayType === "idea" ? "rgba(234, 179, 8, 0.12)" : displayType === "character" ? "rgba(var(--sp-accent-rgb), 0.12)" : "rgba(249, 115, 22, 0.12)",
                                   color: fileIconColor
                                 }}
                               >
@@ -2687,7 +2628,6 @@ export function FilesScreen({
                           {displayType === "script" && <FileText size={16} color={fileIconColor} />}
                           {displayType === "idea" && <Lightbulb size={16} color={fileIconColor} />}
                           {displayType === "character" && <User size={16} color={fileIconColor} />}
-                          {displayType === "outline" && <List size={16} color={fileIconColor} />}
                           {displayType === "shotlist" && <Film size={16} color={fileIconColor} />}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
@@ -2974,26 +2914,6 @@ export function FilesScreen({
                 </div>
               </div>
 
-              {/* Outline selector */}
-              <div
-                className={`sp-newfile-type-card ${newFileType === "outline" ? "selected" : ""}`}
-                onClick={() => handleSelectFileType("outline")}
-              >
-                <div className="sp-newfile-card-header">
-                  <div className="sp-newfile-card-icon" style={{ background: "rgba(34, 197, 94, 0.12)", color: "#86efac" }}>
-                    <ListCollapse size={16} />
-                  </div>
-                  {newFileType === "outline" ? (
-                    <div className="sp-newfile-checkmark-badge">✓</div>
-                  ) : (
-                    <div className="sp-newfile-checkmark-placeholder" />
-                  )}
-                </div>
-                <div>
-                  <h4 className="sp-newfile-card-title">Outline</h4>
-                  <p className="sp-newfile-card-desc">Beat sheet, hierarchical acts planning, and collapsible tree.</p>
-                </div>
-              </div>
 
               {/* Shot List selector */}
               <div
