@@ -147,6 +147,7 @@ export function ProjectsScreen({
       status: "Draft",
       dateCreated: Date.now(),
       dateModified: Date.now(),
+      ownerId: user?.id,
       files: [],
     };
     persist({ ...store, projects: [p, ...store.projects] });
@@ -167,6 +168,7 @@ export function ProjectsScreen({
       ...p,
       id: uid(),
       title: p.title + " (copy)",
+      ownerId: user?.id,
       dateCreated: Date.now(),
       dateModified: Date.now(),
       files: p.files.map(f => ({

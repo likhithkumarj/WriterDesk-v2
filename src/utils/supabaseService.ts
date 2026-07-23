@@ -280,7 +280,7 @@ export const supabaseService = {
       let syncSuccess = true;
 
       for (const p of newStore.projects) {
-        const isOwner = Boolean(p.ownerId) && p.ownerId === supabaseUser.id;
+        const isOwner = !p.ownerId || p.ownerId === supabaseUser.id;
         
         if (isOwner) {
           // Upsert project metadata
@@ -288,7 +288,7 @@ export const supabaseService = {
             id: p.id,
             title: p.title,
             description: p.description,
-            user_id: p.ownerId,
+            user_id: p.ownerId || supabaseUser.id,
             date_created: new Date(p.dateCreated).toISOString(),
             date_modified: new Date(p.dateModified).toISOString(),
             type: p.type || null,
