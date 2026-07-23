@@ -2133,8 +2133,8 @@ export function EditorScreen({
           )}
 
           {/* C. Physical sheet pagination canvas */}
-          <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, overflowY: "auto", padding: "24px 0", ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
-            <div className="sp-page-wrapper" style={{ margin: "0 auto 40px auto", width: "794px", height: "auto" }}>
+          <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px 6px 100px 6px" : "24px 0", ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
+            <div className="sp-page-wrapper" style={{ margin: isMobile ? "8px auto 20px auto" : "0 auto 40px auto", width: isMobile ? "100%" : "794px", height: "auto" }}>
               <div
                 ref={editorRef}
                 className="sp-page sp-script-editor-canvas"
@@ -2156,8 +2156,8 @@ export function EditorScreen({
                 style={{
                   outline: "none",
                   height: "auto",
-                  minHeight: "1123px",
-                  padding: "96px 96px 96px 144px",
+                  minHeight: isMobile ? "100vh" : "1123px",
+                  padding: isMobile ? "36px 18px 120px 18px" : "96px 96px 96px 144px",
                   boxSizing: "border-box"
                 }}
               />

@@ -1187,6 +1187,96 @@ body {
 .pagedjs-screenplay-doc .sp-block[data-type="character"]    { margin-left: 24ch !important; text-transform: uppercase; margin-top: 1em; }
 .pagedjs-screenplay-doc .sp-block[data-type="parenthetical"]{ margin-left: 18ch !important; }
 .pagedjs-screenplay-doc .sp-block[data-type="dialogue"]     { margin-left: 10ch !important; max-width: 35ch; }
+
+/* Mobile Responsive Editor Styles */
+@media (max-width: 768px) {
+  .sp-canvas {
+    padding: 12px 6px 100px 6px !important;
+  }
+  .sp-page-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 158px auto 20px auto !important;
+  }
+  .sp-page.sp-script-editor-canvas {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    padding: 36px 18px 120px 18px !important;
+    background-image: none !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Mobile Screenplay Block Layout Adjustments */
+  .sp-block {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+    max-width: 100% !important;
+    padding: 3px 6px !important;
+    color: #0f172a !important;
+  }
+
+  .sp-block[data-type="scene"] {
+    margin-left: -7px !important;
+    margin-top: 1.2em !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    text-transform: uppercase !important;
+  }
+
+  .sp-block[data-type="action"] {
+    margin-left: -7px !important;
+    margin-top: 0.6em !important;
+    color: #0f172a !important;
+  }
+
+  .sp-block[data-type="character"] {
+    margin-left: calc(14% - 7px) !important;
+    max-width: 72% !important;
+    margin-top: 0.9em !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    text-transform: uppercase !important;
+  }
+
+  .sp-block[data-type="parenthetical"] {
+    margin-left: calc(10% - 7px) !important;
+    max-width: 80% !important;
+    margin-top: 0.2em !important;
+    font-size: 13.5px !important;
+    font-style: italic !important;
+    color: #0f172a !important;
+  }
+
+  .sp-block[data-type="dialogue"] {
+    margin-left: calc(4% - 7px) !important;
+    max-width: 92% !important;
+    margin-top: 0.2em !important;
+    font-size: 14px !important;
+    color: #0f172a !important;
+  }
+
+  .sp-block[data-type="transition"] {
+    margin-left: calc(30% - 7px) !important;
+    max-width: 70% !important;
+    margin-top: 0.9em !important;
+    text-align: right !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    text-transform: uppercase !important;
+  }
+
+  /* Hide visual page breaks numbers floating off screen on mobile */
+  .sp-block[data-page-start]::before {
+    display: none !important;
+  }
+}
 `;
 
 export function GlobalStyles() {
