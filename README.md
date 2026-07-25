@@ -41,16 +41,4 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 
 ## 📝 Screenplay Layout Guide
 
-Standard screenplay formatting relies on specific indents. Pressing **Tab** or **Enter** cycles through elements naturally.
-
-```text
-                                 [ SCENE HEADING ]
-            
-            This is an action block. It stretches across the full width
-            of the page margins.
-            
-                                     CHARACTER
-                               (Parenthetical note)
-                          This is dialogue. It is centered
-                          with margins on both sides.
-```
+Standard screenplay formatting relies on specific indents. Pressing **Tab** or **Enter** cycles 
