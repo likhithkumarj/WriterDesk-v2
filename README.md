@@ -9,6 +9,7 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 * **Single-Text Screenplay Editor (Updated: July 2026):**
   * **Visual Page Breaks (MS Word Style):** Renders repeating A4 pages (`794px x 1123px`) with drop-shadows and page spacing. Pages dynamically recalculate margins so elements push clean layout shifts.
   * **Physical Screenplay Margins:** Conformed the editor and print styles to standard screenplay layouts using physical measurements: `25.4mm` (1 inch) top, bottom, and right margins; and `38.1mm` (1.5 inch) left binding margins.
+  * **Mobile Responsive Editor Layout:** Dedicated full-width mobile view with auto-adjusting margins (`margin: 158px auto 20px auto`) and percentage indents (`14%` character, `4%` dialogue) that eliminate cramped vertical line wrapping on mobile screens.
   * **Native Copy-Pasting & Auto-Formatting:** Features smooth inline text pasting. Clipboard parser automatically detects standard colon dialog formatting (e.g. `CharacterName: Dialog Text`) and formats them into Character and Dialogue blocks.
   * **Reliable Pagination:** Fixed page-cutting algorithms to account for element heights *plus* their CSS margin-top offsets (e.g., scene headings margins), resolving overlaps and page bleed.
   * **Undo/Redo with Caret Memory:** Focuses precisely on editing blocks upon state undo.
@@ -20,10 +21,9 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
   * *Shot List Editor:* Spreadsheet-style camera planner supporting Scene #, Shot #, Description, Camera Type, Angle, Movement, Lens, and Status. Supports responsive columns, automatic script scene generation, and CSV/PDF export.
   * *Idea Editor:* Notion-style note editor supporting headings, lists, checklists, links, and tags.
   * *Character Worksheet:* Structured profile cards and a comparison grid.
-  * *Outline Tree:* Collapsible hierarchical outline trees (Acts ➔ Sequences ➔ Beats ➔ Notes).
 * **Multi-File Workspace & Database Security:**
   * **Case-Insensitive Collaborations:** SQL database policy checks use case-insensitive matching (`LOWER(invited_email)`), resolving login access issues for collaborators with casing discrepancies.
-  * **Ownership Protection Sync:** Enforces strict owner IDs so collaborator sync operations cannot overwrite project ownership metadata.
+  * **Ownership Protection & New Project Sync:** Enforces strict owner IDs on creation (`ownerId: user?.id`) so newly created projects and files save to Supabase instantly and persist across page refreshes.
   * **Smart Auto-Incrementing Titles:** Suggests next available default file titles (e.g., `Draft 1` ➔ `Draft 2`, `shotList` ➔ `shotList 2`) based on existing files in the project.
 * **High-Performance PDF Export:**
   * Switched from heavy, blocking `html2pdf.js` libraries to the browser's native vector print engine (`window.print()`) in an isolated print window. Exports are instant, producing searchable vector PDFs without blocking the editor UI thread.
@@ -41,4 +41,16 @@ A professional, feature-rich web-based screenplay workspace designed for screenw
 
 ## 📝 Screenplay Layout Guide
 
-Standard screenplay formatting relies on specific indents. Pressing **Tab** or **Enter** cycles 
+Standard screenplay formatting relies on specific indents. Pressing **Tab** or **Enter** cycles through elements naturally.
+
+```text
+                                 [ SCENE HEADING ]
+            
+            This is an action block. It stretches across the full width
+            of the page margins.
+            
+                                     CHARACTER
+                               (Parenthetical note)
+                          This is dialogue. It is centered
+                          with margins on both sides.
+```
