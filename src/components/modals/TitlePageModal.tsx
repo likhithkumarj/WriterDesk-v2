@@ -4,12 +4,27 @@ import { TitlePage } from "../../types/screenplay";
 export function TitlePageModal({
   initial, onClose, onSave,
 }: { initial?: TitlePage; onClose: () => void; onSave: (tp: TitlePage) => void }) {
+  const getDefaultAuthor = () => {
+    try {
+      const raw = localStorage.getItem("writerdesk_user");
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u.name && u.name.trim()) return u.name.trim();
+        if (u.email) {
+          const p = u.email.split("@")[0];
+          return p.charAt(0).toUpperCase() + p.slice(1);
+        }
+      }
+    } catch (e) {}
+    return "Writer";
+  };
+
   const [tp, setTp] = useState<TitlePage>({
     title: initial?.title || "",
     credit: initial?.credit || "Written by",
-    author: initial?.author || "",
+    author: (initial?.author && initial.author.trim()) || getDefaultAuthor(),
     source: initial?.source || "",
-    draftDate: initial?.draftDate || new Date().toLocaleDateString(),
+    draftDate: initial?.draftDate || `Draft 1 · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
     contact: initial?.contact || "",
   });
   const f = (k: keyof TitlePage) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>

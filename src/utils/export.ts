@@ -107,13 +107,39 @@ export interface MeasuredPageData {
   }[];
 }
 
+function getDefaultAuthorName(fallback?: string): string {
+  if (fallback && fallback.trim()) return fallback.trim();
+  try {
+    const rawUser = localStorage.getItem("writerdesk_user");
+    if (rawUser) {
+      const u = JSON.parse(rawUser);
+      if (u.name && u.name.trim()) return u.name.trim();
+      if (u.email) {
+        const p = u.email.split("@")[0];
+        return p.charAt(0).toUpperCase() + p.slice(1);
+      }
+    }
+  } catch (e) {}
+  return "Writer";
+}
+
 export function getMeasuredPages(project: Project, files: FileDoc[], combined: boolean): MeasuredPageData[] {
   const filesToPrint = combined ? files : [files[0]];
   const allFilePages: MeasuredPageData[] = [];
 
   filesToPrint.forEach((f) => {
-    const tp = f.titlePage;
-    const hasTitlePage = !!(tp?.title && tp.title.trim());
+    const rawTp = f.titlePage;
+    const tpTitle = (rawTp?.title && rawTp.title.trim()) || project.title || f.title || "UNTITLED PROJECT";
+    const authorName = (rawTp?.author && rawTp.author.trim()) || getDefaultAuthorName();
+    const tp: TitlePage = {
+      title: tpTitle.toUpperCase(),
+      credit: (rawTp?.credit && rawTp.credit.trim()) || "written by",
+      author: authorName,
+      source: rawTp?.source || "",
+      draftDate: rawTp?.draftDate || `Draft 1 · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+      contact: rawTp?.contact || "",
+    };
+    const hasTitlePage = true;
 
     const measureDiv = document.createElement("div");
     measureDiv.className = "sp-print-container";
@@ -305,7 +331,7 @@ export function buildPagesHtml(project: Project, files: FileDoc[], combined: boo
       const pageNum = pi + 1;
       pagesHtml += `
         <div class="sp-print-page">
-          ${pageNum > 1 ? `<div class="sp-print-page-number">${pageNum}.</div>` : ""}
+          <div class="sp-print-page-number">${pageNum}.</div>
           <div class="sp-print-page-content">
             ${page.blocks.map((b) => {
         let blockHtml = `<div class="sp-print-block" data-type="${b.type}">${b.text}</div>`;
@@ -348,7 +374,7 @@ export function exportPDF(project: Project, files: FileDoc[], combined: boolean)
       const tp = fileData.titlePage;
       doc.setFont("courier", "bold");
       doc.setFontSize(20);
-      doc.text(tp.title.toUpperCase(), pageWidth / 2, 280, { align: "center" });
+      doc.text((tp.title || project.title || "UNTITLED PROJECT").toUpperCase(), pageWidth / 2, 280, { align: "center" });
 
       doc.setFont("courier", "normal");
       doc.setFontSize(11);
@@ -381,11 +407,9 @@ export function exportPDF(project: Project, files: FileDoc[], combined: boolean)
       isFirstPageInDoc = false;
 
       const pageNum = pageIdx + 1;
-      if (pageNum > 1) {
-        doc.setFont("courier", "normal");
-        doc.setFontSize(10);
-        doc.text(`${pageNum}.`, pageWidth - marginRight, 36, { align: "right" });
-      }
+      doc.setFont("courier", "normal");
+      doc.setFontSize(10);
+      doc.text(`${pageNum}.`, pageWidth - marginRight, 36, { align: "right" });
 
       let y = marginTop;
 

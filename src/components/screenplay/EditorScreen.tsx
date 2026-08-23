@@ -524,7 +524,7 @@ export function EditorScreen({
   // DOM to Blocks parser: runs on native user text inputs
   const handleContentInput = (immediate: boolean | React.FormEvent<HTMLDivElement> = false) => {
     if (!editorRef.current) return;
-    
+
     lastTypingTimeRef.current = Date.now();
 
     const isImmediate = immediate === true;
@@ -870,6 +870,11 @@ export function EditorScreen({
       el.removeAttribute("data-split-contd");
       el.style.marginTop = "";
     });
+
+    // Assign Page 1 indicator
+    if (children[0]) {
+      children[0].setAttribute("data-page-start", "1");
+    }
 
     const maxHeight = 978; // A4 height content area (~54 lines matching PDF export)
     let currentHeight = 0;
@@ -1465,6 +1470,16 @@ export function EditorScreen({
               style={{ padding: 8, color: "var(--sp-muted)" }}
             >
               <Save size={14} />
+            </button>
+
+            {/* Title Page button */}
+            <button
+              className="sp-btn sp-btn-ghost"
+              onClick={() => setShowTitlePage(true)}
+              title="Edit Title Page details"
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", border: "1px solid var(--sp-border)", color: "var(--sp-text)" }}
+            >
+              <FileText size={14} /> Title Page
             </button>
 
             {/* Download button */}
@@ -2357,11 +2372,18 @@ export function EditorScreen({
 
       {/* Renders all Modals */}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      {showExport && <ExportModal project={project} defaultFileId={activeFileId} onClose={() => setShowExport(false)} />}
+      {showExport && <ExportModal project={{ ...project, files: project.files.map((f) => f.id === activeFile.id ? activeFile : f) }} defaultFileId={activeFileId} onClose={() => setShowExport(false)} />}
       {showShare && <ShareModal projectId={project.id} projectTitle={project.title} onClose={() => setShowShare(false)} />}
       {showTitlePage && (
         <TitlePageModal
-          initial={activeFile.titlePage}
+          initial={activeFile.titlePage || {
+            title: (project.title || activeFile.title || "UNTITLED PROJECT").toUpperCase(),
+            credit: "written by",
+            author: user?.name || "Writer",
+            source: "",
+            draftDate: `Draft 1 · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+            contact: user?.email || "",
+          }}
           onClose={() => setShowTitlePage(false)}
           onSave={(tp) => { persistFile({ ...activeFile, titlePage: tp, dateModified: Date.now() }); setShowTitlePage(false); }}
         />

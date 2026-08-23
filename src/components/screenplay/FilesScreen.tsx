@@ -764,6 +764,7 @@ export function FilesScreen({
     const title = newFileTitle.trim();
     let newFile: FileDoc;
     if (newFileType === "script") {
+      const scriptIndex = localProject.files.filter(f => !f.type || f.type === "script").length + 1;
       newFile = {
         id: uid(),
         title,
@@ -772,6 +773,14 @@ export function FilesScreen({
         status: "Draft",
         wordCount: 0,
         blocks: [{ id: uid(), type: "scene", text: "INT. NEW LOCATION - DAY" }],
+        titlePage: {
+          title: (localProject.title || title).toUpperCase(),
+          credit: "written by",
+          author: user?.name || "Writer",
+          source: "",
+          draftDate: `Draft ${scriptIndex} · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+          contact: user?.email || "",
+        },
       };
     } else if (newFileType === "idea") {
       newFile = {
