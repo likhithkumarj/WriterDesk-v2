@@ -871,7 +871,7 @@ export function EditorScreen({
       el.style.marginTop = "";
     });
 
-    const maxHeight = 931; // A4 height content area: 1123px - (96px padding top + 96px padding bottom) = 931px
+    const maxHeight = 978; // A4 height content area (~54 lines matching PDF export)
     let currentHeight = 0;
     let pageCount = 1;
 
@@ -882,9 +882,9 @@ export function EditorScreen({
 
       let marginTop = 0;
       if (!isPageStart) {
-        if (type === "scene") marginTop = 24;
-        else if (type === "action") marginTop = 12;
-        else if (type === "character") marginTop = 16;
+        if (type === "scene") marginTop = 18;
+        else if (type === "action") marginTop = 9;
+        else if (type === "character") marginTop = 13;
       }
 
       const h = el.offsetHeight + marginTop;
@@ -897,16 +897,16 @@ export function EditorScreen({
         if (nextEl) {
           const nextType = nextEl.getAttribute("data-type") || "action";
           let nextMargin = 0;
-          if (nextType === "scene") nextMargin = 24;
-          else if (nextType === "action") nextMargin = 12;
-          else if (nextType === "character") nextMargin = 16;
+          if (nextType === "scene") nextMargin = 18;
+          else if (nextType === "action") nextMargin = 9;
+          else if (nextType === "character") nextMargin = 13;
 
           if (nextType === "parenthetical" && afterNextEl) {
             const afterNextType = afterNextEl.getAttribute("data-type") || "action";
             let afterNextMargin = 0;
-            if (afterNextType === "scene") afterNextMargin = 24;
-            else if (afterNextType === "action") afterNextMargin = 12;
-            else if (afterNextType === "character") afterNextMargin = 16;
+            if (afterNextType === "scene") afterNextMargin = 18;
+            else if (afterNextType === "action") afterNextMargin = 9;
+            else if (afterNextType === "character") afterNextMargin = 13;
 
             neededHeight += (nextEl.offsetHeight + nextMargin) + (afterNextEl.offsetHeight + afterNextMargin);
           } else {
@@ -921,9 +921,9 @@ export function EditorScreen({
         if (nextEl) {
           const nextType = nextEl.getAttribute("data-type") || "action";
           let nextMargin = 0;
-          if (nextType === "scene") nextMargin = 24;
-          else if (nextType === "action") nextMargin = 12;
-          else if (nextType === "character") nextMargin = 16;
+          if (nextType === "scene") nextMargin = 18;
+          else if (nextType === "action") nextMargin = 9;
+          else if (nextType === "character") nextMargin = 13;
           neededHeight += (nextEl.offsetHeight + nextMargin);
         }
       }
@@ -934,16 +934,16 @@ export function EditorScreen({
         if (nextEl) {
           const nextType = nextEl.getAttribute("data-type") || "action";
           let nextMargin = 0;
-          if (nextType === "scene") nextMargin = 24;
-          else if (nextType === "action") nextMargin = 12;
-          else if (nextType === "character") nextMargin = 16;
+          if (nextType === "scene") nextMargin = 18;
+          else if (nextType === "action") nextMargin = 9;
+          else if (nextType === "character") nextMargin = 13;
           neededHeight += (nextEl.offsetHeight + nextMargin);
         }
       }
 
       // Compute breaks
       if (currentHeight + neededHeight > maxHeight) {
-        if (type === "dialogue" && currentHeight + 40 < maxHeight) {
+        if (type === "dialogue" && currentHeight + 36 < maxHeight) {
           // Dialogue splitting: append (MORE) at bottom, (CONT'D) at top of next page
           el.setAttribute("data-split-more", "true");
 
@@ -960,7 +960,7 @@ export function EditorScreen({
           if (nextEl) {
             nextEl.setAttribute("data-page-start", pageCount.toString());
             // Align next element with top of next page in repeating background grid
-            const marginOffset = 1123 - (currentHeight + h) + 40;
+            const marginOffset = 1143 - (currentHeight + h);
             nextEl.style.marginTop = `${marginOffset}px`;
             if (nextEl.getAttribute("data-type") === "dialogue") {
               nextEl.setAttribute("data-split-contd", charName);
@@ -971,7 +971,7 @@ export function EditorScreen({
           pageCount++;
           el.setAttribute("data-page-start", pageCount.toString());
           // Align this element with top of next page in repeating background grid
-          const marginOffset = 1123 - currentHeight + 40;
+          const marginOffset = 1143 - currentHeight;
           el.style.marginTop = `${marginOffset}px`;
           currentHeight = h;
         }

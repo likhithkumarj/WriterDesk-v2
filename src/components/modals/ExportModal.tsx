@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Project } from "../../types/screenplay";
-import { blocksToTxt, blocksToFountain, download, printPDF } from "../../utils/export";
+import { blocksToTxt, blocksToFountain, download, exportPDF } from "../../utils/export";
 
 export function ExportModal({ project, defaultFileId, onClose }: { project: Project; defaultFileId: string | null; onClose: () => void }) {
   const [mode, setMode] = useState<"individual" | "combined">(defaultFileId ? "individual" : "combined");
@@ -16,8 +16,7 @@ export function ExportModal({ project, defaultFileId, onClose }: { project: Proj
     if (!targets.length) return;
 
     if (format === "pdf") {
-      // for PDF, use print on a temporary window with the combined or single content
-      printPDF(project, targets, mode === "combined");
+      exportPDF(project, targets, mode === "combined");
       onClose();
       return;
     }

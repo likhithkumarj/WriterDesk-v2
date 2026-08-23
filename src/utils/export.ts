@@ -3,6 +3,7 @@ import { normalizeText } from "./formatting";
 import { paginate } from "./pagination";
 import { uid } from "./uid";
 import { GLOBAL_STYLE } from "../components/screenplay/GlobalStyles";
+import { jsPDF } from "jspdf";
 
 
 
@@ -24,21 +25,21 @@ export function blocksToTxt(blocks: Block[]): string {
 
 function htmlToFountain(html: string): string {
   let text = html;
-  
+
   // Convert bold
   text = text.replace(/<b[^>]*>(.*?)<\/b>/gi, "**$1**");
   text = text.replace(/<strong[^>]*>(.*?)<\/strong>/gi, "**$1**");
-  
+
   // Convert italic
   text = text.replace(/<i[^>]*>(.*?)<\/i>/gi, "*$1*");
   text = text.replace(/<em[^>]*>(.*?)<\/em>/gi, "*$1*");
-  
+
   // Convert underline
   text = text.replace(/<u[^>]*>(.*?)<\/u>/gi, "_$1_");
-  
+
   // Strip any other HTML tags
   text = text.replace(/<[^>]*>/g, "");
-  
+
   return text;
 }
 
@@ -61,8 +62,15 @@ export function download(name: string, content: string, mime = "text/plain") {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.href = url;
+  a.download = name;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 export function escapeHtml(s: string) {
@@ -85,17 +93,196 @@ export function renderTitlePageHtml(tp: TitlePage) {
   </div></div>`;
 }
 
-export function printPDF(project: Project, files: FileDoc[], combined: boolean) {
-  // 1. Build the HTML content for each file
+export interface MeasuredBlockData {
+  type: string;
+  text: string;
+  splitMore?: boolean;
+  splitContd?: string;
+}
+
+export interface MeasuredPageData {
+  titlePage?: TitlePage;
+  pages: {
+    blocks: MeasuredBlockData[];
+  }[];
+}
+
+export function getMeasuredPages(project: Project, files: FileDoc[], combined: boolean): MeasuredPageData[] {
   const filesToPrint = combined ? files : [files[0]];
-  
-  let pagesHtml = "";
+  const allFilePages: MeasuredPageData[] = [];
 
   filesToPrint.forEach((f) => {
-    // A. Render Title Page if configured
     const tp = f.titlePage;
     const hasTitlePage = !!(tp?.title && tp.title.trim());
-    if (hasTitlePage && tp) {
+
+    const measureDiv = document.createElement("div");
+    measureDiv.className = "sp-print-container";
+    measureDiv.style.width = "794px";
+    measureDiv.style.padding = "72px 72px 72px 108px";
+    measureDiv.style.boxSizing = "border-box";
+    measureDiv.style.position = "absolute";
+    measureDiv.style.left = "0";
+    measureDiv.style.top = "0";
+    measureDiv.style.zIndex = "-9999";
+    measureDiv.style.opacity = "0";
+    measureDiv.style.pointerEvents = "none";
+    measureDiv.style.background = "#ffffff";
+
+    measureDiv.innerHTML = `
+      <style>
+        .sp-print-block {
+          white-space: pre-wrap;
+          word-break: break-word;
+          margin-left: 0;
+          min-height: 1.15em;
+          padding: 0;
+          font-family: 'Courier Prime', 'Courier New', Courier, monospace !important;
+          font-size: 16px;
+          line-height: 1.15;
+        }
+        .sp-print-block[data-type="scene"]        { font-weight: 700; text-transform: uppercase; margin-top: 1.15em; }
+        .sp-print-block[data-type="action"]       { margin-left: 4ch !important; margin-top: 0.575em; }
+        .sp-print-block[data-type="character"]    { margin-left: 24ch !important; text-transform: uppercase; margin-top: 0.85em; }
+        .sp-print-block[data-type="parenthetical"]{ margin-left: 18ch !important; }
+        .sp-print-block[data-type="dialogue"]     { margin-left: 10ch !important; max-width: 35ch; }
+      </style>
+    `;
+    document.body.appendChild(measureDiv);
+
+    let endIdx = f.blocks.length - 1;
+    while (endIdx >= 0 && (!f.blocks[endIdx].text || !f.blocks[endIdx].text.trim())) {
+      endIdx--;
+    }
+    const activeBlocks = f.blocks.slice(0, endIdx + 1);
+
+    activeBlocks.forEach((b) => {
+      const el = document.createElement("div");
+      el.className = "sp-print-block";
+      el.setAttribute("data-type", b.type || "action");
+      el.innerHTML = b.text || "<br>";
+      measureDiv.appendChild(el);
+    });
+
+    const blockEls = Array.from(measureDiv.querySelectorAll(".sp-print-block")) as HTMLElement[];
+    const maxHeight = 978; // Extended content area for full A4 page fill (~54 lines)
+    let currentHeight = 0;
+    const pageGroupings: HTMLElement[][] = [[]];
+
+    for (let i = 0; i < blockEls.length; i++) {
+      const el = blockEls[i];
+      const type = el.getAttribute("data-type") || "action";
+
+      let marginTop = 0;
+      if (type === "scene") marginTop = 18;
+      else if (type === "action") marginTop = 9;
+      else if (type === "character") marginTop = 13;
+
+      const h = el.offsetHeight + marginTop;
+      let neededHeight = h;
+
+      if (type === "character") {
+        const nextEl = blockEls[i + 1];
+        const afterNextEl = blockEls[i + 2];
+        if (nextEl) {
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 18;
+          else if (nextType === "action") nextMargin = 9;
+          else if (nextType === "character") nextMargin = 13;
+
+          if (nextType === "parenthetical" && afterNextEl) {
+            const afterNextType = afterNextEl.getAttribute("data-type") || "action";
+            let afterNextMargin = 0;
+            if (afterNextType === "scene") afterNextMargin = 18;
+            else if (afterNextType === "action") afterNextMargin = 9;
+            else if (afterNextType === "character") afterNextMargin = 13;
+
+            neededHeight += (nextEl.offsetHeight + nextMargin) + (afterNextEl.offsetHeight + afterNextMargin);
+          } else {
+            neededHeight += (nextEl.offsetHeight + nextMargin);
+          }
+        }
+      }
+      if (type === "parenthetical") {
+        const nextEl = blockEls[i + 1];
+        if (nextEl) {
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 18;
+          else if (nextType === "action") nextMargin = 9;
+          else if (nextType === "character") nextMargin = 13;
+          neededHeight += (nextEl.offsetHeight + nextMargin);
+        }
+      }
+      if (type === "scene") {
+        const nextEl = blockEls[i + 1];
+        if (nextEl) {
+          const nextType = nextEl.getAttribute("data-type") || "action";
+          let nextMargin = 0;
+          if (nextType === "scene") nextMargin = 18;
+          else if (nextType === "action") nextMargin = 9;
+          else if (nextType === "character") nextMargin = 13;
+          neededHeight += (nextEl.offsetHeight + nextMargin);
+        }
+      }
+
+      if (currentHeight + neededHeight > maxHeight) {
+        if (type === "dialogue" && currentHeight + 36 < maxHeight) {
+          el.setAttribute("data-split-more", "true");
+
+          let charName = "CHARACTER";
+          for (let j = i - 1; j >= 0; j--) {
+            if (blockEls[j].getAttribute("data-type") === "character") {
+              charName = blockEls[j].textContent?.trim().replace(/\s*\(.*\)/g, "") || "CHARACTER";
+              break;
+            }
+          }
+
+          const nextEl = blockEls[i + 1];
+          if (nextEl && nextEl.getAttribute("data-type") === "dialogue") {
+            nextEl.setAttribute("data-split-contd", charName);
+          }
+
+          pageGroupings.push([el]);
+          currentHeight = 0;
+        } else {
+          pageGroupings.push([el]);
+          currentHeight = h;
+        }
+      } else {
+        pageGroupings[pageGroupings.length - 1].push(el);
+        currentHeight += h;
+      }
+    }
+
+    const validGroupings = pageGroupings.filter((group) => group.length > 0);
+    const parsedPages = validGroupings.map((group) => ({
+      blocks: group.map((el) => ({
+        type: el.getAttribute("data-type") || "action",
+        text: el.innerHTML,
+        splitMore: el.getAttribute("data-split-more") === "true",
+        splitContd: el.getAttribute("data-split-contd") || undefined,
+      }))
+    }));
+
+    allFilePages.push({
+      titlePage: hasTitlePage ? tp : undefined,
+      pages: parsedPages,
+    });
+
+    measureDiv.remove();
+  });
+
+  return allFilePages;
+}
+
+export function buildPagesHtml(project: Project, files: FileDoc[], combined: boolean): string {
+  const filePagesData = getMeasuredPages(project, files, combined);
+  let pagesHtml = "";
+
+  filePagesData.forEach((fileData) => {
+    if (fileData.titlePage) {
+      const tp = fileData.titlePage;
       pagesHtml += `
         <div class="sp-print-tp">
           <div style="flex: 2.5;"></div>
@@ -114,180 +301,175 @@ export function printPDF(project: Project, files: FileDoc[], combined: boolean) 
       `;
     }
 
-    // B. Calculate screenplay pages dynamically using measured heights
-    const measureDiv = document.createElement("div");
-    measureDiv.className = "sp-print-container";
-    measureDiv.style.width = "794px";
-    measureDiv.style.padding = "72px 72px 72px 108px";
-    measureDiv.style.boxSizing = "border-box";
-    measureDiv.style.position = "absolute";
-    measureDiv.style.left = "0";
-    measureDiv.style.top = "0";
-    measureDiv.style.zIndex = "-9999";
-    measureDiv.style.opacity = "0";
-    measureDiv.style.pointerEvents = "none";
-    measureDiv.style.background = "#ffffff";
-    
-    // Inject stylesheet directly into measureDiv so offsetHeight works accurately
-    measureDiv.innerHTML = `
-      <style>
-        .sp-print-block {
-          white-space: pre-wrap;
-          word-break: break-word;
-          margin-left: 0;
-          min-height: 1.5em;
-          padding: 2px 0;
-          font-family: 'Courier Prime', 'Courier New', Courier, monospace !important;
-          font-size: 16px;
-          line-height: 1.25;
-        }
-        .sp-print-block[data-type="scene"]        { font-weight: 700; text-transform: uppercase; margin-top: 1.5em; }
-        .sp-print-block[data-type="action"]       { margin-left: 4ch !important; margin-top: 0.75em; }
-        .sp-print-block[data-type="character"]    { margin-left: 24ch !important; text-transform: uppercase; margin-top: 1em; }
-        .sp-print-block[data-type="parenthetical"]{ margin-left: 18ch !important; }
-        .sp-print-block[data-type="dialogue"]     { margin-left: 10ch !important; max-width: 35ch; }
-      </style>
-    `;
-    document.body.appendChild(measureDiv);
-
-    // Filter empty trailing blocks
-    let endIdx = f.blocks.length - 1;
-    while (endIdx >= 0 && (!f.blocks[endIdx].text || !f.blocks[endIdx].text.trim())) {
-      endIdx--;
-    }
-    const activeBlocks = f.blocks.slice(0, endIdx + 1);
-
-    activeBlocks.forEach((b) => {
-      const el = document.createElement("div");
-      el.className = "sp-print-block";
-      el.setAttribute("data-type", b.type || "action");
-      el.innerHTML = b.text || "<br>";
-      measureDiv.appendChild(el);
-    });
-
-    const blockEls = Array.from(measureDiv.querySelectorAll(".sp-print-block")) as HTMLElement[];
-    const maxHeight = 931; // A4 height content area: 1123px - (96px padding top + 96px padding bottom) = 931px
-    let currentHeight = 0;
-    const pageGroupings: HTMLElement[][] = [[]];
-
-    for (let i = 0; i < blockEls.length; i++) {
-      const el = blockEls[i];
-      const type = el.getAttribute("data-type") || "action";
-      
-      let marginTop = 0;
-      if (type === "scene") marginTop = 24;
-      else if (type === "action") marginTop = 12;
-      else if (type === "character") marginTop = 16;
-      
-      const h = el.offsetHeight + marginTop;
-      let neededHeight = h;
-
-      // Protection rules
-      if (type === "character") {
-        const nextEl = blockEls[i + 1];
-        const afterNextEl = blockEls[i + 2];
-        if (nextEl) {
-          const nextType = nextEl.getAttribute("data-type") || "action";
-          let nextMargin = 0;
-          if (nextType === "scene") nextMargin = 24;
-          else if (nextType === "action") nextMargin = 12;
-          else if (nextType === "character") nextMargin = 16;
-
-          if (nextType === "parenthetical" && afterNextEl) {
-            const afterNextType = afterNextEl.getAttribute("data-type") || "action";
-            let afterNextMargin = 0;
-            if (afterNextType === "scene") afterNextMargin = 24;
-            else if (afterNextType === "action") afterNextMargin = 12;
-            else if (afterNextType === "character") afterNextMargin = 16;
-
-            neededHeight += (nextEl.offsetHeight + nextMargin) + (afterNextEl.offsetHeight + afterNextMargin);
-          } else {
-            neededHeight += (nextEl.offsetHeight + nextMargin);
-          }
-        }
-      }
-      if (type === "parenthetical") {
-        const nextEl = blockEls[i + 1];
-        if (nextEl) {
-          const nextType = nextEl.getAttribute("data-type") || "action";
-          let nextMargin = 0;
-          if (nextType === "scene") nextMargin = 24;
-          else if (nextType === "action") nextMargin = 12;
-          else if (nextType === "character") nextMargin = 16;
-          neededHeight += (nextEl.offsetHeight + nextMargin);
-        }
-      }
-      if (type === "scene") {
-        const nextEl = blockEls[i + 1];
-        if (nextEl) {
-          const nextType = nextEl.getAttribute("data-type") || "action";
-          let nextMargin = 0;
-          if (nextType === "scene") nextMargin = 24;
-          else if (nextType === "action") nextMargin = 12;
-          else if (nextType === "character") nextMargin = 16;
-          neededHeight += (nextEl.offsetHeight + nextMargin);
-        }
-      }
-
-      if (currentHeight + neededHeight > maxHeight) {
-        if (type === "dialogue" && currentHeight + 40 < maxHeight) {
-          // split dialogue
-          el.setAttribute("data-split-more", "true");
-          
-          let charName = "CHARACTER";
-          for (let j = i - 1; j >= 0; j--) {
-            if (blockEls[j].getAttribute("data-type") === "character") {
-              charName = blockEls[j].textContent?.trim().replace(/\s*\(.*\)/g, "") || "CHARACTER";
-              break;
-            }
-          }
-
-          const nextEl = blockEls[i + 1];
-          if (nextEl && nextEl.getAttribute("data-type") === "dialogue") {
-            nextEl.setAttribute("data-split-contd", charName);
-          }
-
-          pageGroupings.push([el]);
-          currentHeight = 0; // Dialogue split, next block starts fresh on the next page
-        } else {
-          pageGroupings.push([el]);
-          currentHeight = h;
-        }
-      } else {
-        pageGroupings[pageGroupings.length - 1].push(el);
-        currentHeight += h;
-      }
-    }
-
-    // Now build pages HTML
-    const validGroupings = pageGroupings.filter((group) => group.length > 0);
-    validGroupings.forEach((group, pi) => {
+    fileData.pages.forEach((page, pi) => {
       const pageNum = pi + 1;
       pagesHtml += `
         <div class="sp-print-page">
           ${pageNum > 1 ? `<div class="sp-print-page-number">${pageNum}.</div>` : ""}
           <div class="sp-print-page-content">
-            ${group.map((el) => {
-              const type = el.getAttribute("data-type") || "action";
-              const splitMore = el.getAttribute("data-split-more");
-              const splitContd = el.getAttribute("data-split-contd");
-              
-              let blockHtml = `<div class="sp-print-block" data-type="${type}">${el.innerHTML}</div>`;
-              if (splitMore) {
-                blockHtml += `<div class="sp-print-split-more">(MORE)</div>`;
-              }
-              if (splitContd) {
-                blockHtml = `<div class="sp-print-split-contd">${splitContd} (CONT'D)</div>` + blockHtml;
-              }
-              return blockHtml;
-            }).join("")}
+            ${page.blocks.map((b) => {
+        let blockHtml = `<div class="sp-print-block" data-type="${b.type}">${b.text}</div>`;
+        if (b.splitMore) {
+          blockHtml += `<div class="sp-print-split-more">(MORE)</div>`;
+        }
+        if (b.splitContd) {
+          blockHtml = `<div class="sp-print-split-contd">${b.splitContd} (CONT'D)</div>` + blockHtml;
+        }
+        return blockHtml;
+      }).join("")}
           </div>
         </div>
       `;
     });
-
-    measureDiv.remove();
   });
+
+  return pagesHtml;
+}
+
+export function exportPDF(project: Project, files: FileDoc[], combined: boolean) {
+  const filePagesData = getMeasuredPages(project, files, combined);
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const marginTop = 54; // Standard top margin
+  const marginLeft = 108; // 1.5 in binding margin
+  const marginRight = 72;
+  const contentWidth = pageWidth - marginLeft - marginRight; // 415.28 pt
+
+  let isFirstPageInDoc = true;
+
+  filePagesData.forEach((fileData) => {
+    // 1. Title Page
+    if (fileData.titlePage) {
+      if (!isFirstPageInDoc) doc.addPage();
+      isFirstPageInDoc = false;
+
+      const tp = fileData.titlePage;
+      doc.setFont("courier", "bold");
+      doc.setFontSize(20);
+      doc.text(tp.title.toUpperCase(), pageWidth / 2, 280, { align: "center" });
+
+      doc.setFont("courier", "normal");
+      doc.setFontSize(11);
+      if (tp.credit) doc.text(tp.credit, pageWidth / 2, 320, { align: "center" });
+
+      doc.setFont("courier", "bold");
+      if (tp.author) doc.text(tp.author, pageWidth / 2, 340, { align: "center" });
+
+      doc.setFont("courier", "normal");
+      if (tp.source) doc.text(tp.source, pageWidth / 2, 370, { align: "center" });
+
+      if (tp.contact || tp.draftDate) {
+        let footerY = pageHeight - 100;
+        if (tp.contact) {
+          const contactLines = tp.contact.split("\n");
+          contactLines.forEach((line) => {
+            doc.text(line, marginLeft, footerY);
+            footerY += 14;
+          });
+        }
+        if (tp.draftDate) {
+          doc.text(tp.draftDate, pageWidth - marginRight, pageHeight - 100, { align: "right" });
+        }
+      }
+    }
+
+    // 2. Screenplay Pages
+    fileData.pages.forEach((page, pageIdx) => {
+      if (!isFirstPageInDoc) doc.addPage();
+      isFirstPageInDoc = false;
+
+      const pageNum = pageIdx + 1;
+      if (pageNum > 1) {
+        doc.setFont("courier", "normal");
+        doc.setFontSize(10);
+        doc.text(`${pageNum}.`, pageWidth - marginRight, 36, { align: "right" });
+      }
+
+      let y = marginTop;
+
+      page.blocks.forEach((b) => {
+        const rawText = b.text.replace(/<[^>]*>/g, "").trim();
+        const type = b.type;
+
+        if (b.splitContd) {
+          doc.setFont("courier", "bold");
+          doc.setFontSize(10.5);
+          doc.text(`${b.splitContd} (CONT'D)`, marginLeft + 140, y);
+          y += 13;
+        }
+
+        if (!rawText) return;
+
+        const fontSize = 10.5;
+        const lineHeight = 13.5;
+
+        if (type === "scene") {
+          y += 13;
+          doc.setFont("courier", "bold");
+          doc.setFontSize(fontSize);
+          const lines = doc.splitTextToSize(rawText.toUpperCase(), contentWidth);
+          lines.forEach((line: string) => {
+            doc.text(line, marginLeft, y);
+            y += lineHeight;
+          });
+        } else if (type === "action") {
+          y += 6;
+          doc.setFont("courier", "normal");
+          doc.setFontSize(fontSize);
+          const lines = doc.splitTextToSize(rawText, contentWidth);
+          lines.forEach((line: string) => {
+            doc.text(line, marginLeft, y);
+            y += lineHeight;
+          });
+        } else if (type === "character") {
+          y += 9;
+          doc.setFont("courier", "bold");
+          doc.setFontSize(fontSize);
+          const charX = marginLeft + 140;
+          const lines = doc.splitTextToSize(rawText.toUpperCase(), 220);
+          lines.forEach((line: string) => {
+            doc.text(line, charX, y);
+            y += lineHeight;
+          });
+        } else if (type === "parenthetical") {
+          doc.setFont("courier", "normal");
+          doc.setFontSize(fontSize);
+          const parenX = marginLeft + 100;
+          const formatted = rawText.startsWith("(") ? rawText : `(${rawText})`;
+          const lines = doc.splitTextToSize(formatted, 200);
+          lines.forEach((line: string) => {
+            doc.text(line, parenX, y);
+            y += lineHeight;
+          });
+        } else if (type === "dialogue") {
+          doc.setFont("courier", "normal");
+          doc.setFontSize(fontSize);
+          const dialX = marginLeft + 60;
+          const lines = doc.splitTextToSize(rawText, 240);
+          lines.forEach((line: string) => {
+            doc.text(line, dialX, y);
+            y += lineHeight;
+          });
+        }
+
+        if (b.splitMore) {
+          doc.setFont("courier", "bold");
+          doc.setFontSize(10.5);
+          doc.text("(MORE)", marginLeft + 140, y + 3);
+        }
+      });
+    });
+  });
+
+  const targets = combined ? files : [files[0]];
+  const docTitle = targets[0]?.title || project.title || "script";
+  doc.save(`${docTitle}.pdf`);
+}
+
+export function printPDF(project: Project, files: FileDoc[], combined: boolean) {
+  const pagesHtml = buildPagesHtml(project, files, combined);
 
   const w = window.open("", "_blank", "width=850,height=1100");
   if (!w) {
