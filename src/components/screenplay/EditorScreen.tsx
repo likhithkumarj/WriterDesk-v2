@@ -4,7 +4,7 @@ import { Block, BlockType, FileDoc, Project } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { normalizeText, nextTypeOnEnter, TYPE_ORDER } from "../../utils/formatting";
 import { sceneSuggestions, characterSuggestions } from "../../utils/suggestions";
-import { paginate } from "../../utils/pagination";
+import { paginate, calculateScriptPages } from "../../utils/pagination";
 import { computeStats } from "../../utils/stats";
 import { editorReducer } from "../../hooks/useEditorReducer";
 import { parseFountain } from "../../utils/import";
@@ -1774,7 +1774,7 @@ export function EditorScreen({
                         {getFileIcon(f.type || "script")}
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>{f.title}</span>
                       </div>
-                      <span className="sp-file-page-badge">{f.blocks ? Math.max(1, Math.ceil(f.blocks.length / 22)) : 1} pp</span>
+                      <span className="sp-file-page-badge">{calculateScriptPages(f.blocks || [], !!(f.titlePage?.title && f.titlePage.title.trim()))} pp</span>
                     </button>
                   ))}
                 </div>

@@ -132,41 +132,43 @@ body {
 .sp-block[data-page-start]::before {
   content: attr(data-page-start) ".";
   position: absolute;
-  top: -36px;
-  width: 794px !important;
+  top: -60px;
+  left: 0;
+  width: 100%;
   text-align: right;
-  padding-right: 72px;
   box-sizing: border-box;
   font-family: 'Courier Prime', 'Courier New', Courier, monospace !important;
   font-size: 16px;
+  font-weight: 400;
   color: #000000;
   pointer-events: none;
-  z-index: 10;
+  z-index: 20;
+  line-height: 1;
 }
 .sp-block[data-page-start]::after {
   display: none !important;
 }
 
-/* Offset left positions for visual page gap and page number depending on block type indentation */
-.sp-block[data-page-start][data-type="scene"]::after,
+/* Offset left positions for block types so width spans full editor canvas */
 .sp-block[data-page-start][data-type="scene"]::before {
-  left: -102px !important;
+  left: 0 !important;
+  width: 100% !important;
 }
-.sp-block[data-page-start][data-type="action"]::after,
 .sp-block[data-page-start][data-type="action"]::before {
-  left: calc(-102px - 4ch) !important;
+  left: -4ch !important;
+  width: calc(100% + 4ch) !important;
 }
-.sp-block[data-page-start][data-type="character"]::after,
 .sp-block[data-page-start][data-type="character"]::before {
-  left: calc(-102px - 24ch) !important;
+  left: -24ch !important;
+  width: calc(100% + 24ch) !important;
 }
-.sp-block[data-page-start][data-type="parenthetical"]::after,
 .sp-block[data-page-start][data-type="parenthetical"]::before {
-  left: calc(-102px - 18ch) !important;
+  left: -18ch !important;
+  width: calc(100% + 18ch) !important;
 }
-.sp-block[data-page-start][data-type="dialogue"]::after,
 .sp-block[data-page-start][data-type="dialogue"]::before {
-  left: calc(-102px - 10ch) !important;
+  left: -10ch !important;
+  width: calc(100% + 10ch) !important;
 }
 
 /* Screenplay dialogue split annotations (MORE) / (CONT'D) */

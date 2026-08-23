@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Project, FileDoc, Shot } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { exportShotListCSV, exportShotListPDF } from "../../utils/export";
+import { calculateScriptPages } from "../../utils/pagination";
 import { Avatar } from "../screenplay/Avatar";
 import { supabaseService } from "../../utils/supabaseService";
 import { supabase } from "../../utils/supabaseClient";
@@ -1204,7 +1205,7 @@ export function ShotListEditor({
                             {f.title}
                           </span>
                         </div>
-                        <span className="sp-file-page-badge">{f.blocks ? Math.max(1, Math.ceil(f.blocks.length / 22)) : 1} pp</span>
+                        <span className="sp-file-page-badge">{calculateScriptPages(f.blocks || [], !!(f.titlePage?.title && f.titlePage.title.trim()))} pp</span>
                       </button>
                     );
                   })}

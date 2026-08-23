@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Project, Store } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
+import { calculateScriptPages } from "../../utils/pagination";
 import { NewProjectModal } from "../modals/NewProjectModal";
 import { ShareModal } from "../modals/ShareModal";
 import { supabaseService } from "../../utils/supabaseService";
@@ -238,13 +239,8 @@ export function ProjectsScreen({
 
   const recentFiles = allFiles.slice(0, 3);
 
-  const getFilePages = (title: string, blocks: any[]) => {
-    if (title === "Act One Draft") return 24;
-    if (title === "Act Two Outline") return 31;
-    if (title === "Character Bible") return 12;
-    if (title === "Pilot Script v2") return 42;
-    if (title === "created by ben") return 1;
-    return Math.max(1, blocks ? Math.ceil(blocks.length / 5) : 1);
+  const getFilePages = (_title: string, blocks: any[]) => {
+    return calculateScriptPages(blocks || []);
   };
 
   const getFileFormattedDate = (dateMod: number) => {

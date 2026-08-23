@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Project, FileDoc } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { parseFountain } from "../../utils/import";
-import { paginate } from "../../utils/pagination";
+import { paginate, calculateScriptPages } from "../../utils/pagination";
 import { ExportModal } from "../modals/ExportModal";
 import {
   Folder, FileText, Users, Settings as SettingsIcon, LayoutGrid, Search,
@@ -652,7 +652,8 @@ export function FilesScreen({
   // Helper values to map data exactly to mockup visual design
   const getFilePages = (f: FileDoc) => {
     if (!f.type || f.type === "script") {
-      return Math.max(1, paginate(f.blocks || []).length);
+      const hasTitlePage = !!(f.titlePage?.title && f.titlePage.title.trim());
+      return calculateScriptPages(f.blocks || [], hasTitlePage);
     }
     if (f.type === "idea") {
       return Math.max(1, Math.ceil((f.content || "").length / 1500));
