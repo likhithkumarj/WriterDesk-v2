@@ -2376,16 +2376,15 @@ export function EditorScreen({
       {showShare && <ShareModal projectId={project.id} projectTitle={project.title} onClose={() => setShowShare(false)} />}
       {showTitlePage && (
         <TitlePageModal
-          initial={activeFile.titlePage || {
-            title: (project.title || activeFile.title || "UNTITLED PROJECT").toUpperCase(),
-            credit: "written by",
-            author: user?.name || "Writer",
-            source: "",
-            draftDate: `Draft 1 · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
-            contact: user?.email || "",
-          }}
+          initial={activeFile.titlePage}
+          defaultTitle={project.title || activeFile.title || "UNTITLED PROJECT"}
+          defaultAuthor={user?.name || ""}
+          defaultContact={user?.email || ""}
           onClose={() => setShowTitlePage(false)}
-          onSave={(tp) => { persistFile({ ...activeFile, titlePage: tp, dateModified: Date.now() }); setShowTitlePage(false); }}
+          onSave={(tp) => {
+            persistFile({ ...activeFile, titlePage: tp, dateModified: Date.now() });
+            setShowTitlePage(false);
+          }}
         />
       )}
 

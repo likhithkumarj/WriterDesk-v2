@@ -2,33 +2,50 @@ import React, { useState } from "react";
 import { TitlePage } from "../../types/screenplay";
 
 export function TitlePageModal({
-  initial, onClose, onSave,
-}: { initial?: TitlePage; onClose: () => void; onSave: (tp: TitlePage) => void }) {
-  const getDefaultAuthor = () => {
+  initial,
+  defaultTitle = "",
+  defaultAuthor = "",
+  defaultContact = "",
+  onClose,
+  onSave,
+}: {
+  initial?: TitlePage;
+  defaultTitle?: string;
+  defaultAuthor?: string;
+  defaultContact?: string;
+  onClose: () => void;
+  onSave: (tp: TitlePage) => void;
+}) {
+  const getStoredUser = () => {
     try {
       const raw = localStorage.getItem("writerdesk_user");
       if (raw) {
-        const u = JSON.parse(raw);
-        if (u.name && u.name.trim()) return u.name.trim();
-        if (u.email) {
-          const p = u.email.split("@")[0];
-          return p.charAt(0).toUpperCase() + p.slice(1);
-        }
+        return JSON.parse(raw);
       }
     } catch (e) {}
-    return "Writer";
+    return null;
   };
 
+  const storedUser = getStoredUser();
+
+  const resolvedTitle = (initial?.title && initial.title.trim()) || defaultTitle.trim() || "UNTITLED SCREENPLAY";
+  const resolvedAuthor = (initial?.author && initial.author.trim()) || defaultAuthor.trim() || storedUser?.name || (storedUser?.email ? storedUser.email.split("@")[0] : "Writer");
+  const resolvedContact = (initial?.contact && initial.contact.trim()) || defaultContact.trim() || storedUser?.email || "";
+  const resolvedCredit = (initial?.credit && initial.credit.trim()) || "Written by";
+  const resolvedDraftDate = (initial?.draftDate && initial.draftDate.trim()) || `Draft 1 · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+
   const [tp, setTp] = useState<TitlePage>({
-    title: initial?.title || "",
-    credit: initial?.credit || "Written by",
-    author: (initial?.author && initial.author.trim()) || getDefaultAuthor(),
+    title: resolvedTitle.toUpperCase(),
+    credit: resolvedCredit,
+    author: resolvedAuthor,
     source: initial?.source || "",
-    draftDate: initial?.draftDate || `Draft 1 · ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
-    contact: initial?.contact || "",
+    draftDate: resolvedDraftDate,
+    contact: resolvedContact,
   });
+
   const f = (k: keyof TitlePage) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setTp({ ...tp, [k]: e.target.value });
+
   return (
     <div className="sp-modal-backdrop" onClick={onClose}>
       <div className="sp-modal" onClick={(e) => e.stopPropagation()}>
