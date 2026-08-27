@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Block, BlockType, FileDoc, Project } from "../../types/screenplay";
+import { Block, BlockType, FileDoc, Project, Suggestion } from "../../types/screenplay";
 import { uid } from "../../utils/uid";
 import { normalizeText, nextTypeOnEnter, TYPE_ORDER } from "../../utils/formatting";
 import { sceneSuggestions, characterSuggestions } from "../../utils/suggestions";
@@ -508,6 +508,91 @@ export function EditorScreen({
     dispatch({ type: "redo" });
   };
 
+  const [sugList, setSugList] = useState<Suggestion[]>([]);
+  const [sugIdx, setSugIdx] = useState(0);
+  const [sugPos, setSugPos] = useState<{ top: number; left: number } | null>(null);
+  const [sugTargetEl, setSugTargetEl] = useState<HTMLElement | null>(null);
+
+  const characterNames = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      const b = blocks[i];
+      if (b.type !== "character") continue;
+      const plain = stripHtml(b.text);
+      const n = plain.replace(/\(.*?\)|\(.*?\)/g, "").trim().toUpperCase();
+      if (!n || seen.has(n)) continue;
+      seen.add(n); list.push(n);
+    }
+    return list;
+  }, [blocks]);
+
+  const updateSuggestions = useCallback(() => {
+    if (readOnly) {
+      setSugList([]);
+      setSugPos(null);
+      setSugTargetEl(null);
+      return;
+    }
+    const el = getSelectionBlock();
+    if (!el || !editorRef.current || !canvasRef.current) {
+      setSugList([]);
+      setSugPos(null);
+      setSugTargetEl(null);
+      return;
+    }
+    const type = (el.getAttribute("data-type") as BlockType) || "action";
+    const text = el.innerText || "";
+
+    let list: Suggestion[] = [];
+    if (type === "scene") {
+      list = sceneSuggestions(text);
+    } else if (type === "character") {
+      const known = characterNames.filter((n) => n !== text.toUpperCase().trim());
+      list = characterSuggestions(text, known);
+    }
+
+    if (list.length > 0) {
+      const rect = el.getBoundingClientRect();
+      const canvasRect = canvasRef.current.getBoundingClientRect();
+      const scrollTop = canvasRef.current.scrollTop;
+      const scrollLeft = canvasRef.current.scrollLeft;
+
+      setSugPos({
+        top: rect.bottom - canvasRect.top + scrollTop + 4,
+        left: rect.left - canvasRect.left + scrollLeft,
+      });
+      setSugList(list);
+      setSugIdx(0);
+      setSugTargetEl(el);
+    } else {
+      setSugList([]);
+      setSugPos(null);
+      setSugTargetEl(null);
+    }
+  }, [readOnly, characterNames]);
+
+  const acceptSuggestion = useCallback((index: number) => {
+    const s = sugList[index];
+    const el = sugTargetEl || getSelectionBlock();
+    if (!s || !el) return;
+
+    el.innerText = s.insert;
+
+    // Move caret to end of text
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+
+    handleContentInput(true);
+    setSugList([]);
+    setSugPos(null);
+    setSugTargetEl(null);
+  }, [sugList, sugTargetEl]);
+
   const handleSelectionUpdate = () => {
     const el = getSelectionBlock();
     if (el) {
@@ -517,6 +602,7 @@ export function EditorScreen({
         setFocusedId(id);
       }
     }
+    updateSuggestions();
   };
 
   const debouncedInputSync = useRef<NodeJS.Timeout | null>(null);
@@ -528,6 +614,9 @@ export function EditorScreen({
     lastTypingTimeRef.current = Date.now();
 
     const isImmediate = immediate === true;
+
+    // Trigger instant suggestions on input
+    updateSuggestions();
 
     const sync = () => {
       if (!editorRef.current) return;
@@ -603,6 +692,32 @@ export function EditorScreen({
     if (readOnly) {
       e.preventDefault();
       return;
+    }
+
+    // Intercept keyboard controls for suggestions dropdown
+    if (sugList.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSugIdx((prev) => (prev + 1) % sugList.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSugIdx((prev) => (prev - 1 + sugList.length) % sugList.length);
+        return;
+      }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+        e.preventDefault();
+        acceptSuggestion(sugIdx);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSugList([]);
+        setSugPos(null);
+        setSugTargetEl(null);
+        return;
+      }
     }
 
     const mod = e.ctrlKey || e.metaKey;
@@ -1137,25 +1252,7 @@ export function EditorScreen({
 
   const sceneNumberFor = (id: string) => scenes.find((s) => s.id === id)?.number;
 
-  const characterNames = useMemo(() => {
-    const seen = new Set<string>();
-    const list: string[] = [];
-    for (let i = blocks.length - 1; i >= 0; i--) {
-      const b = blocks[i];
-      if (b.type !== "character") continue;
-      const plain = stripHtml(b.text);
-      const n = plain.replace(/\(.*?\)|\(.*?\)/g, "").trim().toUpperCase();
-      if (!n || seen.has(n)) continue;
-      seen.add(n); list.push(n);
-    }
-    return list;
-  }, [blocks]);
 
-  const suggestionsFor = useCallback((b: Block) => {
-    if (b.type === "scene") return sceneSuggestions(b.text);
-    if (b.type === "character") return characterSuggestions(b.text, characterNames.filter((n) => n !== b.text.toUpperCase().trim()));
-    return [];
-  }, [characterNames]);
 
   const [showTitlePage, setShowTitlePage] = useState(false);
 
@@ -2148,7 +2245,68 @@ export function EditorScreen({
           )}
 
           {/* C. Physical sheet pagination canvas */}
-          <div ref={canvasRef} className="sp-canvas" style={{ flex: 1, overflowY: "auto", padding: isMobile ? "12px 6px 100px 6px" : "24px 0", ...({ "--page-scale": pageScale } as React.CSSProperties) }}>
+          <div
+            ref={canvasRef}
+            className="sp-canvas"
+            onScroll={() => updateSuggestions()}
+            style={{ flex: 1, overflowY: "auto", position: "relative", padding: isMobile ? "12px 6px 100px 6px" : "24px 0", ...({ "--page-scale": pageScale } as React.CSSProperties) }}
+          >
+            {/* Suggestions Dropdown for Scene / Character */}
+            {sugList.length > 0 && sugPos && (
+              <div
+                className="sp-suggest sp-no-print"
+                style={{
+                  position: "absolute",
+                  top: sugPos.top,
+                  left: sugPos.left,
+                  zIndex: 999,
+                  boxShadow: "0 12px 32px rgba(0, 0, 0, 0.6)",
+                  border: "1px solid var(--sp-border)",
+                  borderRadius: 10,
+                  background: "#18181c",
+                  minWidth: 240,
+                  maxWidth: 380,
+                  overflow: "hidden",
+                }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <div style={{ maxHeight: 220, overflowY: "auto", padding: 4 }}>
+                  {sugList.map((s, i) => (
+                    <div
+                      key={s.label + i}
+                      className="sp-suggest-item"
+                      data-active={i === sugIdx}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background: i === sugIdx ? "rgba(232, 184, 75, 0.2)" : "transparent",
+                        color: i === sugIdx ? "var(--sp-accent)" : "#efeff1",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        margin: "2px 0",
+                      }}
+                      onMouseEnter={() => setSugIdx(i)}
+                      onClick={() => acceptSuggestion(i)}
+                    >
+                      <span>{s.label}</span>
+                      {s.hint && (
+                        <span style={{ fontSize: 10, color: "var(--sp-muted)", textTransform: "uppercase" }}>
+                          {s.hint}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ padding: "6px 12px", fontSize: 10, color: "var(--sp-muted)", borderTop: "1px solid var(--sp-border)", background: "rgba(255, 255, 255, 0.02)" }}>
+                  ↑↓ navigate · Tab/Enter select · Esc close
+                </div>
+              </div>
+            )}
+
             <div className="sp-page-wrapper" style={{ margin: isMobile ? "8px auto 20px auto" : "0 auto 40px auto", width: isMobile ? "100%" : "794px", height: "auto" }}>
               <div
                 ref={editorRef}
