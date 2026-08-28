@@ -1,56 +1,131 @@
 # WriterDesk (v2.0)
 
-A professional, feature-rich web-based screenplay workspace designed for screenwriters, novelists, and storytellers. It allows creators to write scripts, manage multi-file projects, customize page styling, back up local workspaces, and engage with a community of writers—all within a beautiful, clean modern user interface.
+A professional, feature-rich web-based screenplay workspace designed for screenwriters, novelists, and storytellers. It allows creators to write scripts, manage multi-file projects, customize page styling, back up local workspaces, and collaborate in real-time—all within a beautiful, modern user interface.
 
 ---
 
 ## 🚀 Key Features
 
-* **Single-Text Screenplay Editor (Updated: July 2026):**
-  * **Visual Page Breaks (MS Word Style):** Renders repeating A4 pages (`794px x 1123px`) with drop-shadows and page spacing. Pages dynamically recalculate margins so elements push clean layout shifts.
-  * **Physical Screenplay Margins:** Conformed the editor and print styles to standard screenplay layouts using physical measurements: `25.4mm` (1 inch) top, bottom, and right margins; and `38.1mm` (1.5 inch) left binding margins.
-  * **Mobile Responsive Editor Layout:** Dedicated full-width mobile view with auto-adjusting margins (`margin: 158px auto 20px auto`) and percentage indents (`14%` character, `4%` dialogue) that eliminate cramped vertical line wrapping on mobile screens.
-  * **Native Copy-Pasting & Auto-Formatting:** Features smooth inline text pasting. Clipboard parser automatically detects standard colon dialog formatting (e.g. `CharacterName: Dialog Text`) and formats them into Character and Dialogue blocks.
-  * **Reliable Pagination:** Fixed page-cutting algorithms to account for element heights *plus* their CSS margin-top offsets (e.g., scene headings margins), resolving overlaps and page bleed.
-  * **Undo/Redo with Caret Memory:** Focuses precisely on editing blocks upon state undo.
-* **Glitch-Free Auto-Save Pipeline:**
-  * **Immediate Local Saves (0ms Delay):** Changes write to memory and `localStorage` instantly.
-  * **Sequential Background Sync Queue:** State changes are pushed to a single-flight background sync queue (`syncQueueRef`). Intermediate updates are collapsed, preventing parallel database sync requests and data race conditions.
-  * **Active Typing Protection Lock:** Implements a keystroke lock (`lastTypingTimeRef`). Real-time incoming database updates are ignored for 5 seconds after typing, preventing cursor jumps, state echo loops, and caret reverts.
-* **Interactive Document Planners:**
-  * *Shot List Editor:* Spreadsheet-style camera planner supporting Scene #, Shot #, Description, Camera Type, Angle, Movement, Lens, and Status. Supports responsive columns, automatic script scene generation, and CSV/PDF export.
-  * *Idea Editor:* Notion-style note editor supporting headings, lists, checklists, links, and tags.
-  * *Character Worksheet:* Structured profile cards and a comparison grid.
-* **Multi-File Workspace & Database Security:**
-  * **Case-Insensitive Collaborations:** SQL database policy checks use case-insensitive matching (`LOWER(invited_email)`), resolving login access issues for collaborators with casing discrepancies.
-  * **Ownership Protection & New Project Sync:** Enforces strict owner IDs on creation (`ownerId: user?.id`) so newly created projects and files save to Supabase instantly and persist across page refreshes.
-  * **Smart Auto-Incrementing Titles:** Suggests next available default file titles (e.g., `Draft 1` ➔ `Draft 2`, `shotList` ➔ `shotList 2`) based on existing files in the project.
-* **High-Performance PDF Export:**
-  * Switched from heavy, blocking `html2pdf.js` libraries to the browser's native vector print engine (`window.print()`) in an isolated print window. Exports are instant, producing searchable vector PDFs without blocking the editor UI thread.
+### 🎬 Screenplay Editor
+* **Continuous Visual Pagination (MS Word / Final Draft Style):** Repeating A4 sheet boundaries (`794px × 1123px`) with drop shadows, page gaps, and accurate pagination.
+* **Physical Screenplay Margins:** Conforms to industry-standard physical screenplay formatting:
+  * Left binding margin: `38.1mm` (1.5 inches)
+  * Right, top, and bottom margins: `25.4mm` (1.0 inch)
+* **Real-Time Autocomplete Dropdowns:**
+  * **Scene Headings:** Instant suggestions for prefixes (`INT.`, `EXT.`, `INT./EXT.`, `I/E.`, `EST.`) and times of day (`- DAY`, `- NIGHT`, `- MORNING`, `- EVENING`, `- CONTINUOUS`, `- LATER`, `- MOMENTS LATER`, `- DUSK`, `- DAWN`).
+  * **Character Names:** Suggests known characters from the script as you type for 1-key insertion.
+  * **Keyboard & Click Navigation:** Use <kbd>↓</kbd>/<kbd>↑</kbd> to cycle, <kbd>Tab</kbd> or <kbd>Enter</kbd> to insert, and <kbd>Esc</kbd> to dismiss.
+* **Smart Tab & Enter Transitions:** Pressing <kbd>Tab</kbd> cycles element types (`Scene` ➔ `Action` ➔ `Character` ➔ `Parenthetical` ➔ `Dialogue`). Pressing <kbd>Enter</kbd> predicts the logical next element (e.g. `Character` ➔ `Dialogue`, `Parenthetical` ➔ `Dialogue`).
+* **Page 1 Numbering & Badges:** Displays `1.` on Page 1 and subsequent page numbers on later pages, with synchronized page badges in the file tree and status bar.
+* **Mobile-Responsive Editor:** Responsive layout with auto-scaling and touch-friendly controls.
+
+---
+
+### 📄 Industry-Standard Title Page & Export Engine
+* **Automatic Title Page by Default:** Every project exports with an industry-standard cover page automatically pre-populated with:
+  * **Project Title** (bold & uppercase, vertically centered)
+  * **Credit** (`"Written by"`)
+  * **Author** (resolved from user profile or custom author)
+  * **Draft & Date** (`Draft 1 · <Date>`)
+  * **Contact Info** (email / phone)
+* **Title Page Customizer Modal:** One-click access from the top navbar to edit or update title page details at any time.
+* **Dual-Engine Exporting:**
+  * **Vector PDF (jsPDF Engine):** High-precision vector text output formatted in Courier Prime 12pt with exact margins.
+  * **Browser Print Preview (`window.print()`):** Clean, isolated print dialog for physical printing.
+  * **Fountain & Plain Text Export:** Export to standard `.fountain` or `.txt` formats.
+
+---
+
+### ⚡ Glitch-Free Auto-Save & Cloud Sync
+* **Immediate Local Saves (0ms Delay):** Changes persist instantly in browser storage (`localStorage`).
+* **Single-Flight Background Sync Queue:** State changes are collapsed and dispatched sequentially to Supabase, eliminating race conditions.
+* **Typing Protection Lock:** Real-time incoming database updates are locked while typing, preventing cursor jumps and caret resets.
+* **Full Undo / Redo:** Full history tracking with caret memory.
+
+---
+
+### 🗂️ Interactive Document Planners
+* **Shot List Editor:** Spreadsheet-style camera planner supporting Scene #, Shot #, Description, Camera Type, Angle, Movement, Lens, and Status with CSV & PDF export.
+* **Idea Editor:** Notion-style note editor supporting headings, checklists, links, and tags.
+* **Character Worksheet:** Structured character profiles and comparison grids.
+
+---
+
+## ⌨️ Screenplay Keyboard Shortcuts
+
+| Shortcut | Action |
+| :--- | :--- |
+| <kbd>Tab</kbd> | Cycle element type (Scene ➔ Action ➔ Character ➔ Parenthetical ➔ Dialogue) |
+| <kbd>Enter</kbd> | Create next predicted block |
+| <kbd>Ctrl</kbd> + <kbd>1</kbd>–<kbd>5</kbd> | Change block type directly (1: Scene, 2: Action, 3: Character, 4: Parenthetical, 5: Dialogue) |
+| <kbd>Ctrl</kbd> + <kbd>Z</kbd> | Undo |
+| <kbd>Ctrl</kbd> + <kbd>Y</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | Redo |
+| <kbd>Ctrl</kbd> + <kbd>S</kbd> | Save draft manually |
+| <kbd>Ctrl</kbd> + <kbd>B</kbd> | Toggle Scene Navigator sidebar |
+| <kbd>Ctrl</kbd> + <kbd>/</kbd> | Open Help & Shortcuts modal |
 
 ---
 
 ## 🛠️ Technology Stack
 
 * **Frontend:** React 19, TypeScript, TailwindCSS 4
-* **Build System:** Vite 7
-* **Database & Auth:** Supabase (real-time sync layer)
+* **Build Tool:** Vite 7
+* **PDF & Printing:** jsPDF, html2canvas, CSS Paged Media
 * **Icons:** Lucide React
+* **Backend & Auth:** Supabase (Real-time database, auth, and storage)
 
 ---
 
-## 📝 Screenplay Layout Guide
+## 🏁 Getting Started
 
-Standard screenplay formatting relies on specific indents. Pressing **Tab** or **Enter** cycles through elements naturally.
+### Prerequisites
+* **Node.js** (v18 or higher)
+* **npm** or **pnpm** / **yarn**
+
+### Installation
+
+```bash
+# Clone repository
+git clone https://github.com/likhithkumarj/WriterDesk-v2.git
+
+# Navigate into project directory
+cd WriterDesk-v2
+
+# Install dependencies
+npm install
+
+# Start local development server
+npm run dev
+```
+
+### Building for Production
+
+```bash
+# Type check and build bundle
+npm run build
+
+# Preview production build locally
+npm run preview
+```
+
+---
+
+## 📄 Screenplay Layout Guide
 
 ```text
-                                 [ SCENE HEADING ]
-            
-            This is an action block. It stretches across the full width
-            of the page margins.
-            
-                                     CHARACTER
-                               (Parenthetical note)
-                          This is dialogue. It is centered
-                          with margins on both sides.
+                             [ SCENE HEADING ]
+        
+        This is an action block. It stretches across the full width
+        of the page margins.
+        
+                                 CHARACTER
+                           (parenthetical note)
+                      This is dialogue. It is centered
+                      with margins on both sides.
 ```
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License.
